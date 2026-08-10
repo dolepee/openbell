@@ -1,0 +1,30 @@
+# Foundry
+cache/
+out/
+broadcast/
+
+# Application
+node_modules/
+.next/
+dist/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Private operator and submission material
+DEMO_SCRIPT.md
+demo-script.*
+*-demo-script.*
+recording-script.*
+judge-script.*
+SUBMISSION_CHECKLIST.md
+submission-checklist.*
+docs/*SUBMISSION*.md
+
+# OS/editor
+.DS_Store
+*.swp
