@@ -6,11 +6,18 @@
   "scripts": {
     "build": "npm run typecheck && forge build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:risk && npm run test:contracts",
+    "test": "npm run test:risk && npm run test:contracts && npm run test:deployment-verifier",
     "test:risk": "vitest run",
     "test:contracts": "forge test",
     "test:fork": "forge test --match-contract OpenBellReceivablesCanonicalUSDGForkTest -vvv",
-    "check": "forge fmt --check && npm run typecheck && npm test"
+    "test:deployment-verifier": "node --test scripts/testnet-fixture-deployment-verifier.test.mjs",
+    "deploy:fixture:testnet:dry-run": "forge script contracts/script/DeployFixtureTestnet.s.sol:DeployOpenBellFixtureTestnet --offline --chain 1952 --sender $OPENBELL_DEPLOYER",
+    "pree2e:fixture": "forge build --offline --quiet",
+    "e2e:fixture": "tsx agent/scripts/run-fixture.ts",
+    "web:export": "node web/scripts/export-fixture.mjs",
+    "web:check": "npm run web:export && node --test web/site.test.mjs",
+    "web:serve": "python3 -m http.server 4187 -d web",
+    "check": "forge fmt --check && npm run typecheck && npm test && npm run e2e:fixture && npm run web:check"
   },
   "dependencies": {
     "viem": "2.55.13",

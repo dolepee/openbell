@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "openbell-receivables-local-fixture-v1",
+  "disclosures": {
+    "localFixture": "LOCAL FIXTURE — NO REAL VALUE",
+    "recordedModel": "RECORDED AI FIXTURE — NO LIVE MODEL",
+    "networkTransaction": false,
+    "realValue": false,
+    "liveModel": false,
+    "independentlyVerified": false
+  },
+  "chain": {
+    "chainId": "1952",
+    "client": "self-spawned Anvil",
+    "explorerReceipts": false
+  },
+  "actors": {
+    "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "underwriter": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "supplier": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "payer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    "funder": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
+  },
+  "assertions": {
+    "typedDataDigestParityChecked": true,
+    "expectedSignersRecovered": true,
+    "rejectedPathZeroTokenMovement": true
+  },
+  "contracts": {
+    "fixtureSettlementToken": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "receivables": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "deploymentReceipts": {
+      "token": {
+        "transactionHash": "0xb6fdb91c03c6f9df1b109a3e390f4042a6669516d31312f1af1647178a1f281c",
+        "blockHash": "0xfc5c1ddc9033329847724f993d8ebbbdfbb5cd278dabd2cfe598e1384262a9e0",
+        "blockNumber": "1",
+        "gasUsed": "673359",
+        "status": "success",
+        "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      },
+      "receivables": {
+        "transactionHash": "0xe20f4e9c58b278975de8cc7cb90537a4d0866a00140364acec4287ed663773ab",
+        "blockHash": "0xa7adc18c8c59aa70c86a44d421e7f91601cb63f5691f0a01113a7a7444e19e39",
+        "blockNumber": "2",
+        "gasUsed": "2936662",
+        "status": "success",
+        "contractAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+      }
+    }
+  },
+  "fixtureFunding": {
+    "funderClaim": {
+      "transactionHash": "0xa0feecab61959259dd08b2e6553a7150f34a0ce6aaf6dcc8f9468b11c8529ba8",
+      "blockHash": "0x50b3ad5a7fac9115de1a47b45890201f650e28a356f56b3e58ac1673c20289e2",
+      "blockNumber": "3",
+      "gasUsed": "89997",
+      "status": "success",
+      "event": {
+        "name": "Transfer",
+        "args": {
+          "from": "0x0000000000000000000000000000000000000000",
+          "to": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+          "value": "1000000000"
+        }
+      }
+    },
+    "payerClaim": {
+      "transactionHash": "0xac50c6a4431ac4642eecdcff3d0e777a9eff138824ef30127bf61f526a0c1f3e",
+      "blockHash": "0x4b627cb7a1ea4757a995f8398c943b972aab85c1fabc98329294050a37058824",
+      "blockNumber": "4",
+      "gasUsed": "72897",
+      "status": "success",
+      "event": {
+        "name": "Transfer",
+        "args": {
+          "from": "0x0000000000000000000000000000000000000000",
+          "to": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+          "value": "1000000000"
+        }
+      }
+    }
+  },
+  "rejectedJourney": {
+    "invoiceId": "0x218da2915ab11fa16ed6aa92526d44c9b4697e9dec46b31f6e6b3f9662afa05b",
+    "invoiceDigest": "0x4910d80ab4d44ff057903f6a093cf68c705885569a1cacc13ba8d23a5cdc2356",
+    "requestedAdvance": "75000000",
+    "modelDecision": {
+      "verdict": "REJECT",
+      "maximumAdvanceBps": "0",
+      "feeBps": "0",
+      "confidenceBps": "9400",
+      "reasons": [
+        "PRIOR_DEFAULT"
+      ],
+      "explanation": "A recorded prior default is outside the fixture underwriting appetite."
+    },
+    "riskReasonsHash": "0x5210fb580a01fe1fe9230ec1d55541e055f1b30dc53d1b35d6b94a98aff23132",
+    "modelHash": "0x1bd4ef2bad33f7580785185956709d1fce542450563e389422e713515a584b11",
+    "rejectionDigest": "0x70f77750bedc4426cee6b3850693b74f2d9c84ff5bfb1bcf9e60fc36560420da",
+    "decisionNonce": "1",
+    "finalStatus": "REJECTED",
+    "recoveredSigners": {
+      "supplier": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "payer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "underwriter": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    },
+    "exactTokenBalanceDeltas": {
+      "supplier": "0",
+      "payer": "0",
+      "funder": "0",
+      "receivables": "0"
+    },
+    "receipts": {
+      "register": {
+        "transactionHash": "0x1d83be7c90a4697113237b4c69d4d41c45569e03753000047976b417b721d9f6",
+        "blockHash": "0x948c897194a34f7c496a73b1eb20e96f15f53ff3480f01f4a02c63d376a66269",
+        "blockNumber": "5",
+        "gasUsed": "279942",
+        "status": "success",
+        "event": {
+          "name": "InvoiceRegistered",
+          "args": {
+            "invoiceId": "0x218da2915ab11fa16ed6aa92526d44c9b4697e9dec46b31f6e6b3f9662afa05b",
+            "invoiceDigest": "0x4910d80ab4d44ff057903f6a093cf68c705885569a1cacc13ba8d23a5cdc2356",
+            "supplier": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+            "payer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+            "faceValue": "100000000",
+            "dueDate": "2002592000",
+            "documentHash": "0xb83c078915225dadd3d2ca73dcda59f653c3e89424b1893c84fb34b534ffca16"
+          }
+        }
+      },
+      "reject": {
+        "transactionHash": "0x0612d04d2ac9bf6d4b782551dafcb880870b82e51604eb5482da1045cf6b9cba",
+        "blockHash": "0x958dfa24b5d540be93870ea5459b0db81404793ce1ffc014a18a558806fddd17",
+        "blockNumber": "6",
+        "gasUsed": "97227",
+        "status": "success",
+        "event": {
+          "name": "InvoiceRejected",
+          "args": {
+            "invoiceId": "0x218da2915ab11fa16ed6aa92526d44c9b4697e9dec46b31f6e6b3f9662afa05b",
+            "decisionDigest": "0x70f77750bedc4426cee6b3850693b74f2d9c84ff5bfb1bcf9e60fc36560420da",
+            "riskReasonsHash": "0x5210fb580a01fe1fe9230ec1d55541e055f1b30dc53d1b35d6b94a98aff23132",
+            "modelHash": "0x1bd4ef2bad33f7580785185956709d1fce542450563e389422e713515a584b11"
+          }
+        }
+      }
+    }
+  },
+  "approvedJourney": {
+    "invoiceId": "0xc4768c7bde586fd9855be4afb41317fa5612244eee6c90a09f97cf131a5f7aa4",
+    "invoiceDigest": "0x408a5ac97d4ead1dd3f279c9503e96ce6c0e712ad95d729a14abcec255bbf292",
+    "faceValue": "100000000",
+    "requestedAdvance": "75000000",
+    "contractMaximum": "80000000",
+    "recordedModelMaximum": "70000000",
+    "fundedAdvance": "70000000",
+    "repayment": "73500000",
+    "modelDecision": {
+      "verdict": "APPROVE",
+      "maximumAdvanceBps": "7000",
+      "feeBps": "500",
+      "confidenceBps": "9100",
+      "reasons": [
+        "DUAL_SIGNATURES_VERIFIED",
+        "CLEAN_DUPLICATE_CHECK",
+        "STRONG_ON_TIME_HISTORY"
+      ],
+      "explanation": "The recorded model caps the advance at 70% despite the contract allowing 80%."
+    },
+    "riskReasonsHash": "0x264bac26cf1bd22e7257ee8705dd15ba0bb5102d74806ad153f08c9efb0619f7",
+    "modelHash": "0x4095807371cd02bc562612b4eb1b34f0303d52d31ad0a3b2fef8261954bd8c27",
+    "approvalDigest": "0x407b046966d1ae782bd3364affcf45f3b1096a19aced90c2903783b859f44728",
+    "decisionNonce": "2",
+    "finalStatus": "SETTLED",
+    "recoveredSigners": {
+      "supplier": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "payer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "underwriter": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    },
+    "exactBalanceDeltas": {
+      "supplierAtFund": "70000000",
+      "funderAtFund": "-70000000",
+      "payerAtSettlement": "-73500000",
+      "funderAtSettlement": "73500000"
+    },
+    "receipts": {
+      "register": {
+        "transactionHash": "0x1779bc35ac43f1d6e11d35fd511d7ad21f70574c44b8048e427516c008e5ae2d",
+        "blockHash": "0x1bfdcf610e29d31c7a5e0462fc1e384b90b2ca3b2ac22a29d485bc311904d841",
+        "blockNumber": "7",
+        "gasUsed": "279942",
+        "status": "success",
+        "event": {
+          "name": "InvoiceRegistered",
+          "args": {
+            "invoiceId": "0xc4768c7bde586fd9855be4afb41317fa5612244eee6c90a09f97cf131a5f7aa4",
+            "invoiceDigest": "0x408a5ac97d4ead1dd3f279c9503e96ce6c0e712ad95d729a14abcec255bbf292",
+            "supplier": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+            "payer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+            "faceValue": "100000000",
+            "dueDate": "2002592000",
+            "documentHash": "0xf58979eb97f48a06f86b5a8aa9bc7ee8cddc2f1bb36769e3733de1b9feeb4425"
+          }
+        }
+      },
+      "funderApproval": {
+        "transactionHash": "0x0bf6066ac903e9cacfe5feddbc5597eca9c1e2e7d4260a9c4cc94c95a1f50995",
+        "blockHash": "0xa7549825344c681de3dd9cac67bbf357dfe65d37993be7e080e4afde0e7f6626",
+        "blockNumber": "8",
+        "gasUsed": "46293",
+        "status": "success",
+        "event": {
+          "name": "Approval",
+          "args": {
+            "owner": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+            "spender": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+            "value": "70000000"
+          }
+        }
+      },
+      "fund": {
+        "transactionHash": "0x8eeac478ff55cbc5760324f07eb33d6d4afe9e1aca80ca773c43034a5d646304",
+        "blockHash": "0xd40d000fa8cfe80c9480128b48ad72ac3f51000fa32d1430b5b40cced9fac479",
+        "blockNumber": "9",
+        "gasUsed": "172748",
+        "status": "success",
+        "event": {
+          "name": "InvoiceFunded",
+          "args": {
+            "invoiceId": "0xc4768c7bde586fd9855be4afb41317fa5612244eee6c90a09f97cf131a5f7aa4",
+            "decisionDigest": "0x407b046966d1ae782bd3364affcf45f3b1096a19aced90c2903783b859f44728",
+            "funder": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+            "supplier": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+            "advanceAmount": "70000000",
+            "repaymentAmount": "73500000",
+            "riskReasonsHash": "0x264bac26cf1bd22e7257ee8705dd15ba0bb5102d74806ad153f08c9efb0619f7",
+            "modelHash": "0x4095807371cd02bc562612b4eb1b34f0303d52d31ad0a3b2fef8261954bd8c27"
+          }
+        }
+      },
+      "payerApproval": {
+        "transactionHash": "0xd0a3cad2ff50a55daa52af221c7506c335f5a898bd6916d39b39dfe2457773a3",
+        "blockHash": "0x2275f47e78020a08d250f7274c511fe20142082005863f905864e7bd1b477ac3",
+        "blockNumber": "10",
+        "gasUsed": "46293",
+        "status": "success",
+        "event": {
+          "name": "Approval",
+          "args": {
+            "owner": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+            "spender": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+            "value": "73500000"
+          }
+        }
+      },
+      "settle": {
+        "transactionHash": "0xc18ee14cf141c0e9c0cc31754c83e17bf0cfad88864146a8fd28bdede4f72d27",
+        "blockHash": "0x9f33a620818c411cb5a3ddfe5df9d37cbabde348306d5d87550cbf3931cf7290",
+        "blockNumber": "11",
+        "gasUsed": "58927",
+        "status": "success",
+        "event": {
+          "name": "InvoiceSettled",
+          "args": {
+            "invoiceId": "0xc4768c7bde586fd9855be4afb41317fa5612244eee6c90a09f97cf131a5f7aa4",
+            "payer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+            "funder": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+            "repaymentAmount": "73500000"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenBell — Replay AI-bounded invoice funding</title>
+    <meta
+      name="description"
+      content="Explore a local no-value fixture where a recorded AI response bounds invoice funding and exact settlement."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f2eee4" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="OpenBell — Replay AI-bounded invoice funding" />
+    <meta
+      property="og:description"
+      content="Local no-value fixture: payer-signed invoice, recorded AI terms, exact fixture advance and settlement."
+    />
+    <meta property="og:image" content="public/openbell-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="675" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OpenBell — Replay AI-bounded invoice funding" />
+    <meta
+      name="twitter:description"
+      content="Local no-value fixture: payer-signed invoice, recorded AI terms, exact fixture advance and settlement."
+    />
+    <meta name="twitter:image" content="public/openbell-og.png" />
+    <link rel="icon" href="public/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to the product</a>
+
+    <div class="truth-ribbon" role="note" aria-label="Fixture disclosure">
+      <span>LOCAL FIXTURE</span>
+      <i aria-hidden="true"></i>
+      <span>NO REAL VALUE</span>
+      <i aria-hidden="true"></i>
+      <span>RECORDED AI</span>
+      <i aria-hidden="true"></i>
+      <span>NO LIVE MODEL</span>
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href="#main" aria-label="OpenBell home">
+        <img src="public/openbell-mark.svg" width="38" height="38" alt="" />
+        <span>OpenBell</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#proof">Proof</a>
+        <span class="network-pill">BUILT FOR X LAYER</span>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">REQUEST-FUNDED RECEIVABLES</p>
+          <h1 id="hero-title">Fund invoices<br />before they’re due.</h1>
+          <p class="hero-lede">
+            Supplier and payer sign once. OpenBell is designed for bounded AI terms, an exact USDG
+            advance, and direct payer settlement on X Layer.
+          </p>
+          <div class="hero-equation" role="note" aria-label="Fixture outcome">
+            <span><b>$75</b> requested</span>
+            <i aria-hidden="true">→</i>
+            <span class="equation-ai"><b>$70</b> AI cap</span>
+            <i aria-hidden="true">→</i>
+            <span><b>$73.50</b> settled</span>
+          </div>
+          <div class="hero-actions">
+            <button class="primary-action" id="journey-control" type="button">
+              <span>Start proof journey</span>
+              <span aria-hidden="true">→</span>
+            </button>
+            <a class="secondary-action" href="#proof">Inspect evidence</a>
+          </div>
+          <p class="hero-boundary">
+            Current evidence is a local no-value fixture. Testnet deployment and live model remain pending.
+          </p>
+        </div>
+
+        <article class="decision-console" aria-labelledby="decision-title" tabindex="-1">
+          <header class="console-header">
+            <div>
+              <p class="console-kicker">INVOICE #OB-002</p>
+              <h2 id="decision-title">AI-bounded advance</h2>
+            </div>
+            <span class="fixture-chip">FIXTURE</span>
+          </header>
+
+          <dl class="terms-grid">
+            <div>
+              <dt>Face value</dt>
+              <dd>$100.00</dd>
+            </div>
+            <div>
+              <dt>Requested</dt>
+              <dd>$75.00</dd>
+            </div>
+            <div>
+              <dt>Contract max</dt>
+              <dd>$80.00</dd>
+            </div>
+            <div class="ai-term">
+              <dt>Recorded AI cap</dt>
+              <dd>$70.00</dd>
+            </div>
+          </dl>
+
+          <div class="decision-result">
+            <div>
+              <span class="result-label" id="result-label">READY TO REPLAY</span>
+              <strong id="result-value">$70.00</strong>
+              <span id="result-unit">fixture USDG advance</span>
+            </div>
+            <span class="decision-stamp" id="decision-stamp">BOUNDED</span>
+          </div>
+
+          <ol class="journey-rail" aria-label="Funding journey">
+            <li data-journey-step="0" aria-current="step">
+              <span>01</span>
+              <b>Signed</b>
+            </li>
+            <li data-journey-step="1">
+              <span>02</span>
+              <b>AI terms</b>
+            </li>
+            <li data-journey-step="2">
+              <span>03</span>
+              <b>Funded</b>
+            </li>
+            <li data-journey-step="3">
+              <span>04</span>
+              <b>Settled</b>
+            </li>
+          </ol>
+
+          <p class="journey-status" id="journey-status" aria-live="polite">
+            Supplier and payer signatures bind the invoice terms.
+          </p>
+
+          <button class="console-next" id="console-next" type="button">
+            <span>Next: AI terms</span>
+            <span aria-hidden="true">→</span>
+          </button>
+
+          <div class="console-proof">
+            <span>CONTRACT ALLOWED 80</span>
+            <span aria-hidden="true">→</span>
+            <strong>AI CAPPED 70</strong>
+          </div>
+        </article>
+      </section>
+
+      <section class="trust-line" aria-label="Product boundaries">
+        <span>NO POOL</span>
+        <span>NO PROTOCOL TOKEN</span>
+        <span>EXACT REQUEST FUNDING</span>
+        <span>DIRECT PAYER SETTLEMENT</span>
+      </section>
+
+      <section class="how" id="how-it-works" aria-labelledby="how-title">
+        <header class="section-heading">
+          <p class="eyebrow">ONE INVOICE. THREE ACTORS.</p>
+          <h2 id="how-title">The shortest credible path from work completed to cash received.</h2>
+        </header>
+
+        <ol class="actor-flow">
+          <li>
+            <span class="actor-number">01</span>
+            <h3>Supplier + payer sign</h3>
+            <p>Both parties authorize one canonical invoice hash. The document itself stays offchain.</p>
+          </li>
+          <li>
+            <span class="actor-number">02</span>
+            <h3>Recorded AI sets bounded terms</h3>
+            <p>The fixture response tightens advance and fee terms. Contract ceilings remain non-negotiable.</p>
+          </li>
+          <li>
+            <span class="actor-number">03</span>
+            <h3>Funder advances USDG</h3>
+            <p>The supplier receives the exact approved amount. The payer later settles to that funder.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="rejection-band" aria-labelledby="rejection-title">
+        <div>
+          <p class="eyebrow">THE AI CAN SAY NO</p>
+          <h2 id="rejection-title">Recorded prior-default input.</h2>
+        </div>
+        <div class="rejection-equation">
+          <span>$75 requested</span>
+          <span aria-hidden="true">→</span>
+          <strong>REJECTED</strong>
+          <small>zero token movement</small>
+        </div>
+        <p>
+          The local fixture supplies a prior payer default to the recorded model. That separate signed invoice
+          was rejected, moved to a terminal onchain state, and produced no funding transaction.
+        </p>
+      </section>
+
+      <section class="proof-section" id="proof" aria-labelledby="proof-title">
+        <header class="section-heading proof-heading">
+          <div>
+            <p class="eyebrow">RECEIPTS, NOT PROMISES</p>
+            <h2 id="proof-title">Every number traces to the fixture manifest.</h2>
+          </div>
+          <a class="manifest-link" href="data/openbell-receivables-fixture.json" download>
+            Download local manifest <span aria-hidden="true">↓</span>
+          </a>
+        </header>
+
+        <div class="proof-grid">
+          <article class="proof-card proof-card-main">
+            <p class="proof-label">APPROVED JOURNEY</p>
+            <div class="proof-state">
+              <strong>SETTLED</strong>
+              <span>local fixture terminal state</span>
+            </div>
+            <dl>
+              <div><dt>Supplier at funding</dt><dd>+70.00</dd></div>
+              <div><dt>Funder at funding</dt><dd>−70.00</dd></div>
+              <div><dt>Payer at settlement</dt><dd>−73.50</dd></div>
+              <div><dt>Funder at settlement</dt><dd>+73.50</dd></div>
+            </dl>
+          </article>
+
+          <article class="proof-card">
+            <p class="proof-label">APPROVAL DIGEST</p>
+            <code id="approval-digest">Loading fixture…</code>
+            <p>Locally recomputed EIP-712 digest equals the contract’s <code>hashApproval</code>.</p>
+          </article>
+
+          <article class="proof-card">
+            <p class="proof-label">REJECTION DIGEST</p>
+            <code id="rejection-digest">Loading fixture…</code>
+            <p>Signed by the recorded fixture underwriter and accepted by the contract.</p>
+          </article>
+
+          <article class="proof-card proof-card-boundary">
+            <p class="proof-label">EVIDENCE BOUNDARY</p>
+            <ul>
+              <li>Self-spawned Anvil, chain ID 1952</li>
+              <li>Fixture token with no real value</li>
+              <li>Recorded decision, no live model call</li>
+              <li>No explorer or independent network proof</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="implementation" aria-labelledby="implementation-title">
+        <div>
+          <p class="eyebrow">PURPOSEFULLY NARROW V1</p>
+          <h2 id="implementation-title">No pool. No auction. No invented complexity.</h2>
+        </div>
+        <div class="implementation-list">
+          <p><span>01</span> Dual EIP-712 invoice authorization</p>
+          <p><span>02</span> AI terms bounded by immutable contract caps</p>
+          <p><span>03</span> Exact balance-delta accounting</p>
+          <p><span>04</span> Duplicate document and nonce protection</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="brand footer-brand">
+        <img src="public/openbell-mark.svg" width="34" height="34" alt="" />
+        <span>OpenBell</span>
+      </div>
+      <p>Built for X Layer · Local fixture evidence only · Source publication pending approval</p>
+    </footer>
+  </body>
+</html>

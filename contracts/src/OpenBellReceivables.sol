@@ -98,6 +98,7 @@ contract OpenBellReceivables is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
 
     mapping(bytes32 invoiceId => InvoiceRecord) public invoices;
     mapping(bytes32 digest => bool used) public usedInvoiceDigests;
+    mapping(bytes32 documentHash => bool used) public usedDocumentHashes;
     mapping(address signer => mapping(uint256 nonce => bool used)) public usedPartyNonces;
     mapping(address signer => mapping(uint256 nonce => bool used)) public usedDecisionNonces;
 
@@ -111,6 +112,7 @@ contract OpenBellReceivables is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
     error InvoiceTooOld();
     error InvoiceTenorTooLong();
     error DuplicateInvoice();
+    error DuplicateDocument();
     error NonceUsed(address signer, uint256 nonce);
     error DecisionDoesNotMatchInvoice();
     error RiskDataFromFuture();
@@ -180,7 +182,7 @@ contract OpenBellReceivables is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         InvoiceTerms calldata terms,
         bytes calldata supplierSignature,
         bytes calldata payerSignature
-    ) external whenNotPaused returns (bytes32 invoiceDigest) {
+    ) external nonReentrant whenNotPaused returns (bytes32 invoiceDigest) {
         if (msg.sender != terms.supplier) revert Unauthorized();
         if (terms.supplier == address(0) || terms.payer == address(0)) revert ZeroAddress();
         if (terms.supplier == terms.payer) revert SameParty();
@@ -200,6 +202,7 @@ contract OpenBellReceivables is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         if (invoices[terms.invoiceId].status != InvoiceStatus.NONE || usedInvoiceDigests[invoiceDigest]) {
             revert DuplicateInvoice();
         }
+        if (usedDocumentHashes[terms.documentHash]) revert DuplicateDocument();
         _requireUnusedPartyNonce(terms.supplier, terms.nonce);
         _requireUnusedPartyNonce(terms.payer, terms.nonce);
         _requireSignature(terms.supplier, invoiceDigest, supplierSignature);
@@ -208,6 +211,7 @@ contract OpenBellReceivables is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
         usedPartyNonces[terms.supplier][terms.nonce] = true;
         usedPartyNonces[terms.payer][terms.nonce] = true;
         usedInvoiceDigests[invoiceDigest] = true;
+        usedDocumentHashes[terms.documentHash] = true;
         invoices[terms.invoiceId] = InvoiceRecord({
             status: InvoiceStatus.REGISTERED,
             supplier: terms.supplier,
@@ -290,6 +294,7 @@ contract OpenBellReceivables is EIP712, Ownable2Step, Pausable, ReentrancyGuard 
 
     function attestRejection(RiskRejection calldata rejection, bytes calldata underwriterSignature)
         external
+        nonReentrant
         whenNotPaused
         returns (bytes32 decisionDigest)
     {

@@ -525,6 +525,22 @@ contract OpenBellReceivablesSignatureAndReplayTest is OpenBellTestBase {
         receivables.registerInvoice(duplicate, _sign(SUPPLIER_PK, digest), _sign(PAYER_PK, digest));
     }
 
+    function test_DuplicateDocumentRejectedUnderNewInvoiceIdAndNonce() public {
+        OpenBellReceivables.InvoiceTerms memory first = _terms("duplicate-document", 111);
+        _register(first);
+
+        OpenBellReceivables.InvoiceTerms memory duplicate = _terms("new-invoice-id", 112);
+        duplicate.documentHash = first.documentHash;
+        bytes32 digest = _manualInvoiceDigest(receivables, duplicate);
+
+        vm.expectRevert(OpenBellReceivables.DuplicateDocument.selector);
+        vm.prank(supplier);
+        receivables.registerInvoice(duplicate, _sign(SUPPLIER_PK, digest), _sign(PAYER_PK, digest));
+
+        _assertEq(receivables.usedPartyNonces(supplier, duplicate.nonce), false, "supplier nonce untouched");
+        _assertEq(receivables.usedPartyNonces(payer, duplicate.nonce), false, "payer nonce untouched");
+    }
+
     function test_SupplierNonceCannotBeReusedAcrossDifferentInvoices() public {
         OpenBellReceivables.InvoiceTerms memory first = _terms("supplier-nonce-a", 13);
         _register(first);

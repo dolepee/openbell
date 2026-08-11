@@ -1,4 +1,4 @@
-import { encodeAbiParameters, keccak256, parseAbiParameters, stringToHex } from "viem";
+import { encodeAbiParameters, keccak256, parseAbiParameters } from "viem";
 import {
   boundedDecisionSchema,
   invoiceRiskInputSchema,
@@ -6,6 +6,7 @@ import {
   underwritingPolicySchema,
   type BoundedDecision,
   type InvoiceRiskInput,
+  type ModelDecision,
   type UnderwritingModel,
   type UnderwritingPolicy
 } from "./schema.js";
@@ -36,8 +37,23 @@ function hashReasons(reasons: readonly string[], explanation: string): `0x${stri
   );
 }
 
-function hashModel(modelId: string): `0x${string}` {
-  return keccak256(stringToHex(modelId));
+function hashModel(modelId: string, decision: ModelDecision): `0x${string}` {
+  return keccak256(
+    encodeAbiParameters(
+      parseAbiParameters(
+        "string modelId, string verdict, uint16 maximumAdvanceBps, uint16 feeBps, uint16 confidenceBps, string[] reasons, string explanation"
+      ),
+      [
+        modelId,
+        decision.verdict,
+        decision.maximumAdvanceBps,
+        decision.feeBps,
+        decision.confidenceBps,
+        decision.reasons,
+        decision.explanation
+      ]
+    )
+  );
 }
 
 function validateObjectiveEvidence(input: InvoiceRiskInput, policy: UnderwritingPolicy): void {
@@ -75,7 +91,7 @@ export async function underwriteInvoice(args: {
     riskTimestamp: args.now,
     expiresAt: Math.min(args.now + policy.maxDecisionLifetimeSeconds, input.dueDate),
     riskReasonsHash: hashReasons(modelDecision.reasons, modelDecision.explanation),
-    modelHash: hashModel(args.model.modelId),
+    modelHash: hashModel(args.model.modelId, modelDecision),
     reasons: modelDecision.reasons,
     explanation: modelDecision.explanation,
     modelId: args.model.modelId

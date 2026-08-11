@@ -85,6 +85,22 @@ describe("underwriteInvoice", () => {
     expect(result.repaymentAmount).toBe("43600000");
   });
 
+  it("commits the exact recorded model response rather than only its model ID", async () => {
+    const first = await underwriteInvoice({ input, model: new ScriptedModel(approval), policy, now: NOW });
+    const second = await underwriteInvoice({
+      input,
+      model: new ScriptedModel({
+        ...approval,
+        explanation: "The same model ID returned materially different recorded reasoning."
+      }),
+      policy,
+      now: NOW
+    });
+
+    expect(first.modelId).toBe(second.modelId);
+    expect(first.modelHash).not.toBe(second.modelHash);
+  });
+
   it("preserves a structured model rejection", async () => {
     const rejection: ModelDecision = {
       verdict: "REJECT",
