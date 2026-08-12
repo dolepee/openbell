@@ -68,6 +68,10 @@ test("multi-page launch surface separates product, workspace, proof, and archite
     read("./architecture/index.html")
   ]);
   const pages = [overview, workspace, proof, architecture];
+  for (const page of pages) {
+    assert.match(page, /<div class="nav-right">/);
+    assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
+  }
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
   assert.match(overview, /One invoice\.<br \/>Three limits\.<br \/><em>Zero ambiguity\.<\/em>/);
   assert.match(overview, /min\(request, model, code\)/);
