@@ -24,6 +24,8 @@ jobs:
         with:
           version: v1.7.1
       - run: npm ci
+      - name: Install pinned Solidity compiler
+        run: forge build --force
       - name: Full offline gate
         env:
           FOUNDRY_OFFLINE: "true"

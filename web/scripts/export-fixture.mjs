@@ -56,6 +56,10 @@ if (existing === undefined) {
 } else {
   const publicManifest = JSON.parse(existing);
   const allowedEntropyPaths = [
+    "contracts.deploymentReceipts.token.blockHash",
+    "contracts.deploymentReceipts.receivables.blockHash",
+    "fixtureFunding.funderClaim.blockHash",
+    "fixtureFunding.payerClaim.blockHash",
     "approvedJourney.receipts.register.blockHash",
     "approvedJourney.receipts.funderApproval.blockHash",
     "approvedJourney.receipts.fund.blockHash",

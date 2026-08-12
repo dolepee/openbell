@@ -12,6 +12,10 @@ test("public proof has exact semantic parity with only accepted local block-hash
   const proof = JSON.parse(source);
   const publicProof = JSON.parse(exported);
   const allowedEntropyPaths = new Set([
+    "contracts.deploymentReceipts.token.blockHash",
+    "contracts.deploymentReceipts.receivables.blockHash",
+    "fixtureFunding.funderClaim.blockHash",
+    "fixtureFunding.payerClaim.blockHash",
     "approvedJourney.receipts.register.blockHash",
     "approvedJourney.receipts.funderApproval.blockHash",
     "approvedJourney.receipts.fund.blockHash",
