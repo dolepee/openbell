@@ -28,7 +28,8 @@ const binaryAllowlist = new Map([
   ["web/public/openbell-og.png", new Set([
     "10e56a81d759142afdb6df3f6bc8e4a240955107b91fb1ae2bd46ed1729be4ea",
     "f732d60a9aa67f07aa72c39d232bc6db4f2d83ad923b76208711f533c8e20044",
-    "bea86ed3da6b467606096130ab8e1af63f58dc1e53e0af17aa49fb40ee99ee4f"
+    "bea86ed3da6b467606096130ab8e1af63f58dc1e53e0af17aa49fb40ee99ee4f",
+    "dfee211f4ef2992ce1b2d7c33ed338bfdca596efdd3747c4aea1701b1bea61a4"
   ])]
 ]);
 

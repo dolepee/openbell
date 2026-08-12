@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Credit desk — OpenBell</title>
+    <meta name="description" content="Replay OpenBell's genuine AI rejection and settled X Layer testnet receivable inside the bounded credit workspace." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://openbell.dolepee.com/workspace/" />
+    <meta name="theme-color" content="#101712" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://openbell.dolepee.com/workspace/" />
+    <meta property="og:title" content="OpenBell credit desk" />
+    <meta property="og:description" content="A bounded underwriting workspace backed by genuine decisions and verified X Layer receipts." />
+    <meta property="og:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body data-page="workspace">
+    <a class="skip-link" href="#main">Skip to the credit desk</a>
+    <div class="status-bar" role="note"><span><i class="status-dot"></i> VERIFIED REPLAY</span><span>XLAYER TESTNET FIXTURE</span><span>NO REAL VALUE</span></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
+      <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/workspace/" aria-current="page">Credit desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav>
+      <a class="header-cta" href="/proof/">Verify outcomes <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main id="main" class="desk-shell">
+      <header class="desk-header">
+        <div><p class="overline">UNDERWRITING WORKSPACE</p><h1>Two invoices.<br />Two different answers.</h1></div>
+        <p>Replay the genuine first model responses and follow the approved invoice through the contract limit stack to settlement.</p>
+      </header>
+
+      <div class="desk-layout">
+        <aside class="invoice-list" aria-label="Fixture invoices">
+          <div class="panel-title"><span>INVOICE QUEUE</span><b>2</b></div>
+          <button class="invoice-row is-active" type="button" data-invoice="approved" aria-pressed="true">
+            <span class="invoice-icon">OB</span><span><b>OB-APPROVED</b><small>Strong payer · $100 face</small></span><i class="state-approved">APPROVED</i>
+          </button>
+          <button class="invoice-row" type="button" data-invoice="rejected" aria-pressed="false">
+            <span class="invoice-icon">OB</span><span><b>OB-REJECTED</b><small>Prior default · $100 face</small></span><i class="state-rejected">REJECTED</i>
+          </button>
+          <div class="queue-note"><span>DATA BOUNDARY</span><p>Synthetic invoices. Fixture tUSDG. Genuine model responses. No real value.</p></div>
+        </aside>
+
+        <section class="underwriting-panel" id="decisions" aria-live="polite">
+          <header class="panel-heading">
+            <div><p class="overline" id="invoice-kicker">INVOICE OB-APPROVED</p><h2 id="invoice-title">Strong payer receivable</h2></div>
+            <span class="state-approved" id="invoice-state">APPROVED</span>
+          </header>
+
+          <div class="decision-summary">
+            <article><span>FACE VALUE</span><strong id="face-value">$100.00</strong></article>
+            <article><span>REQUESTED</span><strong id="requested-value">$75.00</strong></article>
+            <article><span>MODEL DECISION</span><strong id="model-decision">85% MAX</strong></article>
+            <article><span>FEE</span><strong id="fee-value">1.00%</strong></article>
+          </div>
+
+          <div class="decision-body">
+            <div class="model-note">
+              <div class="model-note-head"><span>GENUINE MODEL ASSESSMENT</span><small>Bankr-mediated GPT-5.6 Terra · first response</small></div>
+              <blockquote id="model-rationale">The payer profile supports approval within conservative parameters. The model proposed an 85% maximum advance and 1% fee.</blockquote>
+              <div class="hash-line"><span>RESPONSE SHA-256</span><code id="response-hash">0x37a50eb18ba205b83a5ec48568a935bcc2dcd7da0b9065cbd1a420aa82c60f38</code></div>
+            </div>
+
+            <div class="limit-resolver" id="limit-resolver">
+              <header><span>LIMIT RESOLVER</span><strong>CONTRACT ENFORCED</strong></header>
+              <div class="resolver-bars">
+                <div><span><b>Requested</b><em>75%</em></span><i style="--limit:75%"></i></div>
+                <div><span><b>AI ceiling</b><em>85%</em></span><i style="--limit:85%"></i></div>
+                <div><span><b>Contract ceiling</b><em>80%</em></span><i style="--limit:80%"></i></div>
+              </div>
+              <p>Effective = min(requested, AI ceiling, contract ceiling)</p>
+              <output><span>APPROVED ADVANCE</span><strong>$75.00</strong></output>
+            </div>
+          </div>
+        </section>
+
+        <aside class="execution-panel">
+          <div class="panel-title"><span>EXECUTION</span><b>7 RECEIPTS</b></div>
+          <div class="execution-value"><span>CURRENT STEP</span><strong id="execution-value">$100.00</strong><small id="execution-unit">dual-signed invoice</small></div>
+          <ol class="execution-steps" aria-label="Verified lifecycle">
+            <li data-execution-step="0" aria-current="step"><span>01</span><div><b>Registered</b><small>Supplier + payer signatures</small></div></li>
+            <li data-execution-step="1"><span>02</span><div><b>Assessed</b><small>Genuine model terms</small></div></li>
+            <li data-execution-step="2"><span>03</span><div><b>Bounded</b><small>Contract resolves limits</small></div></li>
+            <li data-execution-step="3"><span>04</span><div><b>Funded</b><small>Exactly 75 fixture tUSDG</small></div></li>
+            <li data-execution-step="4"><span>05</span><div><b>Settled</b><small>Exactly 75.75 returned</small></div></li>
+          </ol>
+          <p class="execution-status" id="execution-status">The supplier and payer bind the invoice terms through EIP-712 signatures.</p>
+          <button class="button button-primary execution-next" id="execution-next" type="button"><span>Advance replay</span><span aria-hidden="true">→</span></button>
+          <a class="text-link execution-proof" href="/proof/#testnet">Open canonical receipts <span aria-hidden="true">↗</span></a>
+        </aside>
+      </div>
+
+      <section class="desk-boundary">
+        <span>XLAYER TESTNET FIXTURE — NO REAL VALUE</span>
+        <p>This workspace replays sealed evidence. It cannot sign, fund, settle, or move assets.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded receivables credit on X Layer.</p><nav aria-label="Footer navigation"><a href="/">Overview</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav></footer>
+  </body>
+</html>

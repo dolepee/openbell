@@ -12,7 +12,7 @@ await rm(distRoot, { recursive: true, force: true });
 await mkdir(clientRoot, { recursive: true });
 await mkdir(serverRoot, { recursive: true });
 
-for (const path of ["index.html", "app.js", "styles.css", "data", "public"]) {
+for (const path of ["index.html", "app.js", "styles.css", "data", "public", "workspace", "proof", "architecture"]) {
   await cp(resolve(webRoot, path), resolve(clientRoot, path), { recursive: true });
 }
 
@@ -23,7 +23,7 @@ await writeFile(
 
 await writeFile(
   resolve(serverRoot, "index.js"),
-  `export default {\n  async fetch(request, env) {\n    const url = new URL(request.url);\n    if (url.pathname === "/") url.pathname = "/index.html";\n    return env.ASSETS.fetch(new Request(url, request));\n  },\n};\n`,
+  `export default {\n  async fetch(request, env) {\n    const url = new URL(request.url);\n    if (url.pathname === "/") url.pathname = "/index.html";\n    else if (url.pathname.endsWith("/")) url.pathname += "index.html";\n    else if (!url.pathname.split("/").at(-1).includes(".")) url.pathname += "/index.html";\n    return env.ASSETS.fetch(new Request(url, request));\n  },\n};\n`,
 );
 
 await writeFile(

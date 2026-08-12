@@ -1,118 +1,138 @@
-const journeyControl = document.querySelector("#journey-control");
-const consoleNext = document.querySelector("#console-next");
-const journeyControls = [journeyControl, consoleNext];
-const journeyStatus = document.querySelector("#journey-status");
-const resultLabel = document.querySelector("#result-label");
-const resultValue = document.querySelector("#result-value");
-const resultUnit = document.querySelector("#result-unit");
-const decisionStamp = document.querySelector("#decision-stamp");
-const decisionConsole = document.querySelector(".decision-console");
-const journeySteps = [...document.querySelectorAll("[data-journey-step]")];
-const approvalDigest = document.querySelector("#approval-digest");
-const rejectionDigest = document.querySelector("#rejection-digest");
+const compact = (value) => value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
 
-const journey = [
-  {
-    label: "INVOICE AUTHORIZED",
-    value: "$100.00",
-    unit: "supplier + payer signed",
-    stamp: "SIGNED",
-    status: "Supplier and payer signatures bind one invoice hash and its exact terms."
-  },
-  {
-    label: "RECORDED AI TERMS",
-    value: "$70.00",
-    unit: "maximum advance",
-    stamp: "AI CAP",
-    status: "The contract allowed 80. The recorded model tightened the maximum advance to 70."
-  },
-  {
-    label: "EXACT ADVANCE",
-    value: "+$70.00",
-    unit: "fixture USDG to supplier",
-    stamp: "FUNDED",
-    status: "The funder sent exactly 70 fixture USDG and the supplier received exactly 70."
-  },
-  {
-    label: "PAYER SETTLEMENT",
-    value: "$73.50",
-    unit: "returned to funder",
-    stamp: "SETTLED",
-    status: "The payer settled exactly 73.50 and the invoice reached its terminal SETTLED state."
-  }
+const executionNext = document.querySelector("#execution-next");
+const executionValue = document.querySelector("#execution-value");
+const executionUnit = document.querySelector("#execution-unit");
+const executionStatus = document.querySelector("#execution-status");
+const executionSteps = [...document.querySelectorAll("[data-execution-step]")];
+
+const executionJourney = [
+  { value: "$100.00", unit: "dual-signed invoice", status: "The supplier and payer bind the invoice terms through EIP-712 signatures." },
+  { value: "85% / 1%", unit: "model ceiling / fee", status: "The genuine first model response approves a maximum 85% advance and a 1% fee." },
+  { value: "$75.00", unit: "effective advance", status: "The contract resolves min(75 requested, 85 model, 80 immutable contract) to exactly 75." },
+  { value: "+$75.00", unit: "fixture tUSDG funded", status: "The funder transfers exactly 75 fixture tUSDG and the invoice enters FUNDED." },
+  { value: "$75.75", unit: "repaid to funder", status: "The payer settles exactly 75.75 and the invoice reaches terminal state SETTLED." }
 ];
 
-let currentStep = 0;
-
-const renderStep = () => {
-  const state = journey[currentStep];
-  resultLabel.textContent = state.label;
-  resultValue.textContent = state.value;
-  resultUnit.textContent = state.unit;
-  decisionStamp.textContent = state.stamp;
-  journeyStatus.textContent = state.status;
-
-  journeySteps.forEach((step, index) => {
-    if (index === currentStep) step.setAttribute("aria-current", "step");
-    else step.removeAttribute("aria-current");
-    if (index < currentStep) step.dataset.complete = "true";
-    else delete step.dataset.complete;
+let executionIndex = 0;
+const renderExecution = () => {
+  if (!executionNext) return;
+  const step = executionJourney[executionIndex];
+  executionValue.textContent = step.value;
+  executionUnit.textContent = step.unit;
+  executionStatus.textContent = step.status;
+  executionSteps.forEach((item, index) => {
+    if (index === executionIndex) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+    if (index < executionIndex) item.dataset.complete = "true";
+    else delete item.dataset.complete;
   });
-
-  const nextStep = (currentStep + 1) % journey.length;
-  const labels = ["Next: AI terms", "Next: funding", "Next: settlement", "Replay journey"];
-  journeyControls.forEach((control) => {
-    control.querySelector("span").textContent = labels[currentStep];
-    control.setAttribute("aria-label", `${labels[currentStep]}. Current step: ${state.stamp}.`);
-    control.dataset.nextStep = String(nextStep);
-  });
+  executionNext.querySelector("span").textContent = executionIndex === executionJourney.length - 1 ? "Replay lifecycle" : "Advance replay";
 };
 
-const advanceJourney = (event) => {
-  currentStep = Number(event.currentTarget.dataset.nextStep ?? "1");
-  renderStep();
-  if (event.currentTarget === journeyControl && window.matchMedia("(max-width: 980px)").matches) {
-    decisionConsole.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "center"
-    });
-    decisionConsole.focus({ preventScroll: true });
+if (executionNext) {
+  executionNext.addEventListener("click", () => {
+    executionIndex = (executionIndex + 1) % executionJourney.length;
+    renderExecution();
+  });
+  renderExecution();
+}
+
+const invoices = {
+  approved: {
+    kicker: "INVOICE OB-APPROVED",
+    title: "Strong payer receivable",
+    state: "APPROVED",
+    stateClass: "state-approved",
+    face: "$100.00",
+    requested: "$75.00",
+    decision: "85% MAX",
+    fee: "1.00%",
+    rationale: "The payer profile supports approval within conservative parameters. The model proposed an 85% maximum advance and 1% fee.",
+    hash: "0x37a50eb18ba205b83a5ec48568a935bcc2dcd7da0b9065cbd1a420aa82c60f38",
+    rejected: false
+  },
+  rejected: {
+    kicker: "INVOICE OB-REJECTED",
+    title: "Prior-default payer receivable",
+    state: "REJECTED",
+    stateClass: "state-rejected",
+    face: "$100.00",
+    requested: "$75.00",
+    decision: "REJECT",
+    fee: "—",
+    rationale: "The genuine first response rejected the synthetic payer after the supplied evidence disclosed a prior default. No funding terms were emitted.",
+    hash: "0x2eabbde55a2bbcfaab0533bf29629155de60f682b9e530b7340d5c9f3f822967",
+    rejected: true
   }
 };
 
-journeyControls.forEach((control) => control.addEventListener("click", advanceJourney));
-
-const loadProof = async () => {
-  const response = await fetch("data/openbell-receivables-fixture.json", { cache: "no-store" });
-  if (!response.ok) throw new Error(`proof returned HTTP ${response.status}`);
-  const proof = await response.json();
-  if (
-    proof.schemaVersion !== "openbell-receivables-local-fixture-v1" ||
-    proof.disclosures?.networkTransaction !== false ||
-    proof.disclosures?.realValue !== false ||
-    proof.disclosures?.liveModel !== false ||
-    proof.disclosures?.independentlyVerified !== false ||
-    proof.chain?.client !== "self-spawned Anvil" ||
-    proof.chain?.explorerReceipts !== false ||
-    proof.approvedJourney?.fundedAdvance !== "70000000" ||
-    proof.approvedJourney?.repayment !== "73500000" ||
-    proof.approvedJourney?.finalStatus !== "SETTLED" ||
-    proof.rejectedJourney?.finalStatus !== "REJECTED" ||
-    proof.assertions?.typedDataDigestParityChecked !== true ||
-    proof.assertions?.expectedSignersRecovered !== true ||
-    proof.assertions?.rejectedPathZeroTokenMovement !== true
-  ) {
-    throw new Error("proof boundary or economics changed");
-  }
-  approvalDigest.textContent = proof.approvedJourney.approvalDigest;
-  rejectionDigest.textContent = proof.rejectedJourney.rejectionDigest;
-  document.body.dataset.proofReady = "true";
+const invoiceButtons = [...document.querySelectorAll("[data-invoice]")];
+const invoiceState = document.querySelector("#invoice-state");
+const limitResolver = document.querySelector("#limit-resolver");
+const setText = (selector, value) => {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
 };
 
-loadProof().catch(() => {
-  approvalDigest.textContent = "Local proof unavailable — run npm run e2e:fixture";
-  rejectionDigest.textContent = "Local proof unavailable — run npm run e2e:fixture";
-  document.body.dataset.proofReady = "false";
-});
+const renderInvoice = (key) => {
+  const invoice = invoices[key];
+  if (!invoice || !invoiceState) return;
+  setText("#invoice-kicker", invoice.kicker);
+  setText("#invoice-title", invoice.title);
+  setText("#face-value", invoice.face);
+  setText("#requested-value", invoice.requested);
+  setText("#model-decision", invoice.decision);
+  setText("#fee-value", invoice.fee);
+  setText("#model-rationale", invoice.rationale);
+  setText("#response-hash", invoice.hash);
+  invoiceState.textContent = invoice.state;
+  invoiceState.className = invoice.stateClass;
+  limitResolver?.classList.toggle("is-rejected", invoice.rejected);
+  invoiceButtons.forEach((button) => {
+    const active = button.dataset.invoice === key;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+};
 
-renderStep();
+invoiceButtons.forEach((button) => button.addEventListener("click", () => renderInvoice(button.dataset.invoice)));
+
+const approvalDigest = document.querySelector("#approval-digest");
+const rejectionDigest = document.querySelector("#rejection-digest");
+if (approvalDigest && rejectionDigest) {
+  Promise.all([
+    fetch("/data/openbell-receivables-fixture.json", { cache: "no-store" }).then((response) => {
+      if (!response.ok) throw new Error(`local proof returned HTTP ${response.status}`);
+      return response.json();
+    }),
+    fetch("/data/openbell-xlayer-testnet-lifecycle.json", { cache: "no-store" }).then((response) => {
+      if (!response.ok) throw new Error(`network proof returned HTTP ${response.status}`);
+      return response.json();
+    })
+  ]).then(([proof, network]) => {
+    if (
+      proof.schemaVersion !== "openbell-receivables-local-fixture-v1" ||
+      proof.disclosures?.networkTransaction !== false ||
+      proof.disclosures?.realValue !== false ||
+      proof.disclosures?.liveModel !== false ||
+      proof.disclosures?.independentlyVerified !== false ||
+      proof.chain?.client !== "self-spawned Anvil" ||
+      proof.chain?.explorerReceipts !== false ||
+      proof.approvedJourney?.fundedAdvance !== "70000000" ||
+      proof.approvedJourney?.repayment !== "73500000" ||
+      proof.rejectedJourney?.finalStatus !== "REJECTED" ||
+      network.label !== "XLAYER TESTNET FIXTURE — NO REAL VALUE" ||
+      network.verifiedOutcome?.funded !== "75000000" ||
+      network.verifiedOutcome?.repaid !== "75750000" ||
+      network.verifiedOutcome?.approvedInvoiceStatus !== "SETTLED"
+    ) throw new Error("proof boundary or economics changed");
+    approvalDigest.textContent = `Local approval digest · ${compact(proof.approvedJourney.approvalDigest)}`;
+    rejectionDigest.textContent = `Local rejection digest · ${compact(proof.rejectedJourney.rejectionDigest)}`;
+    document.body.dataset.proofReady = "true";
+  }).catch(() => {
+    approvalDigest.textContent = "Local archive unavailable";
+    rejectionDigest.textContent = "Proof boundary failed closed";
+    document.body.dataset.proofReady = "false";
+  });
+}
