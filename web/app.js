@@ -100,6 +100,13 @@ const renderInvoice = (key) => {
 
 invoiceButtons.forEach((button) => button.addEventListener("click", () => renderInvoice(button.dataset.invoice)));
 
+const creditMemo = document.querySelector("#credit-memo");
+const reviewEmpty = document.querySelector("#review-empty");
+const clearCreditMemo = () => {
+  if (creditMemo) creditMemo.hidden = true;
+  if (reviewEmpty) reviewEmpty.hidden = false;
+};
+
 const dealForm = document.querySelector("#deal-form");
 if (dealForm) {
   const supplierInput = document.querySelector("#deal-supplier");
@@ -122,6 +129,17 @@ if (dealForm) {
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 30);
   dueInput.value = tomorrow.toISOString().slice(0, 10);
 
+  const invalidatePreparedPackage = () => {
+    preparedPackage = null;
+    downloadPackage.disabled = true;
+    packageState.textContent = "DRAFT";
+    packageInvoiceId.textContent = "—";
+    packageDocumentHash.textContent = "—";
+    delete document.querySelector('[data-readiness="terms"]').dataset.complete;
+    delete document.querySelector('[data-readiness="document"]').dataset.complete;
+    clearCreditMemo();
+  };
+
   const renderStudioMath = () => {
     try {
       const economics = calculateDealEconomics(faceInput.value, requestInput.value);
@@ -132,13 +150,16 @@ if (dealForm) {
     } catch {
       document.querySelector("#studio-upper-bound").textContent = "—";
     }
-    preparedPackage = null;
-    downloadPackage.disabled = true;
-    packageState.textContent = "DRAFT";
+    invalidatePreparedPackage();
   };
 
   faceInput.addEventListener("input", renderStudioMath);
   requestInput.addEventListener("input", renderStudioMath);
+  for (const input of [supplierInput, payerInput, dueInput, nonceInput, documentHashInput]) {
+    input.addEventListener("input", invalidatePreparedPackage);
+  }
+  documentInput.addEventListener("change", invalidatePreparedPackage);
+  consentInput.addEventListener("change", invalidatePreparedPackage);
 
   dealForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -197,8 +218,6 @@ if (dealForm) {
 }
 
 const reviewForm = document.querySelector("#review-form");
-const creditMemo = document.querySelector("#credit-memo");
-const reviewEmpty = document.querySelector("#review-empty");
 
 const renderCreditMemo = (dealPackage) => {
   if (!creditMemo || !reviewEmpty) return;
@@ -226,6 +245,7 @@ if (reviewForm) {
     reviewForm.setAttribute("aria-busy", "true");
     reviewError.textContent = "";
     reviewFile.setAttribute("aria-invalid", "false");
+    clearCreditMemo();
     try {
       const file = reviewFile.files?.[0];
       if (!file) throw new Error("Select an OpenBell JSON package to review.");

@@ -9,6 +9,7 @@ export const OPENBELL_MAINNET = Object.freeze({
 
 const addressPattern = /^0x[0-9a-fA-F]{40}$/;
 const hashPattern = /^0x[0-9a-fA-F]{64}$/;
+const zeroAddress = "0x0000000000000000000000000000000000000000";
 
 export const decimalToBaseUnits = (raw) => {
   const value = String(raw).trim();
@@ -53,6 +54,9 @@ export const buildUnsignedDealPackage = async ({
   createdAtMs = Date.now()
 }) => {
   if (!addressPattern.test(supplier) || !addressPattern.test(payer)) throw new Error("Enter valid supplier and payer addresses.");
+  if (supplier.toLowerCase() === zeroAddress || payer.toLowerCase() === zeroAddress) {
+    throw new Error("Supplier and payer must be nonzero addresses.");
+  }
   if (supplier.toLowerCase() === payer.toLowerCase()) throw new Error("Supplier and payer must be different addresses.");
   const economics = calculateDealEconomics(faceValueInput, requestedAdvanceInput);
   if (!/^\d+$/.test(String(nonceInput))) throw new Error("Supplier nonce must be a non-negative integer.");

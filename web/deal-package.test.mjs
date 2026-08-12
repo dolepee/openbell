@@ -46,6 +46,14 @@ test("unsigned package is deterministic, mainnet-bound, and contains no executio
 });
 
 test("deal package fails closed on unsafe or impossible terms", async () => {
+  await assert.rejects(
+    () => buildUnsignedDealPackage({ ...validInput, supplier: "0x0000000000000000000000000000000000000000" }),
+    /nonzero addresses/
+  );
+  await assert.rejects(
+    () => buildUnsignedDealPackage({ ...validInput, payer: "0x0000000000000000000000000000000000000000" }),
+    /nonzero addresses/
+  );
   await assert.rejects(() => buildUnsignedDealPackage({ ...validInput, payer: validInput.supplier }), /must be different/);
   await assert.rejects(() => buildUnsignedDealPackage({ ...validInput, requestedAdvance: "101" }), /cannot exceed/);
   await assert.rejects(() => buildUnsignedDealPackage({ ...validInput, documentHash: "0x12" }), /32-byte/);

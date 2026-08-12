@@ -174,6 +174,12 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(dealModule, /documentUploaded: false/);
   assert.match(dealModule, /transactionAuthorized: false/);
   assert.match(dealModule, /validateUnsignedDealPackage/);
+  assert.match(dealModule, /Supplier and payer must be nonzero addresses/);
+  assert.match(script, /const invalidatePreparedPackage = \(\) =>/);
+  assert.match(script, /\[supplierInput, payerInput, dueInput, nonceInput, documentHashInput\]/);
+  assert.match(script, /documentInput\.addEventListener\("change", invalidatePreparedPackage\)/);
+  assert.match(script, /consentInput\.addEventListener\("change", invalidatePreparedPackage\)/);
+  assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "false"\);\s+clearCreditMemo\(\);/);
   assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "true"\)/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
