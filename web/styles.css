@@ -92,6 +92,17 @@ button {
   background: var(--acid);
 }
 
+.mainnet-checkpoint {
+  padding-top: 86px;
+}
+
+.mainnet-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
 .site-header,
 main > section,
 footer,
@@ -945,7 +956,8 @@ footer p {
   main > section,
   footer,
   .trust-line {
-    width: min(100% - 30px, 1180px);
+    width: calc(100% - 30px);
+    max-width: 1180px;
   }
 
   .site-header nav a {
@@ -1046,13 +1058,33 @@ footer p {
   }
 
   .truth-ribbon {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 5px 18px;
-    min-height: 48px;
+    display: block;
+    min-height: 0;
     padding: 8px 16px;
-    font-size: 10px;
+    font-size: 9px;
     letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .truth-ribbon span {
+    display: inline;
+  }
+
+  .truth-ribbon span::after {
+    content: " · ";
+    color: var(--acid);
+  }
+
+  .truth-ribbon span:last-child::after {
+    content: "";
+  }
+
+  .truth-ribbon span:nth-of-type(n + 3) {
+    display: none;
+  }
+
+  .truth-ribbon span:nth-of-type(2)::after {
+    content: "";
   }
 
   .truth-ribbon i {
@@ -1068,8 +1100,7 @@ footer p {
   }
 
   .network-pill {
-    padding: 6px 8px;
-    font-size: 9px;
+    display: none;
   }
 
   .hero {
@@ -1100,8 +1131,9 @@ footer p {
   }
 
   .hero-equation {
+    display: grid;
+    grid-template-columns: 1fr;
     width: 100%;
-    justify-content: space-between;
     gap: 7px;
     margin-top: 22px;
     padding-inline: 8px;
@@ -1115,8 +1147,12 @@ footer p {
     text-align: center;
   }
 
+  .hero-equation {
+    overflow: hidden;
+  }
+
   .hero-equation > i {
-    flex: 0 0 auto;
+    transform: rotate(90deg);
   }
 
   .hero-equation b {

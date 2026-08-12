@@ -18,7 +18,9 @@
     "web:export": "node web/scripts/export-fixture.mjs",
     "web:check": "npm run web:export && node --test web/site.test.mjs",
     "web:serve": "python3 -m http.server 4187 -d web",
-    "check": "forge fmt --check && npm run typecheck && npm test && npm run e2e:fixture && npm run web:check"
+    "check:public-boundary": "node scripts/check-public-boundary.mjs",
+    "check:evidence-parity": "cmp evidence/openbell-xlayer-mainnet-deployment.json web/data/openbell-xlayer-mainnet-deployment.json",
+    "check": "forge fmt --check && npm run typecheck && npm test && npm run e2e:fixture && npm run web:check && npm run check:evidence-parity && npm run check:public-boundary"
   },
   "dependencies": {
     "viem": "2.55.13",

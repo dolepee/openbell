@@ -15,9 +15,21 @@ signed invoice -> bounded AI decision -> exact USDG advance -> payer settlement
 
 ## Current status
 
-OpenBell is in pre-alpha development for BuildX AI Season. Its labelled no-value fixture stack is
-deployed and source/runtime verified on X Layer Testnet. Its first complete testnet fixture
-lifecycle is also verified; every mainnet action remains unexecuted.
+OpenBell is in pre-alpha development for BuildX AI Season. The contract is deployed and verified
+on X Layer mainnet, while the complete economic journey remains a labelled no-value testnet
+fixture. No mainnet lifecycle or real-value activity has occurred.
+
+- Mainnet OpenBell Receivables: [`0xc4Ef249b80a6a034198C226278c51b0a903840dd`](https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd)
+- Mainnet deployment transaction: [`0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e`](https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e)
+- Mainnet deployment block: `67764503`
+- Mainnet runtime hash: `0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798`
+- Public deployment evidence: [`evidence/openbell-xlayer-mainnet-deployment.json`](evidence/openbell-xlayer-mainnet-deployment.json)
+
+The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
+getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
+source publication and an independent third-party audit remain separate, incomplete claims.
+
+The no-value testnet proof remains the only executed lifecycle:
 
 - Fixture tUSDG: [`0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703`](https://www.okx.com/web3/explorer/xlayer-test/address/0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703)
 - OpenBell Receivables: [`0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18`](https://www.okx.com/web3/explorer/xlayer-test/address/0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18)
@@ -39,7 +51,9 @@ obtainable without implying canonical-asset availability. A second optional scri
 canonical X Layer test USDG at `0xF0863D7A29a55d0c4263c11bFac754312ff078DF`; the current fork test
 uses local state allocation and proves contract compatibility, not that an operator wallet can
 obtain that token. The mainnet script is separately configured for canonical USDG at
-`0x4ae46a509F6b1D9056937BA4500cb143933D2dc8`. No mainnet deployment has occurred.
+`0x4ae46a509F6b1D9056937BA4500cb143933D2dc8`, which is also the settlement-token binding of the
+verified mainnet deployment. No mainnet invoice was registered, funded, settled, rejected, or moved
+for value.
 
 ## Why the AI is bounded
 

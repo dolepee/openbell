@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "openbell-xlayer-mainnet-deployment-public-v1",
+  "label": "XLAYER MAINNET DEPLOYMENT — NO LIFECYCLE OR REAL-VALUE ACTIVITY",
+  "chainId": "196",
+  "sourceCommit": "4a325e8c7288741909246e06070bc763345a48e2",
+  "sourceTree": "a7ce375b0a934205076eb133385cc2df1ffdf113",
+  "contract": {
+    "name": "OpenBellReceivables",
+    "address": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+    "explorerUrl": "https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+    "runtimeBytes": "13027",
+    "runtimeHash": "0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798",
+    "artifactCompatible": true
+  },
+  "deployment": {
+    "transactionHash": "0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e",
+    "explorerUrl": "https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e",
+    "blockNumber": "67764503",
+    "blockHash": "0x67cf875f763a6916059440eda93ad0fe93e9d173299c48df6b490e33c344ce8a",
+    "transactionIndex": "20",
+    "gasUsed": "2936662",
+    "effectiveGasPriceWei": "20000000",
+    "actualFeeWei": "58733240000000",
+    "transactionValueWei": "0"
+  },
+  "configuration": {
+    "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+    "owner": "0xFc2426CDbe672B0D92aC8399a16E88422AC5b737",
+    "pendingOwner": "0x0000000000000000000000000000000000000000",
+    "underwriter": "0x0eeC6255E87c3a8A1E251D94Ae3394FdD118cEE5",
+    "paused": false,
+    "maxAdvanceBps": "8000",
+    "maxFeeBps": "2000",
+    "maxRiskAge": "3600",
+    "maxInvoiceAge": "604800",
+    "maxInvoiceTenor": "7776000",
+    "eip712Domain": {
+      "name": "OpenBell Receivables",
+      "version": "1",
+      "chainId": "196",
+      "verifyingContract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd"
+    }
+  },
+  "verification": {
+    "manifestHash": "0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020",
+    "minimumConfirmations": "12",
+    "observedConfirmations": "127",
+    "twoProviderCanonicalVerification": true,
+    "sourceBoundArtifactRuntimeCompatible": true,
+    "gettersAndDomainVerified": true,
+    "explorerSourceVerified": false,
+    "independentlyVerified": false
+  },
+  "boundaries": {
+    "privatePathsIncluded": false,
+    "credentialsIncluded": false,
+    "privateKeysIncluded": false,
+    "signedTransactionsIncluded": false,
+    "mainnetLifecycleExecuted": false,
+    "realValueActivityExecuted": false,
+    "roleRotationExecuted": false,
+    "explorerSourcePublicationCompleted": false
+  }
+}

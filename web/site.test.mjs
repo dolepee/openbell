@@ -55,7 +55,7 @@ test("public proof has exact semantic parity with only accepted local block-hash
   });
 });
 
-test("first-fold claims distinguish the verified network lifecycle from the recorded replay", async () => {
+test("first-fold claims distinguish mainnet deployment, testnet lifecycle, and recorded replay", async () => {
   const html = await read("./index.html");
   assert.match(html, /<title>OpenBell — Replay AI-bounded invoice funding<\/title>/);
   assert.match(html, /name="description"/);
@@ -63,7 +63,7 @@ test("first-fold claims distinguish the verified network lifecycle from the reco
   assert.match(html, /property="og:title"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(html, /openbell-og\.png/);
-  assert.match(html, /VERIFIED TESTNET/);
+  assert.match(html, /VERIFIED MAINNET DEPLOYMENT/);
   assert.match(html, /NO REAL VALUE/);
   assert.match(html, /GENUINE AI/);
   assert.match(html, /RECORDED LOCAL REPLAY/);
@@ -72,7 +72,12 @@ test("first-fold claims distinguish the verified network lifecycle from the reco
   assert.match(html, /VERIFIED TESTNET CHECKPOINT/);
   assert.match(html, /Bankr-mediated GPT-5\.6 Terra, first response/);
   assert.match(html, /APPROVE 85% · FEE 1%/);
-  assert.match(html, /genuine-model lifecycle are verified on X Layer testnet/);
+  assert.match(html, /deployed and verified on X Layer mainnet/);
+  assert.match(html, /No mainnet lifecycle or real-value activity/);
+  assert.match(html, /0xc4Ef249b80a6a034198C226278c51b0a903840dd/);
+  assert.match(html, /0x328c…f413e/);
+  assert.match(html, /0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798/);
+  assert.match(html, /0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020/);
   assert.match(html, /min\(75 requested, 85 model, 80 contract\) = 75/);
   assert.match(html, /0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253/);
   assert.match(html, /0x1ea5…0036/);
@@ -82,6 +87,26 @@ test("first-fold claims distinguish the verified network lifecycle from the reco
   assert.doesNotMatch(html, /AI prices the risk/i);
   assert.doesNotMatch(html, /Prior default detected/i);
   assert.doesNotMatch(html, /AI ceiling (?:caused|determined|set) the approved amount/i);
+});
+
+test("public mainnet deployment evidence is exact, minimal, and private-material free", async () => {
+  const [source, exported] = await Promise.all([
+    read("../evidence/openbell-xlayer-mainnet-deployment.json"),
+    read("./data/openbell-xlayer-mainnet-deployment.json")
+  ]);
+  assert.equal(exported, source);
+  const evidence = JSON.parse(exported);
+  assert.equal(evidence.chainId, "196");
+  assert.equal(evidence.contract.address, "0xc4Ef249b80a6a034198C226278c51b0a903840dd");
+  assert.equal(evidence.deployment.transactionHash, "0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e");
+  assert.equal(evidence.deployment.blockNumber, "67764503");
+  assert.equal(evidence.contract.runtimeHash, "0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798");
+  assert.equal(evidence.verification.manifestHash, "0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020");
+  assert.equal(evidence.boundaries.mainnetLifecycleExecuted, false);
+  assert.equal(evidence.boundaries.realValueActivityExecuted, false);
+  assert.equal(evidence.boundaries.privateKeysIncluded, false);
+  assert.equal(evidence.verification.explorerSourceVerified, false);
+  assert.doesNotMatch(exported, /\/Users\/|"privateKey"\s*:|"signedTransaction"\s*:|rpc\.xlayer|xlayerrpc|"credential"\s*:/i);
 });
 
 test("public network evidence is exact, no-value, and signature-free", async () => {
