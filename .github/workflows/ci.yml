@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1
+      - run: npm ci
+      - name: Install pinned Solidity compiler
+        run: forge build --force
+      - name: Full offline gate
+        env:
+          FOUNDRY_OFFLINE: "true"
+        run: npm run check
+      - name: Public evidence parity
+        run: |
+          cmp evidence/openbell-xlayer-mainnet-deployment.json web/data/openbell-xlayer-mainnet-deployment.json
+          cmp evidence/openbell-xlayer-mainnet-verification-record.json web/data/openbell-xlayer-mainnet-verification-record.json
+          cmp evidence/openbell-xlayer-mainnet-observations.json web/data/openbell-xlayer-mainnet-observations.json
+          cmp evidence/openbell-xlayer-mainnet-observation-verification.json web/data/openbell-xlayer-mainnet-observation-verification.json
+          node scripts/verify-mainnet-observations.mjs | cmp evidence/openbell-xlayer-mainnet-observation-verification.json -
+          git diff --exit-code -- web/data
+      - name: Public-boundary scan
+        run: npm run check:public-boundary

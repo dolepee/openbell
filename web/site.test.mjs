@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { expectedMainnetEvidence, validateMainnetPublicEvidence } from "../scripts/lib/mainnet-public-evidence.mjs";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -12,6 +13,10 @@ test("public proof has exact semantic parity with only accepted local block-hash
   const proof = JSON.parse(source);
   const publicProof = JSON.parse(exported);
   const allowedEntropyPaths = new Set([
+    "contracts.deploymentReceipts.token.blockHash",
+    "contracts.deploymentReceipts.receivables.blockHash",
+    "fixtureFunding.funderClaim.blockHash",
+    "fixtureFunding.payerClaim.blockHash",
     "approvedJourney.receipts.register.blockHash",
     "approvedJourney.receipts.funderApproval.blockHash",
     "approvedJourney.receipts.fund.blockHash",
@@ -55,7 +60,7 @@ test("public proof has exact semantic parity with only accepted local block-hash
   });
 });
 
-test("first-fold claims distinguish the verified network lifecycle from the recorded replay", async () => {
+test("first-fold claims distinguish mainnet deployment, testnet lifecycle, and recorded replay", async () => {
   const html = await read("./index.html");
   assert.match(html, /<title>OpenBell — Replay AI-bounded invoice funding<\/title>/);
   assert.match(html, /name="description"/);
@@ -63,7 +68,8 @@ test("first-fold claims distinguish the verified network lifecycle from the reco
   assert.match(html, /property="og:title"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(html, /openbell-og\.png/);
-  assert.match(html, /VERIFIED TESTNET/);
+  assert.match(await read("./public/openbell-og.svg"), /OPERATOR DISCLOSURE · ACTIVITY ABSENCE NOT INDEPENDENTLY VERIFIED/);
+  assert.match(html, /VERIFIED MAINNET DEPLOYMENT/);
   assert.match(html, /NO REAL VALUE/);
   assert.match(html, /GENUINE AI/);
   assert.match(html, /RECORDED LOCAL REPLAY/);
@@ -72,7 +78,13 @@ test("first-fold claims distinguish the verified network lifecycle from the reco
   assert.match(html, /VERIFIED TESTNET CHECKPOINT/);
   assert.match(html, /Bankr-mediated GPT-5\.6 Terra, first response/);
   assert.match(html, /APPROVE 85% · FEE 1%/);
-  assert.match(html, /genuine-model lifecycle are verified on X Layer testnet/);
+  assert.match(html, /deployed and verified on X Layer mainnet/);
+  assert.match(html, /Operator disclosure, not independently verified: no mainnet lifecycle or real-value activity/);
+  assert.match(html, /0xc4Ef249b80a6a034198C226278c51b0a903840dd/);
+  assert.match(html, /0x328c…f413e/);
+  assert.match(html, /0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798/);
+  assert.match(html, /0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020/);
+  assert.match(html, /d5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8/);
   assert.match(html, /min\(75 requested, 85 model, 80 contract\) = 75/);
   assert.match(html, /0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253/);
   assert.match(html, /0x1ea5…0036/);
@@ -82,6 +94,25 @@ test("first-fold claims distinguish the verified network lifecycle from the reco
   assert.doesNotMatch(html, /AI prices the risk/i);
   assert.doesNotMatch(html, /Prior default detected/i);
   assert.doesNotMatch(html, /AI ceiling (?:caused|determined|set) the approved amount/i);
+});
+
+test("public mainnet deployment evidence is exact, minimal, and private-material free", async () => {
+  const [source, exported, publicRecord, deterministicVerification] = await Promise.all([
+    read("../evidence/openbell-xlayer-mainnet-deployment.json"),
+    read("./data/openbell-xlayer-mainnet-deployment.json"),
+    read("../evidence/openbell-xlayer-mainnet-verification-record.json"),
+    read("../evidence/openbell-xlayer-mainnet-observation-verification.json")
+  ]);
+  assert.equal(exported, source);
+  const evidence = JSON.parse(exported);
+  assert.deepEqual(evidence, expectedMainnetEvidence);
+  assert.deepEqual(validateMainnetPublicEvidence({
+    evidence,
+    exportedEvidence: JSON.parse(source),
+    publicRecordBytes: publicRecord,
+    deterministicVerificationBytes: deterministicVerification
+  }), { publicRecordHash: "0xd5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8" });
+  assert.doesNotMatch(exported, /\/Users\/|"privateKey"\s*:|"signedTransaction"\s*:|rpc\.xlayer|xlayerrpc|"credential"\s*:/i);
 });
 
 test("public network evidence is exact, no-value, and signature-free", async () => {

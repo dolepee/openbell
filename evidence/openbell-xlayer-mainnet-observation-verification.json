@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "openbell-xlayer-mainnet-observation-verification-v1",
+  "observationsSha256": "0xe8e750a45a206664b0e85db3496482232556f4b2d0a23db9073c8f4e71b77dd9",
+  "providerResults": [
+    {
+      "provider": "official-xlayer",
+      "head": "0x40a14b8",
+      "headHash": "0x4b4145ec1d32e0005f9c986ee89fd6190b56ca8592da193efcd94939d0d777ee",
+      "confirmations": "5026"
+    },
+    {
+      "provider": "official-okx",
+      "head": "0x40a14c2",
+      "headHash": "0xad98c61748d252ab17cdb934236e25a9e566907926cc9b4f090bbf2f6f821962",
+      "confirmations": "5036"
+    }
+  ],
+  "endpointCommitments": [
+    {
+      "provider": "official-xlayer",
+      "endpointCommitment": "0x6dc6837936cfafdb8db23141dc98177dbd4f1c79c1557d49210b9323920fb950"
+    },
+    {
+      "provider": "official-okx",
+      "endpointCommitment": "0xfa5659df3a429653458dace179429da5792e84e14097e98fc8e5afe67fa1148c"
+    }
+  ],
+  "minimumObservedConfirmations": "5026",
+  "chainId": "196",
+  "transactionHash": "0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e",
+  "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+  "blockNumber": "67764503",
+  "blockHash": "0x67cf875f763a6916059440eda93ad0fe93e9d173299c48df6b490e33c344ce8a",
+  "runtimeHash": "0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798",
+  "runtimeTemplateHash": "0x544f9e4fcad1f9ebf4e80b46ea130a52a35b63ca8b1c028394c86219ecda7cb3",
+  "configuration": {
+    "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+    "owner": "0xFc2426CDbe672B0D92aC8399a16E88422AC5b737",
+    "pendingOwner": "0x0000000000000000000000000000000000000000",
+    "underwriter": "0x0eeC6255E87c3a8A1E251D94Ae3394FdD118cEE5",
+    "paused": false,
+    "BPS": 10000,
+    "maxAdvanceBps": 8000,
+    "maxFeeBps": 2000,
+    "maxRiskAge": "3600",
+    "maxInvoiceAge": "604800",
+    "maxInvoiceTenor": "7776000",
+    "INVOICE_TYPEHASH": "0x3fa7362141ca2043801d61b9efee211fcbc943d3c40221f3ef30e1c50e933686",
+    "APPROVAL_TYPEHASH": "0x0237a21cd055f0c6cd3ddb0b019ef5b9df26dcd8f5ddeaa837de0477b1d7be2f",
+    "REJECTION_TYPEHASH": "0xc37ca47ab045a2d5cbd3c6754a2261ef43266e00880b7d707bc3daef81dd9a65",
+    "eip712Domain": [
+      "0x0f",
+      "OpenBell Receivables",
+      "1",
+      "196",
+      "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      []
+    ]
+  },
+  "transactionReceiptCanonical": true,
+  "runtimeArtifactCompatible": true,
+  "configurationAndDomainVerified": true,
+  "endpointProvenanceCommitted": true,
+  "endpointProvenanceIndependentlyAttested": false,
+  "independentlyVerified": false,
+  "explorerSourceVerified": false
+}

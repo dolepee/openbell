@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "openbell-xlayer-mainnet-verification-record-v1",
+  "label": "SANITIZED PUBLIC VERIFICATION RECORD — DEPLOYMENT ONLY",
+  "chain": {
+    "name": "X Layer Mainnet",
+    "chainId": "196"
+  },
+  "source": {
+    "commit": "4a325e8c7288741909246e06070bc763345a48e2",
+    "tree": "a7ce375b0a934205076eb133385cc2df1ffdf113",
+    "compiler": "0.8.30+commit.73712a01",
+    "evmVersion": "prague",
+    "optimizerEnabled": true,
+    "optimizerRuns": "10000",
+    "artifactSha256": "0xb92ec49df9cd66962528a90a3daebf8918f7cefab0579f86f17f4635b3f505bc",
+    "creationCodeBytes": "14399",
+    "creationCodeHash": "0x467a7d969e48936a67927b25c5789b11120c48b41e0d5d58293608e443d00865"
+  },
+  "deployment": {
+    "deployer": "0x950d3A417dbBA923b775f2BFd146163961842Bd4",
+    "nonce": "0",
+    "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+    "initcodeHash": "0x68375ec447e855253481f40d20ddf3eec94bba204f3037c3304109669f5d370f",
+    "transactionHash": "0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e",
+    "blockNumber": "67764503",
+    "blockHash": "0x67cf875f763a6916059440eda93ad0fe93e9d173299c48df6b490e33c344ce8a",
+    "transactionIndex": "20",
+    "receiptStatus": "success",
+    "transactionValueWei": "0",
+    "gasUsed": "2936662",
+    "effectiveGasPriceWei": "20000000",
+    "actualFeeWei": "58733240000000"
+  },
+  "runtime": {
+    "bytes": "13027",
+    "hash": "0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798",
+    "artifactCompatibleOutsideDeclaredImmutableReferences": true,
+    "immutableReferencesBoundByConstructorAndGetters": true,
+    "eip170LimitPassed": true
+  },
+  "configuration": {
+    "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+    "owner": "0xFc2426CDbe672B0D92aC8399a16E88422AC5b737",
+    "pendingOwner": "0x0000000000000000000000000000000000000000",
+    "underwriter": "0x0eeC6255E87c3a8A1E251D94Ae3394FdD118cEE5",
+    "paused": false,
+    "maxAdvanceBps": "8000",
+    "maxFeeBps": "2000",
+    "maxRiskAge": "3600",
+    "maxInvoiceAge": "604800",
+    "maxInvoiceTenor": "7776000",
+    "invoiceTypehash": "0x3fa7362141ca2043801d61b9efee211fcbc943d3c40221f3ef30e1c50e933686",
+    "approvalTypehash": "0x0237a21cd055f0c6cd3ddb0b019ef5b9df26dcd8f5ddeaa837de0477b1d7be2f",
+    "rejectionTypehash": "0xc37ca47ab045a2d5cbd3c6754a2261ef43266e00880b7d707bc3daef81dd9a65",
+    "eip712Domain": {
+      "fields": "0x0f",
+      "name": "OpenBell Receivables",
+      "version": "1",
+      "chainId": "196",
+      "verifyingContract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "extensions": []
+    }
+  },
+  "verification": {
+    "sealedPrivateSourceManifestCommitment": "0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020",
+    "sanitizedObservations": "evidence/openbell-xlayer-mainnet-observations.json",
+    "sanitizedObservationsSha256": "0xe8e750a45a206664b0e85db3496482232556f4b2d0a23db9073c8f4e71b77dd9",
+    "deterministicVerification": "evidence/openbell-xlayer-mainnet-observation-verification.json",
+    "deterministicVerificationSha256": "0x0ec49c3955998cd9c9e688fb1230de06a3946d4405254f480372966b37f7fce9",
+    "endpointProvenanceCommitted": true,
+    "endpointProvenanceIndependentlyAttested": false,
+    "minimumConfirmations": "12",
+    "observedConfirmations": "5026",
+    "confirmationDerivation": "minimum(providerResults.confirmations)",
+    "providerObservationCount": "2",
+    "transactionAndReceiptMatched": true,
+    "canonicalBlockRechecked": true,
+    "runtimeAndImmutableBindingsVerified": true,
+    "configurationAndDomainVerified": true,
+    "independentlyVerified": false,
+    "explorerSourceVerified": false
+  },
+  "boundaries": {
+    "rpcEndpointsIncluded": false,
+    "rpcCredentialsIncluded": false,
+    "privatePathsIncluded": false,
+    "credentialsIncluded": false,
+    "privateKeysIncluded": false,
+    "rawSignaturesIncluded": false,
+    "signedTransactionsIncluded": false,
+    "operatorDisclosedMainnetLifecycleExecuted": false,
+    "operatorDisclosedRealValueActivityExecuted": false,
+    "activityAbsenceIndependentlyVerified": false,
+    "roleRotationExecuted": false,
+    "explorerSourcePublicationCompleted": false
+  }
+}
