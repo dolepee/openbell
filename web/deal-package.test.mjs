@@ -35,6 +35,14 @@ test("preparation guard prevents an invalidated asynchronous result from becomin
   assert.equal(guard.isCurrent(firstPreparation), false);
 });
 
+test("preparation guard permits only the latest concurrent operation to publish", () => {
+  const guard = createPreparationGuard();
+  const firstReview = guard.begin();
+  const secondReview = guard.begin();
+  assert.equal(guard.isCurrent(firstReview), false);
+  assert.equal(guard.isCurrent(secondReview), true);
+});
+
 test("unsigned package is deterministic, mainnet-bound, and contains no execution authority", async () => {
   const first = await buildUnsignedDealPackage(validInput);
   const second = await buildUnsignedDealPackage(validInput);

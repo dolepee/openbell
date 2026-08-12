@@ -184,6 +184,10 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /documentInput\.addEventListener\("change", invalidatePreparedPackage\)/);
   assert.match(script, /consentInput\.addEventListener\("change", invalidatePreparedPackage\)/);
   assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "false"\);\s+clearCreditMemo\(\);/);
+  assert.match(script, /const reviewGuard = createPreparationGuard\(\)/);
+  assert.match(script, /reviewFile\.addEventListener\("change"/);
+  assert.match(script, /const reviewRevision = reviewGuard\.begin\(\)/);
+  assert.match(script, /if \(!reviewGuard\.isCurrent\(reviewRevision\)\) return/);
   assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "true"\)/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);

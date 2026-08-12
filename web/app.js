@@ -247,8 +247,17 @@ const renderCreditMemo = (dealPackage) => {
 if (reviewForm) {
   const reviewFile = document.querySelector("#review-file");
   const reviewError = document.querySelector("#review-error");
+  const reviewGuard = createPreparationGuard();
+  reviewFile.addEventListener("change", () => {
+    reviewGuard.invalidate();
+    reviewForm.setAttribute("aria-busy", "false");
+    reviewFile.setAttribute("aria-invalid", "false");
+    reviewError.textContent = "";
+    clearCreditMemo();
+  });
   reviewForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const reviewRevision = reviewGuard.begin();
     reviewForm.setAttribute("aria-busy", "true");
     reviewError.textContent = "";
     reviewFile.setAttribute("aria-invalid", "false");
@@ -264,12 +273,14 @@ if (reviewForm) {
         throw new Error("The selected file is not valid JSON.");
       }
       const validated = await validateUnsignedDealPackage(candidate);
+      if (!reviewGuard.isCurrent(reviewRevision)) return;
       renderCreditMemo(validated);
     } catch (error) {
+      if (!reviewGuard.isCurrent(reviewRevision)) return;
       reviewFile.setAttribute("aria-invalid", "true");
       reviewError.textContent = error instanceof Error ? error.message : "Unable to review the deal package.";
     } finally {
-      reviewForm.setAttribute("aria-busy", "false");
+      if (reviewGuard.isCurrent(reviewRevision)) reviewForm.setAttribute("aria-busy", "false");
     }
   });
 }
