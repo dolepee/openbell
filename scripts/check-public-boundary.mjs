@@ -33,7 +33,7 @@ const binaryAllowlist = new Map([
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const isText = (bytes) => !bytes.subarray(0, 8_192).includes(0);
-const placeholderCredential = (value) => /^(?:|test(?:-only)?|example|redacted|public)$/i.test(value.trim());
+const placeholderCredential = (value) => /^(?:|test(?:-only)?|example|redacted|public|string|number|boolean|unknown|never|undefined|null)$/i.test(value.trim());
 
 const scanStructuredCredentialAssignments = ({ path, text }) => {
   const violations = [];
@@ -42,7 +42,9 @@ const scanStructuredCredentialAssignments = ({ path, text }) => {
     const key = match[1].replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[-_]/g, "");
     const value = match[2] ?? match[3] ?? match[4] ?? "";
     const sensitiveEndpointField = key.includes("rpc") && /(?:secret|token|apikey|password|passphrase|key|auth|credential)$/.test(key);
+    const sensitiveGenericField = /^(?:apikey|secretkey|clientsecret|accesstoken|authtoken|password|passphrase|credential)$/.test(key);
     if (sensitiveEndpointField && !placeholderCredential(value)) violations.push(`forbidden structured endpoint credential: ${path}`);
+    if (sensitiveGenericField && !placeholderCredential(value)) violations.push(`forbidden structured credential: ${path}`);
   }
   return violations;
 };
