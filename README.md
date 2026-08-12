@@ -9,11 +9,24 @@ repayment directly to the funder.
 
 **Live app:** [openbell.dolepee.com](https://openbell.dolepee.com/)
 
+**V2 deal studio:** [openbell.dolepee.com/studio](https://openbell.dolepee.com/studio/)
+
 The user outcome is deliberately simple:
 
 ```text
 signed invoice -> bounded AI decision -> exact USDG advance -> payer settlement
 ```
+
+## V2 deal preparation
+
+OpenBell V2 begins before underwriting. The browser-only deal studio lets a supplier prepare invoice
+terms, hash the underlying document locally, see the immutable 80% advance ceiling, and export a
+deterministic unsigned package for downstream EIP-712 encoding and review.
+
+The studio never uploads the document, connects a wallet, calls a model, produces signatures,
+constructs calldata, authorizes a transaction, or promises financing. Its pre-AI upper bound is
+only `min(requested advance, immutable contract maximum)`. Genuine risk assessment may lower that
+amount or reject the invoice, and supplier plus payer authority remains mandatory.
 
 ## Current status
 

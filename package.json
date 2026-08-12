@@ -19,7 +19,7 @@
     "pree2e:fixture": "forge build --offline --quiet",
     "e2e:fixture": "tsx agent/scripts/run-fixture.ts",
     "web:export": "node web/scripts/export-fixture.mjs",
-    "web:check": "npm run web:export && node --test web/site.test.mjs",
+    "web:check": "npm run web:export && node --test web/deal-package.test.mjs web/site.test.mjs",
     "web:serve": "python3 -m http.server 4187 -d web",
     "site:build": "node scripts/build-sites-static.mjs",
     "site:check": "npm run site:build && node --check dist/server/index.js && cmp web/index.html dist/client/index.html && cmp web/data/openbell-xlayer-mainnet-deployment.json dist/client/data/openbell-xlayer-mainnet-deployment.json && cmp web/data/openbell-xlayer-testnet-lifecycle.json dist/client/data/openbell-xlayer-testnet-lifecycle.json",

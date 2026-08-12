@@ -1,3 +1,5 @@
+import { baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
+
 const compact = (value) => value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
 
 const executionNext = document.querySelector("#execution-next");
@@ -97,6 +99,153 @@ const renderInvoice = (key) => {
 };
 
 invoiceButtons.forEach((button) => button.addEventListener("click", () => renderInvoice(button.dataset.invoice)));
+
+const dealForm = document.querySelector("#deal-form");
+if (dealForm) {
+  const supplierInput = document.querySelector("#deal-supplier");
+  const payerInput = document.querySelector("#deal-payer");
+  const faceInput = document.querySelector("#deal-face");
+  const requestInput = document.querySelector("#deal-request");
+  const dueInput = document.querySelector("#deal-due");
+  const nonceInput = document.querySelector("#deal-nonce");
+  const documentInput = document.querySelector("#deal-document");
+  const documentHashInput = document.querySelector("#deal-document-hash");
+  const consentInput = document.querySelector("#deal-synthetic");
+  const errorOutput = document.querySelector("#deal-error");
+  const packageState = document.querySelector("#package-state");
+  const packageInvoiceId = document.querySelector("#package-invoice-id");
+  const packageDocumentHash = document.querySelector("#package-document-hash");
+  const downloadPackage = document.querySelector("#download-package");
+  let preparedPackage = null;
+
+  const tomorrow = new Date();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 30);
+  dueInput.value = tomorrow.toISOString().slice(0, 10);
+
+  const renderStudioMath = () => {
+    try {
+      const economics = calculateDealEconomics(faceInput.value, requestInput.value);
+      document.querySelector("#studio-face").textContent = baseUnitsToDecimal(economics.faceValue);
+      document.querySelector("#studio-request").textContent = baseUnitsToDecimal(economics.requestedAdvance);
+      document.querySelector("#studio-contract-max").textContent = baseUnitsToDecimal(economics.immutableMaximumAdvance);
+      document.querySelector("#studio-upper-bound").textContent = baseUnitsToDecimal(economics.preAiUpperBound);
+    } catch {
+      document.querySelector("#studio-upper-bound").textContent = "—";
+    }
+    preparedPackage = null;
+    downloadPackage.disabled = true;
+    packageState.textContent = "DRAFT";
+  };
+
+  faceInput.addEventListener("input", renderStudioMath);
+  requestInput.addEventListener("input", renderStudioMath);
+
+  dealForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    dealForm.setAttribute("aria-busy", "true");
+    errorOutput.textContent = "";
+    preparedPackage = null;
+    downloadPackage.disabled = true;
+
+    try {
+      if (!consentInput.checked) throw new Error("Confirm that the invoice preparation is synthetic or authorized.");
+
+      const selectedFile = documentInput.files?.[0];
+      const suppliedHash = documentHashInput.value.trim();
+      if (selectedFile && suppliedHash) throw new Error("Choose a local document or provide an existing hash, not both.");
+      if (!selectedFile && !suppliedHash) throw new Error("Select a document or provide a valid 32-byte SHA-256 commitment.");
+      if (selectedFile && selectedFile.size > 25 * 1024 * 1024) throw new Error("Local document hashing is limited to 25 MiB.");
+      const documentHash = selectedFile ? await sha256(await selectedFile.arrayBuffer()) : suppliedHash.toLowerCase();
+
+      preparedPackage = await buildUnsignedDealPackage({
+        supplier: supplierInput.value.trim(),
+        payer: payerInput.value.trim(),
+        faceValue: faceInput.value,
+        requestedAdvance: requestInput.value,
+        dueDate: dueInput.value,
+        nonce: nonceInput.value,
+        documentHash
+      });
+
+      packageInvoiceId.textContent = preparedPackage.invoiceTerms.invoiceId;
+      packageDocumentHash.textContent = documentHash;
+      packageState.textContent = "PREPARED";
+      downloadPackage.disabled = false;
+      document.querySelector('[data-readiness="terms"]').dataset.complete = "true";
+      document.querySelector('[data-readiness="document"]').dataset.complete = "true";
+      renderCreditMemo(preparedPackage);
+    } catch (error) {
+      errorOutput.textContent = error instanceof Error ? error.message : "Unable to prepare the deal package.";
+      packageState.textContent = "DRAFT";
+    } finally {
+      dealForm.setAttribute("aria-busy", "false");
+    }
+  });
+
+  downloadPackage.addEventListener("click", () => {
+    if (!preparedPackage) return;
+    const blob = new Blob([`${JSON.stringify(preparedPackage, null, 2)}\n`], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `openbell-deal-${preparedPackage.invoiceTerms.invoiceId.slice(2, 14)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderStudioMath();
+}
+
+const reviewForm = document.querySelector("#review-form");
+const creditMemo = document.querySelector("#credit-memo");
+const reviewEmpty = document.querySelector("#review-empty");
+
+const renderCreditMemo = (dealPackage) => {
+  if (!creditMemo || !reviewEmpty) return;
+  const terms = dealPackage.invoiceTerms;
+  const request = dealPackage.underwritingRequest;
+  setText("#memo-id", compact(terms.invoiceId));
+  setText("#memo-face", `${baseUnitsToDecimal(BigInt(terms.faceValue))} USDG`);
+  setText("#memo-request", `${baseUnitsToDecimal(BigInt(request.requestedAdvance))} USDG`);
+  setText("#memo-max", `${baseUnitsToDecimal(BigInt(request.immutableMaximumAdvance))} USDG`);
+  setText("#memo-bound", `${baseUnitsToDecimal(BigInt(request.preAiUpperBound))} USDG`);
+  setText("#memo-supplier", terms.supplier);
+  setText("#memo-payer", terms.payer);
+  setText("#memo-due", new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(Number(terms.dueDate) * 1000)));
+  setText("#memo-document", terms.documentHash);
+  reviewEmpty.hidden = true;
+  creditMemo.hidden = false;
+  creditMemo.focus({ preventScroll: false });
+};
+
+if (reviewForm) {
+  const reviewFile = document.querySelector("#review-file");
+  const reviewError = document.querySelector("#review-error");
+  reviewForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    reviewForm.setAttribute("aria-busy", "true");
+    reviewError.textContent = "";
+    reviewFile.setAttribute("aria-invalid", "false");
+    try {
+      const file = reviewFile.files?.[0];
+      if (!file) throw new Error("Select an OpenBell JSON package to review.");
+      if (file.size > 256 * 1024) throw new Error("Deal-package review is limited to 256 KiB.");
+      let candidate;
+      try {
+        candidate = JSON.parse(await file.text());
+      } catch {
+        throw new Error("The selected file is not valid JSON.");
+      }
+      const validated = await validateUnsignedDealPackage(candidate);
+      renderCreditMemo(validated);
+    } catch (error) {
+      reviewFile.setAttribute("aria-invalid", "true");
+      reviewError.textContent = error instanceof Error ? error.message : "Unable to review the deal package.";
+    } finally {
+      reviewForm.setAttribute("aria-busy", "false");
+    }
+  });
+}
 
 const approvalDigest = document.querySelector("#approval-digest");
 const rejectionDigest = document.querySelector("#rejection-digest");

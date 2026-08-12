@@ -60,14 +60,15 @@ test("public proof has exact semantic parity with only accepted local block-hash
   });
 });
 
-test("multi-page launch surface separates product, workspace, proof, and architecture", async () => {
-  const [overview, workspace, proof, architecture] = await Promise.all([
+test("multi-page launch surface separates product, deal preparation, verified cases, proof, and architecture", async () => {
+  const [overview, studio, workspace, proof, architecture] = await Promise.all([
     read("./index.html"),
+    read("./studio/index.html"),
     read("./workspace/index.html"),
     read("./proof/index.html"),
     read("./architecture/index.html")
   ]);
-  const pages = [overview, workspace, proof, architecture];
+  const pages = [overview, studio, workspace, proof, architecture];
   for (const page of pages) {
     assert.match(page, /<div class="nav-right">/);
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
@@ -76,6 +77,10 @@ test("multi-page launch surface separates product, workspace, proof, and archite
   assert.match(overview, /One invoice\.<br \/>Three limits\.<br \/><em>Zero ambiguity\.<\/em>/);
   assert.match(overview, /min\(request, model, code\)/);
   assert.match(overview, /No mainnet lifecycle or real-value activity/);
+  assert.match(studio, /BROWSER-ONLY PREPARATION/);
+  assert.match(studio, /UNSIGNED PREPARATION ONLY/);
+  assert.match(studio, /No transaction is constructed/);
+  assert.match(studio, /AI assessment and both-party signatures happen after this boundary/);
   assert.match(workspace, /Bankr-mediated GPT-5\.6 Terra · first response/);
   assert.match(workspace, /data-invoice="approved"/);
   assert.match(workspace, /data-invoice="rejected"/);
@@ -98,6 +103,7 @@ test("multi-page launch surface separates product, workspace, proof, and archite
     assert.match(page, /property="og:url" content="https:\/\/openbell\.dolepee\.com\//);
     assert.match(page, /property="og:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
     assert.match(page, /name="twitter:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
+    assert.match(page, /href="\/studio\/"/);
     assert.match(page, /href="\/workspace\/"/);
     assert.match(page, /href="\/proof\/"/);
     assert.match(page, /href="\/architecture\/"/);
@@ -147,17 +153,28 @@ test("public network evidence is exact, no-value, and signature-free", async () 
 });
 
 test("interactive controls use native accessible elements", async () => {
-  const [html, proof, script, css] = await Promise.all([read("./workspace/index.html"), read("./proof/index.html"), read("./app.js"), read("./styles.css")]);
+  const [html, studio, proof, script, dealModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./styles.css")]);
   assert.match(html, /<button[^>]+data-invoice="approved"[^>]+aria-pressed="true"/);
   assert.match(html, /<button[^>]+id="execution-next"/);
   assert.match(html, /aria-live="polite"/);
   assert.match(proof, /<a[^>]+href="\/data\/openbell-receivables-fixture\.json"/);
-  assert.doesNotMatch(`${html}${proof}`, /tabindex="[1-9]/);
+  assert.match(studio, /<form class="deal-form" id="deal-form"/);
+  assert.match(studio, /<input id="deal-document"[^>]+type="file"/);
+  assert.match(studio, /<button[^>]+id="download-package"[^>]+disabled/);
+  assert.match(studio, /<form id="review-form" class="review-import"/);
+  assert.match(studio, /<input id="review-file"[^>]+type="file"[^>]+aria-describedby="review-help review-error"/);
+  assert.match(studio, /id="credit-memo" hidden aria-live="polite" tabindex="-1"/);
+  assert.doesNotMatch(`${html}${studio}${proof}`, /tabindex="[1-9]/);
   assert.match(script, /addEventListener\("click"/);
   assert.match(script, /proof\.disclosures\?\.independentlyVerified !== false/);
   assert.match(script, /proof\.chain\?\.client !== "self-spawned Anvil"/);
   assert.match(script, /proof\.chain\?\.explorerReceipts !== false/);
   assert.match(script, /network\.verifiedOutcome\?\.approvedInvoiceStatus !== "SETTLED"/);
+  assert.match(dealModule, /openbell-receivables-deal-preparation-v1/);
+  assert.match(dealModule, /documentUploaded: false/);
+  assert.match(dealModule, /transactionAuthorized: false/);
+  assert.match(dealModule, /validateUnsignedDealPackage/);
+  assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "true"\)/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
 });
