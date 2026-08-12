@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createScanner, SyntaxKind } from "typescript/unstable/ast";
 
 export const forbiddenPathPattern = /(^|\/)(demo[_-]?script|recording[_-]?script|judge[_-]?script|submission[_-]?checklist)(\.|\/|$)|(^|\/).*SUBMISSION.*\.md$/i;
 
@@ -40,17 +41,78 @@ const placeholderCredential = (value) => {
     || /^(?:this|options|config|process\.env)(?:\.[A-Za-z_$][\w$]*)+$/.test(trimmed);
 };
 
+const normalizedCredentialKey = (rawKey) => rawKey.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[-_]/g, "");
+const credentialKinds = (rawKey) => {
+  const key = normalizedCredentialKey(rawKey);
+  return {
+    endpoint: key.includes("rpc") && /(?:secret|token|apikey|password|passphrase|key|auth|credential)$/.test(key),
+    generic: /^(?:privatekey|apikey|secret|secretkey|clientsecret|accesstoken|authtoken|password|passphrase|credential)$/.test(key)
+  };
+};
+
+const scanTypeScriptCredentialInitializers = ({ path, text }) => {
+  const violations = [];
+  const inspect = (name, value) => {
+    const kinds = credentialKinds(name);
+    if (kinds.endpoint && !placeholderCredential(value)) violations.push(`forbidden typed endpoint credential: ${path}`);
+    if (kinds.generic && !placeholderCredential(value)) violations.push(`forbidden typed credential: ${path}`);
+  };
+  const scanner = createScanner(true, undefined, text);
+  const tokens = [];
+  let previousEnd = -1;
+  for (let kind = scanner.scan(); kind !== SyntaxKind.EndOfFile; kind = scanner.scan()) {
+    if (scanner.getTokenEnd() <= previousEnd) {
+      if (kind === SyntaxKind.PrivateIdentifier && scanner.getTokenText() === "") kind = scanner.reScanHashToken();
+      if (scanner.getTokenEnd() <= previousEnd) throw new Error(`TypeScript scanner stalled: ${path}`);
+    }
+    tokens.push({ kind, value: scanner.getTokenValue() });
+    previousEnd = scanner.getTokenEnd();
+  }
+  const stringValue = (token) => token && (token.kind === SyntaxKind.StringLiteral || token.kind === SyntaxKind.NoSubstitutionTemplateLiteral) ? token.value : undefined;
+  const opens = new Map([[SyntaxKind.OpenParenToken, SyntaxKind.CloseParenToken], [SyntaxKind.OpenBraceToken, SyntaxKind.CloseBraceToken], [SyntaxKind.OpenBracketToken, SyntaxKind.CloseBracketToken], [SyntaxKind.LessThanToken, SyntaxKind.GreaterThanToken]]);
+  const closes = new Set(opens.values());
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.kind !== SyntaxKind.Identifier || !Object.values(credentialKinds(token.value)).some(Boolean)) continue;
+    let cursor = index + 1;
+    if (tokens[cursor]?.kind === SyntaxKind.QuestionToken) cursor += 1;
+    if (tokens[cursor]?.kind === SyntaxKind.EqualsToken) {
+      const value = stringValue(tokens[cursor + 1]);
+      if (value !== undefined) inspect(token.value, value);
+      continue;
+    }
+    if (tokens[cursor]?.kind !== SyntaxKind.ColonToken) continue;
+    const stack = [];
+    for (cursor += 1; cursor < tokens.length; cursor += 1) {
+      const current = tokens[cursor];
+      if (opens.has(current.kind)) {
+        stack.push(opens.get(current.kind));
+        continue;
+      }
+      if (closes.has(current.kind)) {
+        if (stack.at(-1) === current.kind) stack.pop();
+        else if (stack.length === 0) break;
+        continue;
+      }
+      if (stack.length !== 0) continue;
+      if (current.kind === SyntaxKind.CommaToken || current.kind === SyntaxKind.SemicolonToken) break;
+      if (current.kind === SyntaxKind.EqualsToken) {
+        const value = stringValue(tokens[cursor + 1]);
+        if (value !== undefined) inspect(token.value, value);
+        break;
+      }
+    }
+  }
+  return violations;
+};
+
 const scanStructuredCredentialAssignments = ({ path, text }) => {
   const violations = [];
   const inspect = (rawKey, value) => {
-    const key = rawKey.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[-_]/g, "");
-    const sensitiveEndpointField = key.includes("rpc") && /(?:secret|token|apikey|password|passphrase|key|auth|credential)$/.test(key);
-    const sensitiveGenericField = /^(?:privatekey|apikey|secret|secretkey|clientsecret|accesstoken|authtoken|password|passphrase|credential)$/.test(key);
-    if (sensitiveEndpointField && !placeholderCredential(value)) violations.push(`forbidden structured endpoint credential: ${path}`);
-    if (sensitiveGenericField && !placeholderCredential(value)) violations.push(`forbidden structured credential: ${path}`);
+    const kinds = credentialKinds(rawKey);
+    if (kinds.endpoint && !placeholderCredential(value)) violations.push(`forbidden structured endpoint credential: ${path}`);
+    if (kinds.generic && !placeholderCredential(value)) violations.push(`forbidden structured credential: ${path}`);
   };
-  const typedInitializer = /\b([A-Za-z_][A-Za-z0-9_-]*)\s*\??\s*:\s*[^=;]{1,2048}?=\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+))/gm;
-  for (const match of text.matchAll(typedInitializer)) inspect(match[1], match[2] ?? match[3] ?? match[4] ?? "");
   const assignment = /(?=["']?\b([A-Za-z_][A-Za-z0-9_-]*)\b["']?\s*[:=]\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+)))/gm;
   for (const match of text.matchAll(assignment)) {
     inspect(match[1], match[2] ?? match[3] ?? match[4] ?? "");
@@ -64,6 +126,7 @@ export const scanPublicText = ({ path, text }) => {
   for (const { name, pattern } of forbiddenContentPatterns) {
     if (pattern.test(text)) violations.push(`forbidden ${name}: ${path}`);
   }
+  if (/\.(?:[cm]?[jt]sx?)$/i.test(path)) violations.push(...scanTypeScriptCredentialInitializers({ path, text }));
   violations.push(...scanStructuredCredentialAssignments({ path, text }));
   for (const match of text.matchAll(/https?:\/\/[^\s"'`<>${}]+/gi)) {
     try {

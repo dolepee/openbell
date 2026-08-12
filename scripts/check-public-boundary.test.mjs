@@ -19,10 +19,10 @@ const prohibited = [
   ["short JSON generic credential", JSON.stringify({ [`pass${"phrase"}`]: "x y" })],
   ["declared generic password", `const pass${"word"} = "hunter2"`],
   ["exported generic password", `export pass${"word"}=hunter2`],
-  ["typed generic password", `const pass${"word"}: string = "hunter2"`],
-  ["typed default parameter", `function connect(pass${"word"}: string = "hunter2") {}`],
-  ["multiline typed password", `const pass${"word"}: string\n  | undefined = "hunter2"`],
-  ["typed private key", `const PRIVATE_${"KEY"}: string = "${"de".repeat(32)}"`],
+  ["typed generic password", `const pass${"word"}: string = "hunter2"`, "fixture.ts"],
+  ["typed default parameter", `function connect(pass${"word"}: string = "hunter2") {}`, "fixture.ts"],
+  ["multiline typed password", `const pass${"word"}: string\n  | undefined = "hunter2"`, "fixture.ts"],
+  ["typed private key", `const PRIVATE_${"KEY"}: string = "${"de".repeat(32)}"`, "fixture.ts"],
   ["provider API credential", `ALCHEMY_${"API_KEY"}=super-secret-credential-123456`],
   ["quoted JSON provider credential", JSON.stringify({ [`ALCHEMY_${"API_KEY"}`]: "super-secret-credential-123456" })],
   ["RPC credential URL", Buffer.from("aHR0cHM6Ly91c2VyOnBhc3N3b3JkLWxvbmdAcnBjLmV4YW1wbGU=", "base64").toString("utf8")],
@@ -55,13 +55,22 @@ const prohibited = [
   ["encrypted PEM", Buffer.from("LS0tLS1CRUdJTiBFTkNSWVBURUQgUFJJVkFURSBLRVktLS0tLQ==", "base64").toString("utf8")]
 ];
 
-for (const [name, text] of prohibited) {
-  test(`rejects ${name}`, () => assert.notEqual(scanPublicText({ path: "fixture.txt", text }).length, 0));
+for (const [name, text, path = "fixture.txt"] of prohibited) {
+  test(`rejects ${name}`, () => assert.notEqual(scanPublicText({ path, text }).length, 0));
 }
 
 test("accepts explicit negative disclosure fields and public fixture labels", () => {
   const text = JSON.stringify({ privateKeysIncluded: false, signedTransactionsIncluded: false, credentialsIncluded: false, label: "NO REAL VALUE" });
   assert.deepEqual(scanPublicText({ path: "evidence.json", text }), []);
+});
+
+test("accepts an uninitialized typed credential member before a later safe assignment", () => {
+  const text = `interface Config { pass${"word"}: string }\nconst mode = "production"`;
+  assert.deepEqual(scanPublicText({ path: "fixture.ts", text }), []);
+});
+
+test("accepts regular expressions containing hash tokens without stalling", () => {
+  assert.deepEqual(scanPublicText({ path: "fixture.ts", text: "const heading = /#{1,6}/" }), []);
 });
 
 test("rejects prohibited private-prep paths", () => {
