@@ -33,11 +33,16 @@ const binaryAllowlist = new Map([
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const isText = (bytes) => !bytes.subarray(0, 8_192).includes(0);
-const placeholderCredential = (value) => /^(?:|test(?:-only)?|example|redacted|public|string|number|boolean|unknown|never|undefined|null)$/i.test(value.trim());
+const placeholderCredential = (value) => {
+  const trimmed = value.trim();
+  return /^(?:|test(?:-only)?|example|redacted|public|string|number|boolean|unknown|never|undefined|null)$/i.test(trimmed)
+    || /^\$\{/.test(trimmed)
+    || /^(?:this|options|config|process\.env)(?:\.[A-Za-z_$][\w$]*)+$/.test(trimmed);
+};
 
 const scanStructuredCredentialAssignments = ({ path, text }) => {
   const violations = [];
-  const assignment = /(?=(?:^|[,{;\n])\s*["']?([A-Za-z0-9_-]+)["']?\s*[:=]\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+)))/gm;
+  const assignment = /(?=["']?\b([A-Za-z_][A-Za-z0-9_-]*)\b["']?\s*[:=]\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+)))/gm;
   for (const match of text.matchAll(assignment)) {
     const key = match[1].replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[-_]/g, "");
     const value = match[2] ?? match[3] ?? match[4] ?? "";

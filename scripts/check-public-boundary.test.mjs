@@ -17,6 +17,8 @@ const prohibited = [
   ["quoted JSON generic credential", JSON.stringify({ [`api${"Key"}`]: "super-secret-credential-123456" })],
   ["unquoted generic password", `pass${"word"}=hunter2`],
   ["short JSON generic credential", JSON.stringify({ [`pass${"phrase"}`]: "x y" })],
+  ["declared generic password", `const pass${"word"} = "hunter2"`],
+  ["exported generic password", `export pass${"word"}=hunter2`],
   ["provider API credential", `ALCHEMY_${"API_KEY"}=super-secret-credential-123456`],
   ["quoted JSON provider credential", JSON.stringify({ [`ALCHEMY_${"API_KEY"}`]: "super-secret-credential-123456" })],
   ["RPC credential URL", Buffer.from("aHR0cHM6Ly91c2VyOnBhc3N3b3JkLWxvbmdAcnBjLmV4YW1wbGU=", "base64").toString("utf8")],
