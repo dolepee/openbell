@@ -69,8 +69,8 @@ test("multi-page launch surface separates product, workspace, proof, and archite
   ]);
   const pages = [overview, workspace, proof, architecture];
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
-  assert.match(overview, /Credit decisions<br \/>with a hard ceiling/);
-  assert.match(overview, /min\(75 requested, 85 model, 80 contract\) = <strong>75<\/strong>/);
+  assert.match(overview, /One invoice\.<br \/>Three limits\.<br \/><em>Zero ambiguity\.<\/em>/);
+  assert.match(overview, /min\(request, model, code\)/);
   assert.match(overview, /No mainnet lifecycle or real-value activity/);
   assert.match(workspace, /Bankr-mediated GPT-5\.6 Terra · first response/);
   assert.match(workspace, /data-invoice="approved"/);

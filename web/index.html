@@ -7,7 +7,7 @@
     <meta name="description" content="OpenBell turns signed receivables into request-funded credit with genuine AI decisions bounded by immutable contract limits on X Layer." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://openbell.dolepee.com/" />
-    <meta name="theme-color" content="#101712" />
+    <meta name="theme-color" content="#0b120d" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://openbell.dolepee.com/" />
     <meta property="og:title" content="OpenBell — AI-bounded receivables on X Layer" />
@@ -21,139 +21,132 @@
     <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
     <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
-    <script type="module" src="/app.js"></script>
   </head>
-  <body data-page="overview">
+  <body data-page="overview" class="signal-home">
     <a class="skip-link" href="#main">Skip to the product</a>
-    <div class="status-bar" role="note">
-      <span><i class="status-dot"></i> X LAYER MAINNET · DEPLOYED</span>
-      <span>TESTNET LIFECYCLE · SETTLED</span>
-      <span>FIXTURE EVIDENCE · NO REAL VALUE</span>
-    </div>
-
-    <header class="topbar">
+    <header class="topbar signal-nav">
       <a class="brand" href="/" aria-label="OpenBell overview">
         <img src="/public/openbell-mark.svg" width="34" height="34" alt="" />
         <span>OpenBell</span>
       </a>
-      <nav class="desktop-nav" aria-label="Primary navigation">
-        <a href="/" aria-current="page">Overview</a>
-        <a href="/workspace/">Credit desk</a>
-        <a href="/proof/">Proof room</a>
-        <a href="/architecture/">Architecture</a>
-      </nav>
-      <a class="header-cta" href="/workspace/">Open credit desk <span aria-hidden="true">↗</span></a>
+      <div class="nav-right">
+        <nav class="desktop-nav" aria-label="Primary navigation">
+          <a href="/" aria-current="page">Overview</a>
+          <a href="/workspace/">Credit desk</a>
+          <a href="/proof/">Proof room</a>
+          <a href="/architecture/">Architecture</a>
+        </nav>
+        <a class="header-cta signal-nav-cta" href="/workspace/">Launch desk <span aria-hidden="true">↗</span></a>
+      </div>
     </header>
 
     <main id="main">
-      <section class="overview-hero">
-        <div class="hero-main">
-          <p class="overline">REQUEST-FUNDED RECEIVABLES · X LAYER</p>
-          <h1>Credit decisions<br />with a hard ceiling.</h1>
-          <p class="hero-intro">
-            OpenBell lets a funder advance one signed invoice at a time. A genuine AI assessment can
-            reject risk or propose terms—but immutable contract limits always have the last word.
-          </p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="/workspace/">Enter the credit desk <span aria-hidden="true">→</span></a>
-            <a class="button button-secondary" href="/proof/">Inspect verified proof</a>
+      <section class="signal-hero">
+        <div class="signal-orbit orbit-one" aria-hidden="true"></div>
+        <div class="signal-orbit orbit-two" aria-hidden="true"></div>
+        <div class="signal-orbit orbit-three" aria-hidden="true"></div>
+
+        <div class="hero-status"><span><i></i> X LAYER MAINNET</span><b>DEPLOYED · CHAIN 196</b></div>
+        <div class="signal-copy">
+          <p class="signal-eyebrow">RECEIVABLES CREDIT, WITH CONSTRAINTS YOU CAN SEE</p>
+          <h1>One invoice.<br />Three limits.<br /><em>Zero ambiguity.</em></h1>
+          <p>OpenBell turns dual-signed invoices into request-funded credit. Genuine AI can reject risk or propose terms. Code decides what can actually move.</p>
+          <div class="signal-actions">
+            <a href="/workspace/">Explore the live decision <span aria-hidden="true">→</span></a>
+            <a href="/proof/">Follow the receipts</a>
           </div>
         </div>
 
-        <aside class="live-brief" aria-label="Verified product state">
-          <header>
-            <span>LIVE PRODUCT BRIEF</span>
-            <strong><i class="status-dot"></i> VERIFIED</strong>
-          </header>
-          <div class="brief-decision">
-            <p>APPROVED INVOICE</p>
-            <strong>$75.00</strong>
-            <span>funded on X Layer testnet</span>
-          </div>
-          <div class="limit-stack" aria-label="Effective advance calculation">
-            <div><span>Requested</span><b>75%</b></div>
-            <div><span>AI ceiling</span><b>85%</b></div>
-            <div><span>Contract ceiling</span><b>80%</b></div>
-            <div class="effective"><span>Effective advance</span><b>75%</b></div>
-          </div>
-          <p class="formula">min(75 requested, 85 model, 80 contract) = <strong>75</strong></p>
-          <footer>
-            <span>FINAL STATE</span>
-            <strong>SETTLED · $75.75</strong>
-          </footer>
-        </aside>
-      </section>
-
-      <section class="metric-rail" aria-label="OpenBell verified metrics">
-        <article><span>MAINNET CONTRACT</span><strong>1</strong><small>deployment verified</small></article>
-        <article><span>GENUINE AI DECISIONS</span><strong>2</strong><small>one reject · one approve</small></article>
-        <article><span>TESTNET RECEIPTS</span><strong>7</strong><small>registration to settlement</small></article>
-        <article class="metric-highlight"><span>REAL VALUE MOVED</span><strong>$0</strong><small>fixture assets only</small></article>
-      </section>
-
-      <section class="product-grid section-shell" aria-labelledby="product-title">
-        <div class="section-lead">
-          <p class="overline">ONE PRODUCT · THREE CONTROL PLANES</p>
-          <h2 id="product-title">Underwrite, enforce, and prove the same decision.</h2>
-          <p>Most credit demos stop at a score. OpenBell carries bounded terms into signatures, contract execution, receipts, and final settlement.</p>
+        <div class="decision-trace" aria-label="Verified decision trace">
+          <div class="trace-head"><span>OB / DECISION TRACE</span><b><i></i> SETTLED</b></div>
+          <ol>
+            <li><span>REQUEST</span><strong>75</strong><small>supplier asks</small></li>
+            <li><span>MODEL</span><strong>85</strong><small>AI ceiling</small></li>
+            <li><span>CODE</span><strong>80</strong><small>hard maximum</small></li>
+            <li class="trace-result"><span>FUNDED</span><strong>75</strong><small>fixture tUSDG</small></li>
+          </ol>
+          <div class="trace-settlement"><span>PAID BACK</span><strong>75.75</strong><small>FINAL STATE · SETTLED</small></div>
         </div>
-        <div class="control-grid">
-          <a class="control-card control-ai" href="/workspace/#decisions">
-            <span class="card-index">01 / DECISION</span>
-            <h3>AI can say no.</h3>
-            <p>A prior-default payer was genuinely rejected. A stronger payer received an 85% model ceiling and 1% fee.</p>
-            <strong>OPEN DECISION LOG <span aria-hidden="true">→</span></strong>
-          </a>
-          <a class="control-card control-contract" href="/architecture/#limits">
-            <span class="card-index">02 / ENFORCEMENT</span>
-            <h3>The contract can say less.</h3>
-            <p>The model proposed 85%. The contract’s immutable ceiling stayed at 80%. The request bound the final advance at 75%.</p>
-            <strong>INSPECT LIMIT STACK <span aria-hidden="true">→</span></strong>
-          </a>
-          <a class="control-card control-proof" href="/proof/">
-            <span class="card-index">03 / PROOF</span>
-            <h3>Receipts close the loop.</h3>
-            <p>Seven canonical testnet receipts prove rejection with zero movement, exact funding, repayment, and terminal settlement.</p>
-            <strong>ENTER PROOF ROOM <span aria-hidden="true">→</span></strong>
-          </a>
+
+        <div class="hero-proofline">
+          <span>2 genuine AI decisions</span>
+          <span>7 canonical testnet receipts</span>
+          <span>$0 real value moved</span>
+          <a href="https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd">Mainnet contract ↗</a>
         </div>
       </section>
 
-      <section class="journey-showcase section-shell" aria-labelledby="journey-title">
-        <header class="section-heading-inline">
-          <div>
-            <p class="overline">VERIFIED NO-VALUE JOURNEY</p>
-            <h2 id="journey-title">From signed work to settled credit.</h2>
-          </div>
-          <a class="text-link" href="/proof/#testnet">View all seven receipts <span aria-hidden="true">↗</span></a>
+      <section class="limit-theatre" aria-labelledby="limit-theatre-title">
+        <div class="theatre-intro">
+          <p>THE CONSTRAINT IS THE PRODUCT</p>
+          <h2 id="limit-theatre-title">Intelligence<br />without unchecked<br />authority.</h2>
+          <span>Every participant can propose a number. Only the smallest authorized number becomes executable.</span>
+        </div>
+        <div class="limit-numbers" aria-label="Effective advance limit calculation">
+          <div class="number-request"><small>SUPPLIER REQUEST</small><strong>75</strong><i>%</i></div>
+          <div class="number-model"><small>GENUINE AI CEILING</small><strong>85</strong><i>%</i></div>
+          <div class="number-code"><small>IMMUTABLE CODE MAX</small><strong>80</strong><i>%</i></div>
+          <div class="number-answer"><small>EXECUTABLE</small><strong>75</strong><i>%</i><span>min(request, model, code)</span></div>
+        </div>
+      </section>
+
+      <section class="decision-duet" aria-labelledby="decision-duet-title">
+        <header>
+          <p>THE MODEL DIDN'T JUST APPROVE</p>
+          <h2 id="decision-duet-title">It knew when to stop.</h2>
         </header>
-        <ol class="journey-map">
-          <li><span>01</span><div><b>Invoice signed</b><small>Supplier + payer bind one document hash</small></div></li>
-          <li><span>02</span><div><b>Risk assessed</b><small>Genuine response, strict schema, no retry</small></div></li>
-          <li><span>03</span><div><b>Limits resolved</b><small>Request 75 · AI 85 · contract 80</small></div></li>
-          <li><span>04</span><div><b>Exactly 75 funded</b><small>Fixture tUSDG reaches the supplier</small></div></li>
-          <li class="journey-final"><span>05</span><div><b>75.75 settled</b><small>Funder repaid · invoice terminal</small></div></li>
+        <div class="duet-stage">
+          <article class="duet-reject">
+            <div class="duet-number">01</div>
+            <p>PRIOR-DEFAULT PAYER</p>
+            <h3>Reject.</h3>
+            <blockquote>Risk exceeded the acceptable boundary. No approval terms were emitted.</blockquote>
+            <footer><span>ONCHAIN RESULT</span><strong>REJECTED · ZERO TOKEN MOVEMENT</strong></footer>
+          </article>
+          <article class="duet-approve">
+            <div class="duet-number">02</div>
+            <p>STRONGER PAYER</p>
+            <h3>Approve,<br />within limits.</h3>
+            <blockquote>The genuine first response proposed an 85% ceiling and 1% fee. The request still bound funding at 75.</blockquote>
+            <footer><span>ONCHAIN RESULT</span><strong>FUNDED 75 · SETTLED 75.75</strong></footer>
+          </article>
+        </div>
+        <p class="duet-disclosure">Bankr-mediated GPT-5.6 Terra · first responses authoritative · no retry · synthetic fixtures · no real value</p>
+      </section>
+
+      <section class="proof-river" aria-labelledby="proof-river-title">
+        <div class="river-heading">
+          <p>THE RECEIPT TRAIL</p>
+          <h2 id="proof-river-title">Seven transactions.<br />One unbroken story.</h2>
+          <a href="/proof/#testnet">Enter the proof room <span aria-hidden="true">↗</span></a>
+        </div>
+        <ol class="river-flow">
+          <li><i></i><span>01</span><div><b>Register risky invoice</b><small>Dual EIP-712 authority</small></div></li>
+          <li><i></i><span>02</span><div><b>Attest rejection</b><small>Zero token movement</small></div></li>
+          <li><i></i><span>03</span><div><b>Register fresh invoice</b><small>New document and nonces</small></div></li>
+          <li><i></i><span>04</span><div><b>Authorize exact funding</b><small>Funder allowance 75</small></div></li>
+          <li><i></i><span>05</span><div><b>Advance 75</b><small>Supplier receives exact amount</small></div></li>
+          <li><i></i><span>06</span><div><b>Authorize repayment</b><small>Payer allowance 75.75</small></div></li>
+          <li class="river-final"><i></i><span>07</span><div><b>Settle 75.75</b><small>Terminal state SETTLED</small></div></li>
         </ol>
       </section>
 
-      <section class="mainnet-band">
-        <div>
-          <p class="overline">X LAYER MAINNET · CHAIN 196</p>
-          <h2>Deployed where the product is designed to run.</h2>
-        </div>
-        <div class="mainnet-facts">
-          <div><span>CONTRACT</span><code>0xc4Ef249b…840dd</code></div>
-          <div><span>RUNTIME</span><code>0x3aa05fd1…a9798</code></div>
-          <div><span>BOUNDARY</span><strong>DEPLOYMENT ONLY</strong></div>
-        </div>
-        <a class="button button-light" href="/proof/#mainnet">Verify deployment <span aria-hidden="true">→</span></a>
-        <p>No mainnet lifecycle or real-value activity. Operator disclosure; independently verified remains false.</p>
+      <section class="deployment-seal">
+        <div class="seal-mark" aria-hidden="true"><span>196</span></div>
+        <div class="seal-copy"><p>MAINNET DEPLOYMENT SEAL</p><h2>Built for X Layer.<br />Deployed on X Layer.</h2><span>Contract runtime, immutable configuration, roles, EIP-712 domain, transaction inclusion, and canonical block observations are publicly preserved.</span></div>
+        <dl>
+          <div><dt>CONTRACT</dt><dd><code>0xc4Ef249b…840dd</code></dd></div>
+          <div><dt>DEPLOYMENT TX</dt><dd><code>0x328c80d5…f413e</code></dd></div>
+          <div><dt>RUNTIME</dt><dd><code>13,027 bytes</code></dd></div>
+          <div><dt>BOUNDARY</dt><dd>No mainnet lifecycle or real-value activity</dd></div>
+        </dl>
+        <a href="/proof/#mainnet">Verify every field <span aria-hidden="true">→</span></a>
       </section>
     </main>
 
-    <footer class="site-footer">
+    <footer class="site-footer signal-footer">
       <div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div>
-      <p>Bounded receivables credit on X Layer.</p>
+      <p>Credit intelligence constrained by code.</p>
       <nav aria-label="Footer navigation"><a href="/workspace/">Credit desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
     </footer>
   </body>
