@@ -23,6 +23,7 @@ const prohibited = [
   ["typed default parameter", `function connect(pass${"word"}: string = "hunter2") {}`, "fixture.ts"],
   ["multiline typed password", `const pass${"word"}: string\n  | undefined = "hunter2"`, "fixture.ts"],
   ["typed private key", `const PRIVATE_${"KEY"}: string = "${"de".repeat(32)}"`, "fixture.ts"],
+  ["typed private password field", `class Client { #pass${"word"}: string = "hunter2" }`, "fixture.ts"],
   ["provider API credential", `ALCHEMY_${"API_KEY"}=super-secret-credential-123456`],
   ["quoted JSON provider credential", JSON.stringify({ [`ALCHEMY_${"API_KEY"}`]: "super-secret-credential-123456" })],
   ["RPC credential URL", Buffer.from("aHR0cHM6Ly91c2VyOnBhc3N3b3JkLWxvbmdAcnBjLmV4YW1wbGU=", "base64").toString("utf8")],

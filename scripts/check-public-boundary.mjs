@@ -73,12 +73,14 @@ const scanTypeScriptCredentialInitializers = ({ path, text }) => {
   const closes = new Set(opens.values());
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (token.kind !== SyntaxKind.Identifier || !Object.values(credentialKinds(token.value)).some(Boolean)) continue;
+    if (token.kind !== SyntaxKind.Identifier && token.kind !== SyntaxKind.PrivateIdentifier) continue;
+    const name = token.kind === SyntaxKind.PrivateIdentifier ? token.value.slice(1) : token.value;
+    if (!Object.values(credentialKinds(name)).some(Boolean)) continue;
     let cursor = index + 1;
     if (tokens[cursor]?.kind === SyntaxKind.QuestionToken) cursor += 1;
     if (tokens[cursor]?.kind === SyntaxKind.EqualsToken) {
       const value = stringValue(tokens[cursor + 1]);
-      if (value !== undefined) inspect(token.value, value);
+      if (value !== undefined) inspect(name, value);
       continue;
     }
     if (tokens[cursor]?.kind !== SyntaxKind.ColonToken) continue;
@@ -98,7 +100,7 @@ const scanTypeScriptCredentialInitializers = ({ path, text }) => {
       if (current.kind === SyntaxKind.CommaToken || current.kind === SyntaxKind.SemicolonToken) break;
       if (current.kind === SyntaxKind.EqualsToken) {
         const value = stringValue(tokens[cursor + 1]);
-        if (value !== undefined) inspect(token.value, value);
+        if (value !== undefined) inspect(name, value);
         break;
       }
     }
