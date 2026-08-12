@@ -102,6 +102,8 @@ invoiceButtons.forEach((button) => button.addEventListener("click", () => render
 
 const creditMemo = document.querySelector("#credit-memo");
 const reviewEmpty = document.querySelector("#review-empty");
+const reviewForm = document.querySelector("#review-form");
+const studioOperationGuard = createPreparationGuard();
 const clearCreditMemo = () => {
   if (creditMemo) creditMemo.hidden = true;
   if (reviewEmpty) reviewEmpty.hidden = false;
@@ -123,7 +125,6 @@ if (dealForm) {
   const packageInvoiceId = document.querySelector("#package-invoice-id");
   const packageDocumentHash = document.querySelector("#package-document-hash");
   const downloadPackage = document.querySelector("#download-package");
-  const preparationGuard = createPreparationGuard();
   let preparedPackage = null;
 
   const tomorrow = new Date();
@@ -131,8 +132,9 @@ if (dealForm) {
   dueInput.value = tomorrow.toISOString().slice(0, 10);
 
   const invalidatePreparedPackage = () => {
-    preparationGuard.invalidate();
+    studioOperationGuard.invalidate();
     dealForm.setAttribute("aria-busy", "false");
+    reviewForm?.setAttribute("aria-busy", "false");
     preparedPackage = null;
     downloadPackage.disabled = true;
     packageState.textContent = "DRAFT";
@@ -166,9 +168,11 @@ if (dealForm) {
 
   dealForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const preparationRevision = preparationGuard.begin();
+    const preparationRevision = studioOperationGuard.begin();
     dealForm.setAttribute("aria-busy", "true");
+    reviewForm?.setAttribute("aria-busy", "false");
     errorOutput.textContent = "";
+    clearCreditMemo();
     preparedPackage = null;
     downloadPackage.disabled = true;
 
@@ -191,7 +195,7 @@ if (dealForm) {
         nonce: nonceInput.value,
         documentHash
       });
-      if (!preparationGuard.isCurrent(preparationRevision)) return;
+      if (!studioOperationGuard.isCurrent(preparationRevision)) return;
       preparedPackage = candidatePackage;
 
       packageInvoiceId.textContent = preparedPackage.invoiceTerms.invoiceId;
@@ -202,11 +206,11 @@ if (dealForm) {
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
       renderCreditMemo(preparedPackage);
     } catch (error) {
-      if (!preparationGuard.isCurrent(preparationRevision)) return;
+      if (!studioOperationGuard.isCurrent(preparationRevision)) return;
       errorOutput.textContent = error instanceof Error ? error.message : "Unable to prepare the deal package.";
       packageState.textContent = "DRAFT";
     } finally {
-      if (preparationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
+      if (studioOperationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
     }
   });
 
@@ -223,8 +227,6 @@ if (dealForm) {
 
   renderStudioMath();
 }
-
-const reviewForm = document.querySelector("#review-form");
 
 const renderCreditMemo = (dealPackage) => {
   if (!creditMemo || !reviewEmpty) return;
@@ -247,9 +249,9 @@ const renderCreditMemo = (dealPackage) => {
 if (reviewForm) {
   const reviewFile = document.querySelector("#review-file");
   const reviewError = document.querySelector("#review-error");
-  const reviewGuard = createPreparationGuard();
   reviewFile.addEventListener("change", () => {
-    reviewGuard.invalidate();
+    studioOperationGuard.invalidate();
+    dealForm?.setAttribute("aria-busy", "false");
     reviewForm.setAttribute("aria-busy", "false");
     reviewFile.setAttribute("aria-invalid", "false");
     reviewError.textContent = "";
@@ -257,7 +259,8 @@ if (reviewForm) {
   });
   reviewForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const reviewRevision = reviewGuard.begin();
+    const reviewRevision = studioOperationGuard.begin();
+    dealForm?.setAttribute("aria-busy", "false");
     reviewForm.setAttribute("aria-busy", "true");
     reviewError.textContent = "";
     reviewFile.setAttribute("aria-invalid", "false");
@@ -273,14 +276,14 @@ if (reviewForm) {
         throw new Error("The selected file is not valid JSON.");
       }
       const validated = await validateUnsignedDealPackage(candidate);
-      if (!reviewGuard.isCurrent(reviewRevision)) return;
+      if (!studioOperationGuard.isCurrent(reviewRevision)) return;
       renderCreditMemo(validated);
     } catch (error) {
-      if (!reviewGuard.isCurrent(reviewRevision)) return;
+      if (!studioOperationGuard.isCurrent(reviewRevision)) return;
       reviewFile.setAttribute("aria-invalid", "true");
       reviewError.textContent = error instanceof Error ? error.message : "Unable to review the deal package.";
     } finally {
-      if (reviewGuard.isCurrent(reviewRevision)) reviewForm.setAttribute("aria-busy", "false");
+      if (studioOperationGuard.isCurrent(reviewRevision)) reviewForm.setAttribute("aria-busy", "false");
     }
   });
 }
