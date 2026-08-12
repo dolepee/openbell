@@ -51,21 +51,23 @@ class ScriptedModel implements UnderwritingModel {
 
 const approval: ModelDecision = {
   verdict: "APPROVE",
-  maximumAdvanceBps: 7_000,
-  feeBps: 500,
-  confidenceBps: 8_800,
+  maximumAdvanceBps: 8_500,
+  feeBps: 100,
+  confidenceBps: 9_700,
   reasons: ["DUAL_SIGNATURES_VERIFIED", "CLEAN_DUPLICATE_CHECK", "STRONG_ON_TIME_HISTORY"],
-  explanation: "The payer has a strong settlement history with one non-default late payment."
+  explanation: "The payer has a strong settlement history and the requested advance remains below both ceilings."
 };
 
 describe("underwriteInvoice", () => {
-  it("bounds an AI approval below both the request and hard policy ceiling", async () => {
+  it("computes min(request 75, model ceiling 85, contract ceiling 80) and applies the genuine 1% fee", async () => {
     const result = await underwriteInvoice({ input, model: new ScriptedModel(approval), policy, now: NOW });
 
     expect(result.verdict).toBe("APPROVE");
     if (result.verdict !== "APPROVE") throw new Error("expected approval");
-    expect(result.advanceAmount).toBe("70000000");
-    expect(result.repaymentAmount).toBe("73500000");
+    expect((100_000_000n * 8_500n) / 10_000n).toBe(85_000_000n);
+    expect((100_000_000n * 8_000n) / 10_000n).toBe(80_000_000n);
+    expect(result.advanceAmount).toBe("75000000");
+    expect(result.repaymentAmount).toBe("75750000");
     expect(result.riskReasonsHash).toMatch(/^0x[0-9a-f]{64}$/);
   });
 

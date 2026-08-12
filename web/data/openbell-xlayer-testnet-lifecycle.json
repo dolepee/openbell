@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "openbell-xlayer-testnet-lifecycle-public-evidence-v1",
+  "label": "XLAYER TESTNET FIXTURE — NO REAL VALUE",
+  "chainId": "1952",
+  "deployment": {
+    "fixtureToken": "0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703",
+    "receivables": "0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18"
+  },
+  "modelEvidence": {
+    "provider": "Bankr-mediated GPT-5.6 Terra",
+    "additionalCallsOrRetries": false,
+    "rejectionResponseSha256": "0x2eabbde55a2bbcfaab0533bf29629155de60f682b9e530b7340d5c9f3f822967",
+    "approvalResponseSha256": "0x37a50eb18ba205b83a5ec48568a935bcc2dcd7da0b9065cbd1a420aa82c60f38"
+  },
+  "economics": {
+    "faceValue": "100000000",
+    "requestedAdvance": "75000000",
+    "modelMaximumAdvanceBps": "8500",
+    "contractMaximumAdvanceBps": "8000",
+    "effectiveAdvanceFormula": "min(75000000,85000000,80000000)",
+    "effectiveAdvance": "75000000",
+    "modelFeeBps": "100",
+    "repayment": "75750000",
+    "decimals": "6"
+  },
+  "transactions": [
+    { "kind": "PAYER_CLAIM", "hash": "0xa568e26cb7173bc1351258acf0a82d7e52932d67d680c3d35ddb6f3358c05c1d" },
+    { "kind": "FUNDER_CLAIM", "hash": "0x7d2ed37b16b8f9b3052d62aa545cb8049e972a000d5d6c46a68e4caec65b3cd3" },
+    { "kind": "REGISTER_REJECTED", "hash": "0x364b56ea137521af0f359e09ddecd8114c1a2844027e19aa8bb5ab4883affa2d" },
+    { "kind": "ATTEST_REJECTION", "hash": "0x8a4f7f1ef69e36b39264ab724b6790d3dcb93081eb0241d6ab8bd1d88c567140" },
+    { "kind": "REGISTER_APPROVED", "hash": "0x6f9876ebeb94b3e80b1653526d18c189bd1f24d75b3a5bdfc36281ca3e2a9793" },
+    { "kind": "FUNDER_APPROVE", "hash": "0x43ab26a2aa90c44803773049f6cc83860130bf713b8a83c4564ae069e6043e19" },
+    { "kind": "FUND_APPROVED", "hash": "0xa708d9e1d09a2037c8881200c5a036bd94b4f5a5db19ed7a966e5aa5c553e880" },
+    { "kind": "PAYER_APPROVE", "hash": "0x582a23c52e6fe63a1b16d4341db9e2213710ba48eaca0ccc96ce4946b00bad76" },
+    { "kind": "SETTLE_APPROVED", "hash": "0x1ea5dd1aa9618de7ee8df759b700aed70b1c8c3f12e2558b31eb5c3deab30036" }
+  ],
+  "verifiedOutcome": {
+    "rejectedInvoiceStatus": "REJECTED",
+    "rejectionZeroTokenMovement": true,
+    "approvedInvoiceStatus": "SETTLED",
+    "funded": "75000000",
+    "repaid": "75750000",
+    "finalSupplierBalance": "75000000",
+    "finalPayerBalance": "924250000",
+    "finalFunderBalance": "1000750000",
+    "finalContractBalance": "0",
+    "finalAllowancesZero": true,
+    "minimumConfirmations": "12",
+    "twoOfficialProvidersCanonicalAndReorgChecked": true
+  },
+  "cost": {
+    "remainingSevenActionsGasWei": "19628640981432",
+    "allSetupAndLifecycleGasWei": "24146521207326"
+  },
+  "privateEvidence": {
+    "manifestHash": "0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253",
+    "manifestSha256": "0df7c0bab27f10624201271d37a23a7bc3d10ae02fd24b705d0c8a9fc023da3"
+  },
+  "disclosures": {
+    "fixtureNoValue": true,
+    "canonicalUsdG": false,
+    "realValue": false,
+    "compromisedUnderwriterFixtureOnly": true,
+    "explorerSourceVerified": false,
+    "independentThirdPartyAudit": false,
+    "submissionReady": false,
+    "privateKeysIncluded": false,
+    "signaturesIncluded": false
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "openbell-bankr-genuine-model-evidence-v1",
+  "label": "XLAYER TESTNET FIXTURE — NO REAL VALUE",
+  "provider": "Bankr-mediated GPT-5.6 Terra",
+  "model": "gpt-5.6-terra",
+  "attemptPolicy": {
+    "firstResponseAuthoritative": true,
+    "retries": "0",
+    "additionalModelCallsPermitted": false
+  },
+  "truthBoundary": {
+    "genuineLiveModelResponses": true,
+    "recordedFallbackUsed": false,
+    "modelResponsesAreBlockchainTransactions": false,
+    "lifecycleTransactionsExecuted": false,
+    "realValue": false
+  },
+  "deployment": {
+    "chainId": "1952",
+    "fixtureToken": "0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703",
+    "receivables": "0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18",
+    "deploymentCandidateHash": "0x7f4a5c61f8181e36144fd28ca369e3400b3af9465039411f50727ed86c6f4408"
+  },
+  "policy": {
+    "contractMaximumAdvanceBps": "8000",
+    "contractMaximumFeeBps": "2000",
+    "minimumConfidenceBps": "7000"
+  },
+  "economics": {
+    "faceValue": "100000000",
+    "requestedAdvance": "75000000",
+    "modelMaximumAdvanceBps": "8500",
+    "modelMaximumAdvance": "85000000",
+    "contractMaximumAdvanceBps": "8000",
+    "contractMaximumAdvance": "80000000",
+    "effectiveAdvanceFormula": "min(75000000,85000000,80000000)",
+    "effectiveAdvance": "75000000",
+    "modelFeeBps": "100",
+    "repaymentFormula": "75000000 + floor(75000000 * 100 / 10000)",
+    "repayment": "75750000",
+    "decimals": "6"
+  },
+  "requests": [
+    {
+      "kind": "rejected",
+      "requestBody": "{\"model\":\"gpt-5.6-terra\",\"messages\":[{\"role\":\"system\",\"content\":\"Assess only the supplied synthetic invoice evidence. Return exactly one JSON object matching the response schema. Never invent evidence.\"},{\"role\":\"user\",\"content\":\"{\\\"invoiceId\\\":\\\"0xa548903764d1b704dda22a5cbd65711b0b7c3092e4521a5fe6e64f9af4a0aecf\\\",\\\"invoiceDigest\\\":\\\"0x624c1a95bdee11209e1226a2e0d84adec487143e871dac664e4ef3002b64decc\\\",\\\"supplier\\\":\\\"0x6de281e990CE7303dB2253B753575099dA39F15B\\\",\\\"payer\\\":\\\"0x816521c6608d0421fCF201933Ad2A2c4c9133594\\\",\\\"funder\\\":\\\"0x283893Ec052B7b127E8a2Fe39634001b36aBaf29\\\",\\\"faceValue\\\":\\\"100000000\\\",\\\"issuedAt\\\":1786451753,\\\"dueDate\\\":1789043753,\\\"requestedAdvance\\\":\\\"75000000\\\",\\\"evidence\\\":{\\\"supplierSignatureValid\\\":true,\\\"payerSignatureValid\\\":true,\\\"duplicateInvoiceFound\\\":false,\\\"documentHashMatches\\\":true},\\\"payerHistory\\\":{\\\"completedSettlements\\\":5,\\\"onTimeSettlements\\\":3,\\\"lateSettlements\\\":1,\\\"defaults\\\":1,\\\"concentrationBps\\\":3000,\\\"daysSinceLastSettlement\\\":45},\\\"redactedContext\\\":\\\"Synthetic X Layer testnet fixture evidence package with one prior payer default; no real value.\\\"}\"}],\"reasoning_effort\":\"low\",\"max_tokens\":1200,\"store\":false,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"openbell_underwriting_decision\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"verdict\",\"maximumAdvanceBps\",\"feeBps\",\"confidenceBps\",\"reasons\",\"explanation\"],\"properties\":{\"verdict\":{\"type\":\"string\",\"enum\":[\"APPROVE\",\"REJECT\"]},\"maximumAdvanceBps\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"feeBps\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"confidenceBps\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"reasons\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":8,\"items\":{\"type\":\"string\",\"enum\":[\"DUAL_SIGNATURES_VERIFIED\",\"DOCUMENT_HASH_VERIFIED\",\"CLEAN_DUPLICATE_CHECK\",\"LIMITED_PAYER_HISTORY\",\"STRONG_ON_TIME_HISTORY\",\"LATE_PAYMENT_HISTORY\",\"PRIOR_DEFAULT\",\"HIGH_COUNTERPARTY_CONCENTRATION\",\"LONG_TENOR\",\"STALE_SETTLEMENT_HISTORY\",\"INCONSISTENT_EVIDENCE\",\"MODEL_UNCERTAINTY\"]}},\"explanation\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":600}}}}}}",
+      "requestKeccak256": "0xc2aff12121404a7b2d6d196d3acdc9a2751be14b2a6d713f0239a26a2763957d",
+      "requestSha256": "0xe19df3719968165e6bc09ad1548361b232feab4da7312542d359289e02cb119a",
+      "requestUtf8Bytes": "2119",
+      "rawResponse": "{\"id\":\"chatcmpl-5PKF44oE_ANtlA_W0SZ5A\",\"object\":\"chat.completion\",\"created\":1786481068,\"model\":\"gpt-5.6-terra\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"confidenceBps\\\":9000,\\\"explanation\\\":\\\"Reject due to the payer's prior default despite valid dual signatures, matching document hash, and no duplicate invoice finding. Payer history is limited and also includes a late settlement.\\\",\\\"feeBps\\\":0,\\\"maximumAdvanceBps\\\":0,\\\"reasons\\\":[\\\"DUAL_SIGNATURES_VERIFIED\\\",\\\"DOCUMENT_HASH_VERIFIED\\\",\\\"CLEAN_DUPLICATE_CHECK\\\",\\\"LIMITED_PAYER_HISTORY\\\",\\\"LATE_PAYMENT_HISTORY\\\",\\\"PRIOR_DEFAULT\\\"],\\\"verdict\\\":\\\"REJECT\\\"}\",\"refusal\":null,\"annotations\":[]},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":489,\"completion_tokens\":354,\"total_tokens\":843,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":234,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}},\"service_tier\":\"priority\",\"system_fingerprint\":null}",
+      "responseKeccak256": "0x21abb15aca16c03322886e5ee9372485e6a279fb07857c8ce6f6d0db043fd1b7",
+      "responseSha256": "0x2eabbde55a2bbcfaab0533bf29629155de60f682b9e530b7340d5c9f3f822967",
+      "providerResponseId": "chatcmpl-5PKF44oE_ANtlA_W0SZ5A",
+      "providerCreated": "1786481068",
+      "usage": {
+        "promptTokens": "489",
+        "completionTokens": "354",
+        "reasoningTokens": "234",
+        "totalTokens": "843"
+      },
+      "decision": {
+        "confidenceBps": 9000,
+        "explanation": "Reject due to the payer's prior default despite valid dual signatures, matching document hash, and no duplicate invoice finding. Payer history is limited and also includes a late settlement.",
+        "feeBps": 0,
+        "maximumAdvanceBps": 0,
+        "reasons": [
+          "DUAL_SIGNATURES_VERIFIED",
+          "DOCUMENT_HASH_VERIFIED",
+          "CLEAN_DUPLICATE_CHECK",
+          "LIMITED_PAYER_HISTORY",
+          "LATE_PAYMENT_HISTORY",
+          "PRIOR_DEFAULT"
+        ],
+        "verdict": "REJECT"
+      },
+      "boundedDecision": {
+        "verdict": "REJECT",
+        "invoiceId": "0xa548903764d1b704dda22a5cbd65711b0b7c3092e4521a5fe6e64f9af4a0aecf",
+        "invoiceDigest": "0x624c1a95bdee11209e1226a2e0d84adec487143e871dac664e4ef3002b64decc",
+        "riskTimestamp": 1786481068,
+        "expiresAt": 1786481968,
+        "riskReasonsHash": "0xcc4dabd7e0da1ddc33ee8f0ebdb3e301c4a96569d6ac4edc5a79a363d30e0fc1",
+        "modelHash": "0x85860f4fc97e5d53d65381c532f67b1698207d76586c95b58fb6251f79ab9356",
+        "reasons": [
+          "DUAL_SIGNATURES_VERIFIED",
+          "DOCUMENT_HASH_VERIFIED",
+          "CLEAN_DUPLICATE_CHECK",
+          "LIMITED_PAYER_HISTORY",
+          "LATE_PAYMENT_HISTORY",
+          "PRIOR_DEFAULT"
+        ],
+        "explanation": "Reject due to the payer's prior default despite valid dual signatures, matching document hash, and no duplicate invoice finding. Payer history is limited and also includes a late settlement.",
+        "modelId": "bankr:gpt-5.6-terra"
+      }
+    },
+    {
+      "kind": "approved",
+      "requestBody": "{\"model\":\"gpt-5.6-terra\",\"messages\":[{\"role\":\"system\",\"content\":\"Assess only the supplied synthetic invoice evidence. Return exactly one JSON object matching the response schema. Never invent evidence.\"},{\"role\":\"user\",\"content\":\"{\\\"invoiceId\\\":\\\"0x0f83deeb4c2c3127f099aca881773dd18a10ffe11e641e459efef09ed9ecb795\\\",\\\"invoiceDigest\\\":\\\"0x264be4387a70752ab27046d1beed13b4eceddbec68a212099e547927a4714587\\\",\\\"supplier\\\":\\\"0x6de281e990CE7303dB2253B753575099dA39F15B\\\",\\\"payer\\\":\\\"0x816521c6608d0421fCF201933Ad2A2c4c9133594\\\",\\\"funder\\\":\\\"0x283893Ec052B7b127E8a2Fe39634001b36aBaf29\\\",\\\"faceValue\\\":\\\"100000000\\\",\\\"issuedAt\\\":1786451753,\\\"dueDate\\\":1789043753,\\\"requestedAdvance\\\":\\\"75000000\\\",\\\"evidence\\\":{\\\"supplierSignatureValid\\\":true,\\\"payerSignatureValid\\\":true,\\\"duplicateInvoiceFound\\\":false,\\\"documentHashMatches\\\":true},\\\"payerHistory\\\":{\\\"completedSettlements\\\":12,\\\"onTimeSettlements\\\":12,\\\"lateSettlements\\\":0,\\\"defaults\\\":0,\\\"concentrationBps\\\":2500,\\\"daysSinceLastSettlement\\\":12},\\\"redactedContext\\\":\\\"Synthetic X Layer testnet fixture evidence package with clean on-time history; no real value.\\\"}\"}],\"reasoning_effort\":\"low\",\"max_tokens\":1200,\"store\":false,\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"openbell_underwriting_decision\",\"strict\":true,\"schema\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"verdict\",\"maximumAdvanceBps\",\"feeBps\",\"confidenceBps\",\"reasons\",\"explanation\"],\"properties\":{\"verdict\":{\"type\":\"string\",\"enum\":[\"APPROVE\",\"REJECT\"]},\"maximumAdvanceBps\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"feeBps\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"confidenceBps\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"reasons\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":8,\"items\":{\"type\":\"string\",\"enum\":[\"DUAL_SIGNATURES_VERIFIED\",\"DOCUMENT_HASH_VERIFIED\",\"CLEAN_DUPLICATE_CHECK\",\"LIMITED_PAYER_HISTORY\",\"STRONG_ON_TIME_HISTORY\",\"LATE_PAYMENT_HISTORY\",\"PRIOR_DEFAULT\",\"HIGH_COUNTERPARTY_CONCENTRATION\",\"LONG_TENOR\",\"STALE_SETTLEMENT_HISTORY\",\"INCONSISTENT_EVIDENCE\",\"MODEL_UNCERTAINTY\"]}},\"explanation\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":600}}}}}}",
+      "requestKeccak256": "0x74979b8ef6867c99923f74d367ccf89258d77d21311a0558e78dfcda760240a3",
+      "requestSha256": "0xd1709020fd7cd825e9bcd710caa8a70ab92aafea4154deb7794c4f07eb722be1",
+      "requestUtf8Bytes": "2119",
+      "rawResponse": "{\"id\":\"chatcmpl-PV4VqQfSkEiAX3HKkFZeA\",\"object\":\"chat.completion\",\"created\":1786481547,\"model\":\"gpt-5.6-terra\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"confidenceBps\\\":9700,\\\"explanation\\\":\\\"Synthetic evidence shows valid supplier and payer signatures, matching document hash, no duplicate invoice, and 12 of 12 payer settlements completed on time with no late payments or defaults. Requested advance is 75% of face value; payer concentration is 25%.\\\",\\\"feeBps\\\":100,\\\"maximumAdvanceBps\\\":8500,\\\"reasons\\\":[\\\"DUAL_SIGNATURES_VERIFIED\\\",\\\"DOCUMENT_HASH_VERIFIED\\\",\\\"CLEAN_DUPLICATE_CHECK\\\",\\\"STRONG_ON_TIME_HISTORY\\\"],\\\"verdict\\\":\\\"APPROVE\\\"}\",\"refusal\":null,\"annotations\":[]},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":482,\"completion_tokens\":124,\"total_tokens\":606,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}},\"service_tier\":\"priority\",\"system_fingerprint\":null}",
+      "responseKeccak256": "0xad78f691d440a3cc34bd6db78820068a4d3cdbfb8388a72cddc9e78f93cc4b09",
+      "responseSha256": "0x37a50eb18ba205b83a5ec48568a935bcc2dcd7da0b9065cbd1a420aa82c60f38",
+      "providerResponseId": "chatcmpl-PV4VqQfSkEiAX3HKkFZeA",
+      "providerCreated": "1786481547",
+      "usage": {
+        "promptTokens": "482",
+        "completionTokens": "124",
+        "reasoningTokens": "0",
+        "totalTokens": "606"
+      },
+      "decision": {
+        "confidenceBps": 9700,
+        "explanation": "Synthetic evidence shows valid supplier and payer signatures, matching document hash, no duplicate invoice, and 12 of 12 payer settlements completed on time with no late payments or defaults. Requested advance is 75% of face value; payer concentration is 25%.",
+        "feeBps": 100,
+        "maximumAdvanceBps": 8500,
+        "reasons": [
+          "DUAL_SIGNATURES_VERIFIED",
+          "DOCUMENT_HASH_VERIFIED",
+          "CLEAN_DUPLICATE_CHECK",
+          "STRONG_ON_TIME_HISTORY"
+        ],
+        "verdict": "APPROVE"
+      },
+      "boundedDecision": {
+        "verdict": "APPROVE",
+        "invoiceId": "0x0f83deeb4c2c3127f099aca881773dd18a10ffe11e641e459efef09ed9ecb795",
+        "invoiceDigest": "0x264be4387a70752ab27046d1beed13b4eceddbec68a212099e547927a4714587",
+        "funder": "0x283893Ec052B7b127E8a2Fe39634001b36aBaf29",
+        "advanceAmount": "75000000",
+        "repaymentAmount": "75750000",
+        "riskTimestamp": 1786481547,
+        "expiresAt": 1786482447,
+        "riskReasonsHash": "0x8cfbfe19bf8d4cda1fdc0cc829ec74ae549189d6138a9869807291c38c294ed9",
+        "modelHash": "0x898dcb4656a2b8b85e2c3771ed1502a20ecd53bf01a6b9298b6d450f42e4e42f",
+        "reasons": [
+          "DUAL_SIGNATURES_VERIFIED",
+          "DOCUMENT_HASH_VERIFIED",
+          "CLEAN_DUPLICATE_CHECK",
+          "STRONG_ON_TIME_HISTORY"
+        ],
+        "explanation": "Synthetic evidence shows valid supplier and payer signatures, matching document hash, no duplicate invoice, and 12 of 12 payer settlements completed on time with no late payments or defaults. Requested advance is 75% of face value; payer concentration is 25%.",
+        "modelId": "bankr:gpt-5.6-terra"
+      }
+    }
+  ],
+  "olderRecordedFixture": {
+    "label": "OLDER RECORDED LOCAL FIXTURE — NO LIVE MODEL",
+    "modelMaximumAdvanceBps": "7000",
+    "feeBps": "500",
+    "fundedAdvance": "70000000",
+    "repayment": "73500000",
+    "authoritativeForLiveModelClaim": false
+  }
+}

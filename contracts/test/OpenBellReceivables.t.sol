@@ -372,6 +372,51 @@ abstract contract OpenBellTestBase {
 }
 
 contract OpenBellReceivablesLifecycleTest is OpenBellTestBase {
+    function test_GenuineModelTerms_Fund75Settle75Point75BelowImmutable80Cap() public {
+        OpenBellReceivables.InvoiceTerms memory terms = _terms("genuine-bankr-terms", 900);
+        terms.faceValue = uint128(100 * UNIT);
+        bytes32 invoiceDigest = _register(terms);
+
+        uint256 modelCeiling = uint256(terms.faceValue) * 8_500 / 10_000;
+        uint256 contractCeiling = uint256(terms.faceValue) * MAX_ADVANCE_BPS / 10_000;
+        uint256 requestedAdvance = 75 * UNIT;
+        uint256 effectiveAdvance = requestedAdvance < modelCeiling ? requestedAdvance : modelCeiling;
+        effectiveAdvance = effectiveAdvance < contractCeiling ? effectiveAdvance : contractCeiling;
+        uint256 repayment = effectiveAdvance + effectiveAdvance * 100 / 10_000;
+
+        _assertEq(modelCeiling, 85 * UNIT, "model ceiling 85");
+        _assertEq(contractCeiling, 80 * UNIT, "immutable contract ceiling 80");
+        _assertEq(effectiveAdvance, 75 * UNIT, "effective min is requested 75");
+        _assertEq(repayment, 75_750_000, "one percent fee makes 75.75");
+
+        OpenBellReceivables.RiskApproval memory approval = OpenBellReceivables.RiskApproval({
+            invoiceId: terms.invoiceId,
+            invoiceDigest: invoiceDigest,
+            funder: funder,
+            advanceAmount: uint128(effectiveAdvance),
+            repaymentAmount: uint128(repayment),
+            riskTimestamp: uint64(block.timestamp),
+            expiresAt: uint64(block.timestamp + 15 minutes),
+            riskReasonsHash: keccak256("genuine-bankr-reasons"),
+            modelHash: keccak256("bankr:gpt-5.6-terra:first-response"),
+            nonce: 901
+        });
+
+        uint256 supplierBefore = token.balanceOf(supplier);
+        bytes memory approvalSignature = _sign(UNDERWRITER_PK, _manualApprovalDigest(receivables, approval));
+        vm.prank(funder);
+        receivables.fund(approval, approvalSignature);
+        _assertEq(token.balanceOf(supplier) - supplierBefore, 75 * UNIT, "supplier receives exact 75");
+
+        uint256 funderBeforeSettlement = token.balanceOf(funder);
+        vm.prank(payer);
+        receivables.settle(terms.invoiceId);
+        _assertEq(token.balanceOf(funder) - funderBeforeSettlement, 75_750_000, "funder receives exact 75.75");
+        _assertEq(
+            uint256(_status(terms.invoiceId)), uint256(OpenBellReceivables.InvoiceStatus.SETTLED), "settled"
+        );
+    }
+
     function test_RegisterFundSettle_WithIndependentEip712DigestsAndSignatures() public {
         OpenBellReceivables.InvoiceTerms memory terms = _terms("happy", 1);
         bytes32 invoiceDigest = _register(terms);

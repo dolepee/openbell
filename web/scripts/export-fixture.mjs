@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const sourcePath = resolve(repoRoot, ".openbell/receivables-fixture-manifest.json");
 const outputPath = resolve(repoRoot, "web/data/openbell-receivables-fixture.json");
+const networkSourcePath = resolve(repoRoot, "evidence/openbell-xlayer-testnet-lifecycle.json");
+const networkOutputPath = resolve(repoRoot, "web/data/openbell-xlayer-testnet-lifecycle.json");
 
 const fail = (message) => {
   throw new Error(`fixture export refused: ${message}`);
@@ -47,5 +49,56 @@ const visit = (value, path = "$proof") => {
 };
 visit(manifest);
 
-await writeFile(outputPath, raw);
-process.stdout.write(`Exported ${outputPath}\n`);
+const existing = await readFile(outputPath, "utf8").catch(() => undefined);
+if (existing === undefined) {
+  await writeFile(outputPath, raw);
+  process.stdout.write(`Exported ${outputPath}\n`);
+} else {
+  const publicManifest = JSON.parse(existing);
+  const allowedEntropyPaths = [
+    "approvedJourney.receipts.register.blockHash",
+    "approvedJourney.receipts.funderApproval.blockHash",
+    "approvedJourney.receipts.fund.blockHash",
+    "approvedJourney.receipts.payerApproval.blockHash",
+    "approvedJourney.receipts.settle.blockHash",
+    "rejectedJourney.receipts.register.blockHash",
+    "rejectedJourney.receipts.reject.blockHash"
+  ];
+  for (const path of allowedEntropyPaths) {
+    const keys = path.split(".");
+    let generatedCursor = manifest;
+    let publicCursor = publicManifest;
+    for (const key of keys.slice(0, -1)) {
+      generatedCursor = generatedCursor?.[key];
+      publicCursor = publicCursor?.[key];
+      if (generatedCursor === undefined || publicCursor === undefined) fail(`missing parity path ${path}`);
+    }
+    generatedCursor[keys.at(-1)] = "<LOCAL_BLOCK_HASH>";
+    publicCursor[keys.at(-1)] = "<LOCAL_BLOCK_HASH>";
+  }
+  if (JSON.stringify(publicManifest) !== JSON.stringify(manifest)) fail("semantic manifest parity drift");
+  process.stdout.write(`Verified semantic parity for ${outputPath}\n`);
+}
+
+const networkRaw = await readFile(networkSourcePath, "utf8");
+const network = JSON.parse(networkRaw);
+if (
+  network.schemaVersion !== "openbell-xlayer-testnet-lifecycle-public-evidence-v1" ||
+  network.label !== "XLAYER TESTNET FIXTURE — NO REAL VALUE" ||
+  network.chainId !== "1952" ||
+  network.transactions?.length !== 9 ||
+  network.verifiedOutcome?.rejectedInvoiceStatus !== "REJECTED" ||
+  network.verifiedOutcome?.rejectionZeroTokenMovement !== true ||
+  network.verifiedOutcome?.approvedInvoiceStatus !== "SETTLED" ||
+  network.verifiedOutcome?.funded !== "75000000" ||
+  network.verifiedOutcome?.repaid !== "75750000" ||
+  network.disclosures?.fixtureNoValue !== true ||
+  network.disclosures?.realValue !== false ||
+  network.disclosures?.privateKeysIncluded !== false ||
+  network.disclosures?.signaturesIncluded !== false
+) {
+  fail("network lifecycle evidence boundary drift");
+}
+visit(network, "$networkProof");
+await writeFile(networkOutputPath, networkRaw);
+process.stdout.write(`Exported ${networkOutputPath}\n`);

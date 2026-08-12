@@ -6,11 +6,12 @@
   "scripts": {
     "build": "npm run typecheck && forge build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:risk && npm run test:contracts && npm run test:deployment-verifier",
+    "test": "npm run test:risk && npm run test:contracts && npm run test:deployment-verifier && npm run test:lifecycle-verifier",
     "test:risk": "vitest run",
     "test:contracts": "forge test",
     "test:fork": "forge test --match-contract OpenBellReceivablesCanonicalUSDGForkTest -vvv",
     "test:deployment-verifier": "node --test scripts/testnet-fixture-deployment-verifier.test.mjs",
+    "test:lifecycle-verifier": "node --test scripts/testnet-receivables-lifecycle-verifier.test.mjs",
     "deploy:fixture:testnet:dry-run": "forge script contracts/script/DeployFixtureTestnet.s.sol:DeployOpenBellFixtureTestnet --offline --chain 1952 --sender $OPENBELL_DEPLOYER",
     "pree2e:fixture": "forge build --offline --quiet",
     "e2e:fixture": "tsx agent/scripts/run-fixture.ts",
