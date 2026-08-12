@@ -15,11 +15,33 @@ export const OFFICIAL_ENDPOINT_COMMITMENTS = Object.freeze({
   "official-xlayer": "0x6dc6837936cfafdb8db23141dc98177dbd4f1c79c1557d49210b9323920fb950",
   "official-okx": "0xfa5659df3a429653458dace179429da5792e84e14097e98fc8e5afe67fa1148c"
 });
+export const OFFICIAL_PROVIDER_PAYLOAD_COMMITMENTS = Object.freeze({
+  "official-xlayer": "0xfb070a0738e55afcc85895ea5e4119b71497a741fa890fe2e21e75dcd20118d5",
+  "official-okx": "0x7072b30659a6197ca02380f8a4240a8720aba755f0633284d805e44e6e880ac2"
+});
 
 const lower = (value) => String(value).toLowerCase();
 const quantity = (value) => BigInt(value);
 const requireTrue = (condition, code) => { if (!condition) throw new Error(code); };
 const sha256 = (value) => `0x${createHash("sha256").update(value).digest("hex")}`;
+const canonical = (value) => Array.isArray(value)
+  ? value.map(canonical)
+  : value && typeof value === "object"
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
+    : value;
+const canonicalSha256 = (value) => sha256(JSON.stringify(canonical(value)));
+const requireExactKeys = (value, keys, code) => {
+  requireTrue(value !== null && typeof value === "object" && !Array.isArray(value), code);
+  requireTrue(JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort()), code);
+};
+
+const providerKeys = ["provider", "endpointCommitment", "chainId", "headBefore", "headAfter", "transaction", "receipt", "deploymentBlock", "deploymentBlockByHash", "runtimeCode", "calls"];
+const headKeys = ["number", "block"];
+const headBlockKeys = ["number", "hash"];
+const transactionKeys = ["hash", "from", "to", "nonce", "value", "input", "blockNumber", "blockHash", "transactionIndex"];
+const receiptKeys = ["transactionHash", "contractAddress", "from", "to", "status", "blockNumber", "blockHash", "transactionIndex", "gasUsed", "effectiveGasPrice"];
+const blockKeys = ["number", "hash", "transactions"];
+const callKeys = ["data", "result"];
 
 export const getterSpecs = [
   ["settlementToken", [{ type: "address" }]],
@@ -75,13 +97,25 @@ const normalizeRuntime = (runtime, immutableReferences) => {
 };
 
 export const verifyMainnetObservations = ({ observations, artifact }) => {
+  requireExactKeys(observations, ["schemaVersion", "providers"], "UNKNOWN_OBSERVATION_FIELD");
   requireTrue(observations?.schemaVersion === "openbell-xlayer-mainnet-observations-v1", "WRONG_OBSERVATION_SCHEMA");
   requireTrue(Array.isArray(observations.providers) && observations.providers.length === 2, "TWO_PROVIDERS_REQUIRED");
+  for (const observation of observations.providers) {
+    requireExactKeys(observation, providerKeys, `${observation.provider ?? "unknown"}:UNKNOWN_PROVIDER_FIELD`);
+    requireExactKeys(observation.headBefore, headKeys, `${observation.provider}:UNKNOWN_HEAD_BEFORE_FIELD`);
+    requireExactKeys(observation.headAfter, headKeys, `${observation.provider}:UNKNOWN_HEAD_AFTER_FIELD`);
+    requireExactKeys(observation.headBefore.block, headBlockKeys, `${observation.provider}:UNKNOWN_HEAD_BEFORE_BLOCK_FIELD`);
+    requireExactKeys(observation.headAfter.block, headBlockKeys, `${observation.provider}:UNKNOWN_HEAD_AFTER_BLOCK_FIELD`);
+    requireExactKeys(observation.transaction, transactionKeys, `${observation.provider}:UNKNOWN_TRANSACTION_FIELD`);
+    requireExactKeys(observation.receipt, receiptKeys, `${observation.provider}:UNKNOWN_RECEIPT_FIELD`);
+    requireExactKeys(observation.deploymentBlock, blockKeys, `${observation.provider}:UNKNOWN_DEPLOYMENT_BLOCK_FIELD`);
+    requireExactKeys(observation.deploymentBlockByHash, blockKeys, `${observation.provider}:UNKNOWN_DEPLOYMENT_BLOCK_BY_HASH_FIELD`);
+    requireExactKeys(observation.calls, getterSpecs.map(([name]) => name), `${observation.provider}:UNKNOWN_CALL_FIELD`);
+    for (const [name] of getterSpecs) requireExactKeys(observation.calls[name], callKeys, `${observation.provider}:${name}:UNKNOWN_CALL_RESULT_FIELD`);
+  }
   requireTrue(new Set(observations.providers.map(({ provider }) => provider)).size === 2, "PROVIDERS_NOT_DISTINCT");
   requireTrue(observations.providers.every(({ provider, endpointCommitment }) => OFFICIAL_ENDPOINT_COMMITMENTS[provider] === endpointCommitment), "ENDPOINT_COMMITMENT_MISMATCH");
   requireTrue(new Set(observations.providers.map(({ endpointCommitment }) => endpointCommitment)).size === 2, "ENDPOINTS_NOT_DISTINCT");
-  const payloadCommitments = observations.providers.map(({ provider: _provider, endpointCommitment: _endpoint, ...payload }) => sha256(JSON.stringify(payload)));
-  requireTrue(new Set(payloadCommitments).size === 2, "PROVIDER_PAYLOADS_DUPLICATED");
   requireTrue(artifact?.deployedBytecode?.object?.startsWith("0x"), "ARTIFACT_RUNTIME_REQUIRED");
   const normalizedArtifactRuntime = normalizeRuntime(artifact.deployedBytecode.object, artifact.deployedBytecode.immutableReferences);
   requireTrue(keccak256(normalizedArtifactRuntime) === TEMPLATE_HASH, "ARTIFACT_RUNTIME_TEMPLATE_DRIFT");
@@ -117,6 +151,12 @@ export const verifyMainnetObservations = ({ observations, artifact }) => {
     }
     results.push({ provider: observation.provider, head: observation.headAfter.number, headHash: observation.headAfter.block.hash, confirmations: (quantity(observation.headAfter.number) - DEPLOYMENT_BLOCK + 1n).toString(), decodedGetters: decoded });
   }
+  const payloadCommitments = observations.providers.map(({ provider, endpointCommitment: _endpoint, ...payload }) => {
+    const commitment = canonicalSha256(payload);
+    requireTrue(OFFICIAL_PROVIDER_PAYLOAD_COMMITMENTS[provider] === commitment, `${provider}:PROVIDER_PAYLOAD_COMMITMENT_MISMATCH`);
+    return commitment;
+  });
+  requireTrue(new Set(payloadCommitments).size === 2, "PROVIDER_PAYLOADS_DUPLICATED");
   requireTrue(JSON.stringify(results[0].decodedGetters) === JSON.stringify(results[1].decodedGetters), "PROVIDER_GETTER_DISAGREEMENT");
   const minimumObservedConfirmations = results.reduce((minimum, result) => {
     const value = quantity(result.confirmations);

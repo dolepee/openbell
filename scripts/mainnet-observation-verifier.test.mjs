@@ -58,5 +58,19 @@ test("rejects mutable provider labels, endpoint commitment drift, and duplicated
   copied.provider = duplicate.providers[1].provider;
   copied.endpointCommitment = duplicate.providers[1].endpointCommitment;
   duplicate.providers[1] = copied;
-  assert.throws(() => verifyMainnetObservations({ observations: duplicate, artifact }), /PROVIDER_PAYLOADS_DUPLICATED/);
+  assert.throws(() => verifyMainnetObservations({ observations: duplicate, artifact }), /PROVIDER_PAYLOAD_COMMITMENT_MISMATCH/);
+});
+
+test("rejects ignored-field and semantically forged provider payload bypasses", () => {
+  const ignoredField = clone();
+  ignoredField.providers[1].ignored = "payload-distinguishing-noise";
+  assert.throws(() => verifyMainnetObservations({ observations: ignoredField, artifact }), /UNKNOWN_PROVIDER_FIELD/);
+
+  const forgedHeadHash = clone();
+  const copied = structuredClone(forgedHeadHash.providers[0]);
+  copied.provider = forgedHeadHash.providers[1].provider;
+  copied.endpointCommitment = forgedHeadHash.providers[1].endpointCommitment;
+  copied.headAfter.block.hash = `0x${"ab".repeat(32)}`;
+  forgedHeadHash.providers[1] = copied;
+  assert.throws(() => verifyMainnetObservations({ observations: forgedHeadHash, artifact }), /PROVIDER_PAYLOAD_COMMITMENT_MISMATCH/);
 });
