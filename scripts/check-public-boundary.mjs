@@ -42,14 +42,18 @@ const placeholderCredential = (value) => {
 
 const scanStructuredCredentialAssignments = ({ path, text }) => {
   const violations = [];
-  const assignment = /(?=["']?\b([A-Za-z_][A-Za-z0-9_-]*)\b["']?\s*[:=]\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+)))/gm;
-  for (const match of text.matchAll(assignment)) {
-    const key = match[1].replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[-_]/g, "");
-    const value = match[2] ?? match[3] ?? match[4] ?? "";
+  const inspect = (rawKey, value) => {
+    const key = rawKey.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[-_]/g, "");
     const sensitiveEndpointField = key.includes("rpc") && /(?:secret|token|apikey|password|passphrase|key|auth|credential)$/.test(key);
-    const sensitiveGenericField = /^(?:apikey|secretkey|clientsecret|accesstoken|authtoken|password|passphrase|credential)$/.test(key);
+    const sensitiveGenericField = /^(?:privatekey|apikey|secret|secretkey|clientsecret|accesstoken|authtoken|password|passphrase|credential)$/.test(key);
     if (sensitiveEndpointField && !placeholderCredential(value)) violations.push(`forbidden structured endpoint credential: ${path}`);
     if (sensitiveGenericField && !placeholderCredential(value)) violations.push(`forbidden structured credential: ${path}`);
+  };
+  const typedInitializer = /\b([A-Za-z_][A-Za-z0-9_-]*)\s*\??\s*:\s*[^=;\r\n]+?=\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+))/gm;
+  for (const match of text.matchAll(typedInitializer)) inspect(match[1], match[2] ?? match[3] ?? match[4] ?? "");
+  const assignment = /(?=["']?\b([A-Za-z_][A-Za-z0-9_-]*)\b["']?\s*[:=]\s*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^\s,};\r\n]+)))/gm;
+  for (const match of text.matchAll(assignment)) {
+    inspect(match[1], match[2] ?? match[3] ?? match[4] ?? "");
   }
   return violations;
 };
