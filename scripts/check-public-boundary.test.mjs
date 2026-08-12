@@ -21,6 +21,7 @@ const prohibited = [
   ["exported generic password", `export pass${"word"}=hunter2`],
   ["typed generic password", `const pass${"word"}: string = "hunter2"`],
   ["typed default parameter", `function connect(pass${"word"}: string = "hunter2") {}`],
+  ["multiline typed password", `const pass${"word"}: string\n  | undefined = "hunter2"`],
   ["typed private key", `const PRIVATE_${"KEY"}: string = "${"de".repeat(32)}"`],
   ["provider API credential", `ALCHEMY_${"API_KEY"}=super-secret-credential-123456`],
   ["quoted JSON provider credential", JSON.stringify({ [`ALCHEMY_${"API_KEY"}`]: "super-secret-credential-123456" })],
