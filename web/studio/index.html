@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deal studio — OpenBell</title>
+    <meta name="description" content="Prepare an unsigned receivables deal package and inspect OpenBell's immutable funding boundary before underwriting." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://openbell.dolepee.com/studio/" />
+    <meta name="theme-color" content="#101712" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://openbell.dolepee.com/studio/" />
+    <meta property="og:title" content="OpenBell deal studio" />
+    <meta property="og:description" content="Turn invoice terms into a deterministic, unsigned package without uploading the document or connecting a wallet." />
+    <meta property="og:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body data-page="studio" class="studio-page">
+    <a class="skip-link" href="#main">Skip to the deal studio</a>
+    <div class="status-bar" role="note"><span><i class="status-dot"></i> BROWSER-ONLY PREPARATION</span><span>NO WALLET ACCESS</span><span>NO DOCUMENT UPLOAD</span></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
+      <div class="nav-right">
+        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/" aria-current="page">Deal studio</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav>
+        <a class="header-cta" href="/workspace/">See verified cases <span aria-hidden="true">↗</span></a>
+      </div>
+    </header>
+
+    <main id="main" class="studio-shell">
+      <header class="studio-hero">
+        <div><p class="overline">OPENBELL V2 · DEAL PREPARATION</p><h1>Start with the invoice.<br />See the boundary first.</h1></div>
+        <p>Prepare a deterministic, unsigned receivables package without connecting a wallet or uploading the underlying document. AI assessment and both-party signatures happen after this boundary.</p>
+      </header>
+
+      <div class="studio-grid">
+        <form class="deal-form" id="deal-form" novalidate>
+          <header><span>01 / INVOICE INPUT</span><b>LOCAL ONLY</b></header>
+
+          <fieldset>
+            <legend>Counterparties</legend>
+            <label>Supplier address<input id="deal-supplier" name="supplier" inputmode="text" autocomplete="off" placeholder="0x…" required pattern="0x[0-9a-fA-F]{40}" aria-describedby="deal-error" /></label>
+            <label>Payer address<input id="deal-payer" name="payer" inputmode="text" autocomplete="off" placeholder="0x…" required pattern="0x[0-9a-fA-F]{40}" aria-describedby="deal-error" /></label>
+          </fieldset>
+
+          <fieldset class="form-pair">
+            <legend>Economics</legend>
+            <label>Face value · USDG<input id="deal-face" name="faceValue" type="number" min="0.01" max="1000000000" step="0.01" value="100" required aria-describedby="deal-error" /></label>
+            <label>Requested advance · USDG<input id="deal-request" name="requestedAdvance" type="number" min="0.01" max="1000000000" step="0.01" value="75" required aria-describedby="deal-error" /></label>
+          </fieldset>
+
+          <fieldset class="form-pair">
+            <legend>Terms</legend>
+            <label>Invoice due date<input id="deal-due" name="dueDate" type="date" required aria-describedby="deal-error" /></label>
+            <label>Supplier nonce<input id="deal-nonce" name="nonce" type="number" min="0" step="1" value="0" required aria-describedby="deal-error" /></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Document commitment</legend>
+            <label>Invoice document<input id="deal-document" name="document" type="file" aria-describedby="document-help deal-error" /></label>
+            <p id="document-help">The file is hashed in this browser with SHA-256. Its bytes are never uploaded or stored.</p>
+            <label>Or provide an existing SHA-256<input id="deal-document-hash" name="documentHash" inputmode="text" autocomplete="off" placeholder="0x + 64 hexadecimal characters" pattern="0x[0-9a-fA-F]{64}" aria-describedby="deal-error" /></label>
+          </fieldset>
+
+          <div class="form-consent"><input id="deal-synthetic" name="synthetic" type="checkbox" required /><label for="deal-synthetic">This is a synthetic or otherwise authorized invoice preparation. No claim of verification or financing is created.</label></div>
+          <p class="form-error" id="deal-error" role="alert" aria-live="polite"></p>
+          <button class="button button-primary" type="submit"><span>Prepare unsigned package</span><span aria-hidden="true">→</span></button>
+        </form>
+
+        <section class="deal-boundary" aria-labelledby="boundary-preview-title">
+          <header><span>02 / CONTRACT PREFLIGHT</span><b>CHAIN 196</b></header>
+          <div class="boundary-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="boundary-copy">
+            <p>IMMUTABLE ADVANCE MAXIMUM</p>
+            <h2 id="boundary-preview-title">80<span>%</span></h2>
+            <small>OpenBell Receivables · X Layer mainnet</small>
+          </div>
+          <dl class="deal-math">
+            <div><dt>Face value</dt><dd id="studio-face">100.00</dd></div>
+            <div><dt>Requested</dt><dd id="studio-request">75.00</dd></div>
+            <div><dt>Contract maximum</dt><dd id="studio-contract-max">80.00</dd></div>
+            <div class="deal-math-result"><dt>Pre-AI upper bound</dt><dd id="studio-upper-bound">75.00</dd></div>
+          </dl>
+          <p class="boundary-warning"><strong>Not an approval.</strong> A genuine risk decision may lower this amount or reject the invoice. Supplier and payer signatures are still required.</p>
+        </section>
+
+        <aside class="package-panel" aria-live="polite">
+          <header><span>03 / PACKAGE STATUS</span><b id="package-state">DRAFT</b></header>
+          <ol class="readiness-list">
+            <li data-readiness="terms"><i></i><span><b>Terms prepared</b><small>Actors, economics, dates, nonce</small></span></li>
+            <li data-readiness="document"><i></i><span><b>Document committed</b><small>Local SHA-256 only</small></span></li>
+            <li><i></i><span><b>AI assessment</b><small>Not requested in this studio</small></span></li>
+            <li><i></i><span><b>Dual signatures</b><small>Not collected in this studio</small></span></li>
+            <li><i></i><span><b>Onchain registration</b><small>No transaction is constructed</small></span></li>
+          </ol>
+          <div class="package-identity">
+            <span>INVOICE ID</span><code id="package-invoice-id">Generated after preparation</code>
+            <span>DOCUMENT HASH</span><code id="package-document-hash">Local commitment pending</code>
+          </div>
+          <button class="button button-secondary" id="download-package" type="button" disabled><span>Download JSON package</span><span aria-hidden="true">↓</span></button>
+          <p><strong>UNSIGNED PREPARATION ONLY.</strong> This export contains no document bytes, private keys, signatures, model result, calldata, or transaction authorization.</p>
+        </aside>
+      </div>
+
+      <section class="package-review" aria-labelledby="package-review-title">
+        <div class="review-intro"><p class="overline">PAYER / FUNDER REVIEW</p><h2 id="package-review-title">Inspect the package.<br />Not a pitch.</h2><p>A counterparty can import an OpenBell preparation, independently reconstruct every field, and see exactly what exists—and what is still missing—before any signature or risk decision.</p></div>
+        <div class="review-workbench">
+          <form id="review-form" class="review-import" novalidate>
+            <label for="review-file">Select an unsigned OpenBell JSON package</label>
+            <input id="review-file" name="reviewFile" type="file" accept="application/json,.json" required aria-describedby="review-help review-error" />
+            <p id="review-help">Parsed locally. The selected file is never uploaded, stored, signed, or submitted.</p>
+            <button class="button button-primary" type="submit"><span>Review package</span><span aria-hidden="true">→</span></button>
+            <p id="review-error" class="form-error" role="alert" aria-live="polite"></p>
+          </form>
+
+          <article class="credit-memo" id="credit-memo" hidden aria-live="polite" tabindex="-1">
+            <header><div><span>PRE-UNDERWRITING CREDIT MEMO</span><b id="memo-state">PREPARED · UNSIGNED</b></div><code id="memo-id"></code></header>
+            <div class="memo-economics"><div><span>FACE VALUE</span><strong id="memo-face">—</strong></div><div><span>REQUESTED</span><strong id="memo-request">—</strong></div><div><span>CODE MAX</span><strong id="memo-max">—</strong></div><div><span>PRE-AI UPPER BOUND</span><strong id="memo-bound">—</strong></div></div>
+            <dl class="memo-terms"><div><dt>Supplier</dt><dd><code id="memo-supplier"></code></dd></div><div><dt>Payer</dt><dd><code id="memo-payer"></code></dd></div><div><dt>Due date</dt><dd id="memo-due"></dd></div><div><dt>Document commitment</dt><dd><code id="memo-document"></code></dd></div></dl>
+            <div class="authority-matrix"><div><span>SUPPLIER</span><b>Signature missing</b></div><div><span>PAYER</span><b>Signature missing</b></div><div><span>AI</span><b>Assessment missing</b></div><div class="authority-known"><span>CONTRACT</span><b>80% ceiling known</b></div><div><span>FUNDER</span><b>Not selected</b></div></div>
+            <footer><strong>NOT UNDERWRITTEN · NOT SIGNED · NOT EXECUTABLE</strong><p>The package proves deterministic preparation only. It does not prove the invoice, payer, document, liquidity, approval, or financing availability.</p></footer>
+          </article>
+
+          <div class="review-empty" id="review-empty"><span>NO PACKAGE LOADED</span><p>Prepare a deal above or import a package from another party to produce the local credit memo.</p></div>
+        </div>
+      </section>
+
+      <section class="studio-next" aria-labelledby="studio-next-title">
+        <div><p class="overline">WHAT HAPPENS NEXT</p><h2 id="studio-next-title">Preparation is not underwriting.</h2></div>
+        <ol><li><span>01</span><b>Encode canonical EIP-712 terms</b><small>An operator validates the package against the deployed domain.</small></li><li><span>02</span><b>Collect supplier + payer authority</b><small>Both parties sign the exact same invoice digest.</small></li><li><span>03</span><b>Run genuine risk assessment</b><small>The first strictly parsed response approves bounded terms or rejects.</small></li><li><span>04</span><b>Let a funder choose</b><small>A funder may execute the exact approved advance; OpenBell has no pool.</small></li></ol>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded receivables credit on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/">Deal studio</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav></footer>
+  </body>
+</html>
