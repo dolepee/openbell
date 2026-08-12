@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildUnsignedDealPackage, calculateDealEconomics, decimalToBaseUnits, validateUnsignedDealPackage } from "./deal-package.mjs";
+import { buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, decimalToBaseUnits, validateUnsignedDealPackage } from "./deal-package.mjs";
 
 const validInput = {
   supplier: "0x1111111111111111111111111111111111111111",
@@ -22,6 +22,17 @@ test("deal economics exposes the immutable pre-AI upper bound", () => {
   });
   assert.equal(calculateDealEconomics("100", "85").preAiUpperBound, 80_000_000n);
   assert.equal(decimalToBaseUnits("75.123456"), 75_123_456n);
+});
+
+test("preparation guard prevents an invalidated asynchronous result from becoming current", () => {
+  const guard = createPreparationGuard();
+  const firstPreparation = guard.begin();
+  assert.equal(guard.isCurrent(firstPreparation), true);
+  guard.invalidate();
+  assert.equal(guard.isCurrent(firstPreparation), false);
+  const replacementPreparation = guard.begin();
+  assert.equal(guard.isCurrent(replacementPreparation), true);
+  assert.equal(guard.isCurrent(firstPreparation), false);
 });
 
 test("unsigned package is deterministic, mainnet-bound, and contains no execution authority", async () => {

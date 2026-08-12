@@ -11,6 +11,15 @@ const addressPattern = /^0x[0-9a-fA-F]{40}$/;
 const hashPattern = /^0x[0-9a-fA-F]{64}$/;
 const zeroAddress = "0x0000000000000000000000000000000000000000";
 
+export const createPreparationGuard = () => {
+  let revision = 0;
+  return Object.freeze({
+    begin: () => ++revision,
+    invalidate: () => ++revision,
+    isCurrent: (candidateRevision) => candidateRevision === revision
+  });
+};
+
 export const decimalToBaseUnits = (raw) => {
   const value = String(raw).trim();
   if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value)) {

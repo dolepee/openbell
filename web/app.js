@@ -1,4 +1,4 @@
-import { baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
+import { baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
 
 const compact = (value) => value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
 
@@ -123,6 +123,7 @@ if (dealForm) {
   const packageInvoiceId = document.querySelector("#package-invoice-id");
   const packageDocumentHash = document.querySelector("#package-document-hash");
   const downloadPackage = document.querySelector("#download-package");
+  const preparationGuard = createPreparationGuard();
   let preparedPackage = null;
 
   const tomorrow = new Date();
@@ -130,6 +131,8 @@ if (dealForm) {
   dueInput.value = tomorrow.toISOString().slice(0, 10);
 
   const invalidatePreparedPackage = () => {
+    preparationGuard.invalidate();
+    dealForm.setAttribute("aria-busy", "false");
     preparedPackage = null;
     downloadPackage.disabled = true;
     packageState.textContent = "DRAFT";
@@ -163,6 +166,7 @@ if (dealForm) {
 
   dealForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const preparationRevision = preparationGuard.begin();
     dealForm.setAttribute("aria-busy", "true");
     errorOutput.textContent = "";
     preparedPackage = null;
@@ -178,7 +182,7 @@ if (dealForm) {
       if (selectedFile && selectedFile.size > 25 * 1024 * 1024) throw new Error("Local document hashing is limited to 25 MiB.");
       const documentHash = selectedFile ? await sha256(await selectedFile.arrayBuffer()) : suppliedHash.toLowerCase();
 
-      preparedPackage = await buildUnsignedDealPackage({
+      const candidatePackage = await buildUnsignedDealPackage({
         supplier: supplierInput.value.trim(),
         payer: payerInput.value.trim(),
         faceValue: faceInput.value,
@@ -187,6 +191,8 @@ if (dealForm) {
         nonce: nonceInput.value,
         documentHash
       });
+      if (!preparationGuard.isCurrent(preparationRevision)) return;
+      preparedPackage = candidatePackage;
 
       packageInvoiceId.textContent = preparedPackage.invoiceTerms.invoiceId;
       packageDocumentHash.textContent = documentHash;
@@ -196,10 +202,11 @@ if (dealForm) {
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
       renderCreditMemo(preparedPackage);
     } catch (error) {
+      if (!preparationGuard.isCurrent(preparationRevision)) return;
       errorOutput.textContent = error instanceof Error ? error.message : "Unable to prepare the deal package.";
       packageState.textContent = "DRAFT";
     } finally {
-      dealForm.setAttribute("aria-busy", "false");
+      if (preparationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
     }
   });
 
