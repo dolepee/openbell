@@ -64,7 +64,11 @@ test("first-fold claims distinguish mainnet deployment, testnet lifecycle, and r
   const html = await read("./index.html");
   assert.match(html, /<title>OpenBell — Replay AI-bounded invoice funding<\/title>/);
   assert.match(html, /name="description"/);
-  assert.match(html, /name="robots" content="noindex, nofollow"/);
+  assert.match(html, /name="robots" content="index, follow"/);
+  assert.match(html, /rel="canonical" href="https:\/\/openbell\.dolepee\.com\/"/);
+  assert.match(html, /property="og:url" content="https:\/\/openbell\.dolepee\.com\/"/);
+  assert.match(html, /property="og:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
+  assert.match(html, /name="twitter:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
   assert.match(html, /property="og:title"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(html, /openbell-og\.png/);

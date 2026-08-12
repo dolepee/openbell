@@ -7,6 +7,8 @@ canonical invoice, an AI underwriter produces bounded advance terms, and a funde
 USDG only when those terms pass deterministic contract limits. The payer later settles the fixed
 repayment directly to the funder.
 
+**Live app:** [openbell.dolepee.com](https://openbell.dolepee.com/)
+
 The user outcome is deliberately simple:
 
 ```text
@@ -131,8 +133,8 @@ npm run web:check
 npm run web:serve
 ```
 
-Open `http://127.0.0.1:4187`. The local page is deliberately `noindex`; canonical and absolute social
-URLs are added only when a public host is approved.
+Open `http://127.0.0.1:4187` for local development. The published canonical site is
+[`https://openbell.dolepee.com/`](https://openbell.dolepee.com/).
 
 The fixture-first deployment script can be rehearsed without an RPC or broadcast:
 
