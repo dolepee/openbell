@@ -1,6 +1,6 @@
 {
   "schemaVersion": "openbell-xlayer-mainnet-deployment-public-v1",
-  "label": "XLAYER MAINNET DEPLOYMENT — NO LIFECYCLE OR REAL-VALUE ACTIVITY",
+  "label": "XLAYER MAINNET DEPLOYMENT — ACTIVITY ABSENCE IS AN UNVERIFIED OPERATOR DISCLOSURE",
   "chainId": "196",
   "sourceCommit": "4a325e8c7288741909246e06070bc763345a48e2",
   "sourceTree": "a7ce375b0a934205076eb133385cc2df1ffdf113",
@@ -42,9 +42,11 @@
     }
   },
   "verification": {
-    "manifestHash": "0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020",
+    "sealedPrivateSourceManifestCommitment": "0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020",
+    "publicVerificationRecord": "evidence/openbell-xlayer-mainnet-verification-record.json",
+    "publicVerificationRecordSha256": "0xd5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8",
     "minimumConfirmations": "12",
-    "observedConfirmations": "127",
+    "observedConfirmations": "5026",
     "twoProviderCanonicalVerification": true,
     "sourceBoundArtifactRuntimeCompatible": true,
     "gettersAndDomainVerified": true,
@@ -56,8 +58,9 @@
     "credentialsIncluded": false,
     "privateKeysIncluded": false,
     "signedTransactionsIncluded": false,
-    "mainnetLifecycleExecuted": false,
-    "realValueActivityExecuted": false,
+    "operatorDisclosedMainnetLifecycleExecuted": false,
+    "operatorDisclosedRealValueActivityExecuted": false,
+    "activityAbsenceIndependentlyVerified": false,
     "roleRotationExecuted": false,
     "explorerSourcePublicationCompleted": false
   }

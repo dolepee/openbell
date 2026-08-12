@@ -17,17 +17,22 @@ signed invoice -> bounded AI decision -> exact USDG advance -> payer settlement
 
 OpenBell is in pre-alpha development for BuildX AI Season. The contract is deployed and verified
 on X Layer mainnet, while the complete economic journey remains a labelled no-value testnet
-fixture. No mainnet lifecycle or real-value activity has occurred.
+fixture. Operator disclosure (not independently verified): no mainnet lifecycle or real-value activity has occurred.
 
 - Mainnet OpenBell Receivables: [`0xc4Ef249b80a6a034198C226278c51b0a903840dd`](https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd)
 - Mainnet deployment transaction: [`0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e`](https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e)
 - Mainnet deployment block: `67764503`
 - Mainnet runtime hash: `0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798`
 - Public deployment evidence: [`evidence/openbell-xlayer-mainnet-deployment.json`](evidence/openbell-xlayer-mainnet-deployment.json)
+- Reproducible sanitized verification record: [`evidence/openbell-xlayer-mainnet-verification-record.json`](evidence/openbell-xlayer-mainnet-verification-record.json), SHA-256 `d5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8`
+- Sanitized two-provider observations: [`evidence/openbell-xlayer-mainnet-observations.json`](evidence/openbell-xlayer-mainnet-observations.json), SHA-256 `e8e750a45a206664b0e85db3496482232556f4b2d0a23db9073c8f4e71b77dd9`. Each source is bound to a fixed official-endpoint SHA-256 commitment; endpoint provenance is committed, not independently attested.
+- Deterministic observation verification: [`evidence/openbell-xlayer-mainnet-observation-verification.json`](evidence/openbell-xlayer-mainnet-observation-verification.json), derived by `node scripts/verify-mainnet-observations.mjs`
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
 getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
 source publication and an independent third-party audit remain separate, incomplete claims.
+The earlier `0xac31d5ee…f020` value is retained only as a sealed private-source manifest commitment; it is not
+described as a public manifest. The sanitized record above is the public, byte-reproducible preimage.
 
 The no-value testnet proof remains the only executed lifecycle:
 
