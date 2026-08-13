@@ -1,7 +1,9 @@
 import {
+  encodeAbiParameters,
   getAddress,
   hashTypedData,
   keccak256,
+  parseAbiParameters,
   recoverAddress,
   recoverTypedDataAddress,
   stringToHex,
@@ -9,6 +11,7 @@ import {
 } from "viem";
 import { z } from "zod";
 import { underwriteInvoice } from "./underwriter.js";
+import { buildStrictBankrRequest } from "./live-model.js";
 import { boundedDecisionSchema, modelDecisionSchema, type BoundedDecision, type InvoiceRiskInput, type UnderwritingModel } from "./schema.js";
 
 export const CONNECTED_TESTNET = Object.freeze({
@@ -162,6 +165,16 @@ const canonicalJson = (value: unknown): string => {
 };
 const requestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
 const failureCode = (error: unknown): string => error instanceof Error ? error.message.slice(0, 160) : "CONNECTED_UNDERWRITING_FAILED";
+
+function committedModelId(input: InvoiceRiskInput, evidence: z.infer<typeof modelEvidenceSchema>): string {
+  const expectedRequestHash = buildStrictBankrRequest(input).requestHash;
+  if (evidence.requestHash !== expectedRequestHash) throw new Error("CONNECTED_MODEL_REQUEST_HASH_MISMATCH");
+  const receiptCommitment = keccak256(encodeAbiParameters(
+    parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
+    [evidence.provider, evidence.providerResponseId, evidence.requestedModel, evidence.returnedModel, evidence.requestHash, evidence.responseHash]
+  ));
+  return `bankr:${evidence.requestedModel}:receipt:${receiptCommitment}`;
+}
 
 const approvalTypes = {
   RiskApproval: [
@@ -333,9 +346,10 @@ export class ConnectedUnderwritingService {
         const modelEvidence = modelEvidenceSchema.parse(record.modelEvidence);
         const storedObservation = registeredObservationSchema.parse(record.observation) as RegisteredInvoiceObservation;
         assertObservation(request, storedObservation);
+        const storedInput = riskInputFrom(request, storedObservation);
         const reconstructedDecision = await underwriteInvoice({
-          input: riskInputFrom(request, storedObservation),
-          model: { modelId: `bankr:${modelEvidence.requestedModel}`, decide: async () => modelEvidence.decision },
+          input: storedInput,
+          model: { modelId: committedModelId(storedInput, modelEvidence), decide: async () => modelEvidence.decision },
           policy: connectedPolicy,
           now: storedObservation.blockTimestamp
         });
@@ -370,13 +384,15 @@ export class ConnectedUnderwritingService {
         throw new Error("CONNECTED_DAILY_MODEL_BUDGET_EXHAUSTED");
       }
       const model = this.dependencies.modelFactory();
+      const modelDecision = await model.decide(input);
+      const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
+      if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
       const decision = await underwriteInvoice({
         input,
-        model,
+        model: { modelId: committedModelId(input, modelEvidence), decide: async () => modelDecision },
         policy: connectedPolicy,
         now: observation.blockTimestamp
       });
-      const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
       assertObservation(request, postModelObservation);
       if (postModelObservation.underwriter !== getAddress(this.dependencies.signer.address)) throw new Error("CONNECTED_SIGNER_NOT_CURRENT_UNDERWRITER");

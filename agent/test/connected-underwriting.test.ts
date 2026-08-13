@@ -10,6 +10,7 @@ import {
   type StoredConnectedDecision
 } from "../src/connected-underwriting.js";
 import type { InvoiceRiskInput, ModelDecision, UnderwritingModel } from "../src/schema.js";
+import { buildStrictBankrRequest } from "../src/live-model.js";
 
 const supplier = privateKeyToAccount(`0x${"11".repeat(32)}`);
 const payer = privateKeyToAccount(`0x${"22".repeat(32)}`);
@@ -109,7 +110,7 @@ function harness(decision: ModelDecision | Error, observed = observation()) {
         providerResponseId: "bankr-test-response",
         requestedModel: "gpt-5.6-terra",
         returnedModel: "gpt-5.6-terra",
-        requestHash: `0x${"ab".repeat(32)}`,
+        requestHash: buildStrictBankrRequest(capturedInput!).requestHash,
         responseHash: `0x${"cd".repeat(32)}`,
         decision
       };
@@ -181,6 +182,30 @@ test("durable replay rejects a coherently edited decision row without external c
   parsed.decision.advanceAmount = "74000000";
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+});
+
+test.each(["providerResponseId", "responseHash"] as const)("durable replay rejects edited model provenance field %s", async (field) => {
+  const h = harness(approval);
+  await h.service.authorize(request);
+  const row = h.store.rows.get(request.invoiceId);
+  if (row?.status !== "COMPLETE" || !row.resultJson) throw new Error("expected complete row");
+  const parsed = JSON.parse(row.resultJson);
+  parsed.modelEvidence[field] = field === "providerResponseId" ? "forged-response" : `0x${"ef".repeat(32)}`;
+  h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+});
+
+test("durable replay recomputes and rejects an edited Bankr request hash", async () => {
+  const h = harness(approval);
+  await h.service.authorize(request);
+  const row = h.store.rows.get(request.invoiceId);
+  if (row?.status !== "COMPLETE" || !row.resultJson) throw new Error("expected complete row");
+  const parsed = JSON.parse(row.resultJson);
+  parsed.modelEvidence.requestHash = `0x${"ef".repeat(32)}`;
+  h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_REQUEST_HASH_MISMATCH");
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
 });
 
