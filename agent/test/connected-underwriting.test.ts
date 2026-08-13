@@ -96,7 +96,7 @@ const approval: ModelDecision = {
   explanation: "Synthetic evidence is acceptable within bounded terms."
 };
 
-function harness(decision: ModelDecision | Error, observed = observation()) {
+function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed) {
   const store = new MemoryStore();
   let observerCalls = 0;
   let modelCalls = 0;
@@ -124,7 +124,7 @@ function harness(decision: ModelDecision | Error, observed = observation()) {
   };
   const service = new ConnectedUnderwritingService({
     store,
-    observer: { async inspect() { observerCalls += 1; return observed; } },
+    observer: { async inspect() { observerCalls += 1; return observerCalls === 1 ? observed : postObserved; } },
     modelFactory: () => model,
     signer: {
       address: underwriter.address,
@@ -146,6 +146,22 @@ test("registered objective evidence produces exact bounded approval actions and 
   const stored = JSON.stringify(first);
   const second = await h.service.authorize(JSON.parse(JSON.stringify(request)));
   expect(JSON.stringify(second)).toBe(stored);
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+});
+
+test("durable replay remains exact when the confirmed block advances during the model call", async () => {
+  const firstObservation = observation();
+  const postObservation = observation({
+    blockNumber: "120001",
+    blockHash: `0x${"13".repeat(32)}`,
+    blockTimestamp: firstObservation.blockTimestamp + 5
+  });
+  const h = harness(approval, firstObservation, postObservation);
+  const first = await h.service.authorize(request);
+  expect(first.decision.riskTimestamp).toBe(postObservation.blockTimestamp);
+  expect(first.observation.blockHash).toBe(postObservation.blockHash);
+  const second = await h.service.authorize(request);
+  expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
 });
 

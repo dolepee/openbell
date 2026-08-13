@@ -387,12 +387,6 @@ export class ConnectedUnderwritingService {
       const modelDecision = await model.decide(input);
       const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
       if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
-      const decision = await underwriteInvoice({
-        input,
-        model: { modelId: committedModelId(input, modelEvidence), decide: async () => modelDecision },
-        policy: connectedPolicy,
-        now: observation.blockTimestamp
-      });
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
       assertObservation(request, postModelObservation);
       if (postModelObservation.underwriter !== getAddress(this.dependencies.signer.address)) throw new Error("CONNECTED_SIGNER_NOT_CURRENT_UNDERWRITER");
@@ -401,6 +395,13 @@ export class ConnectedUnderwritingService {
       if (afterBlock < beforeBlock || (afterBlock === beforeBlock && postModelObservation.blockHash !== observation.blockHash)) {
         throw new Error("CONNECTED_OBSERVATION_REORG_OR_REGRESSION");
       }
+      const postModelInput = riskInputFrom(request, postModelObservation);
+      const decision = await underwriteInvoice({
+        input: postModelInput,
+        model: { modelId: committedModelId(postModelInput, modelEvidence), decide: async () => modelDecision },
+        policy: connectedPolicy,
+        now: postModelObservation.blockTimestamp
+      });
       const { typedData, digest } = typedDecision(decision, nonce);
       const signature = await this.dependencies.signer.sign(typedData, digest);
       const recovered = await recoverAddress({ hash: digest, signature });
