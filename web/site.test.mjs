@@ -153,7 +153,7 @@ test("public network evidence is exact, no-value, and signature-free", async () 
 });
 
 test("interactive controls use native accessible elements", async () => {
-  const [html, studio, proof, script, dealModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./styles.css")]);
+  const [html, studio, operate, proof, script, dealModule, testnetModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./operate/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./testnet-flow.mjs"), read("./styles.css")]);
   assert.match(html, /<button[^>]+data-invoice="approved"[^>]+aria-pressed="true"/);
   assert.match(html, /<button[^>]+id="execution-next"/);
   assert.match(html, /aria-live="polite"/);
@@ -161,6 +161,12 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(studio, /<form class="deal-form" id="deal-form"/);
   assert.match(studio, /<input id="deal-document"[^>]+type="file"/);
   assert.match(studio, /<button[^>]+id="download-package"[^>]+disabled/);
+  assert.match(operate, /XLAYER TESTNET FIXTURE/);
+  assert.match(operate, /id="connect-wallet"[^>]+aria-pressed="false"/);
+  assert.match(operate, /id="action-file"[^>]+aria-describedby="action-help action-error"[^>]+aria-invalid="false"/);
+  assert.match(operate, /id="execute-action"[^>]+disabled[^>]+aria-busy="false"/);
+  assert.match(testnetModule, /chainId: 1952/);
+  assert.match(testnetModule, /recoverTypedDataAddress/);
   assert.match(studio, /<form id="review-form" class="review-import"/);
   assert.match(studio, /<input id="review-file"[^>]+type="file"[^>]+aria-describedby="review-help review-error"/);
   assert.match(studio, /id="credit-memo" hidden aria-live="polite" tabindex="-1"/);
@@ -181,7 +187,7 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /studioOperationGuard\.invalidate\(\)/);
   assert.match(script, /const preparationRevision = studioOperationGuard\.begin\(\)/);
   assert.match(script, /if \(!studioOperationGuard\.isCurrent\(preparationRevision\)\) return/);
-  assert.match(script, /\[supplierInput, payerInput, dueInput, nonceInput, documentHashInput\]/);
+  assert.match(script, /\[supplierInput, payerInput, dueInput, nonceInput, documentHashInput, targetInput\]/);
   assert.match(script, /documentInput\.addEventListener\("change", invalidatePreparedPackage\)/);
   assert.match(script, /consentInput\.addEventListener\("change", invalidatePreparedPackage\)/);
   assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "false"\);\s+clearCreditMemo\(\);/);

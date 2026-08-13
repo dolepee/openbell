@@ -1,4 +1,4 @@
-import { baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
+import { OPENBELL_MAINNET, OPENBELL_TESTNET_TARGET, baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
 
 const compact = (value) => value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
 
@@ -117,6 +117,7 @@ if (dealForm) {
   const requestInput = document.querySelector("#deal-request");
   const dueInput = document.querySelector("#deal-due");
   const nonceInput = document.querySelector("#deal-nonce");
+  const targetInput = document.querySelector("#deal-target");
   const documentInput = document.querySelector("#deal-document");
   const documentHashInput = document.querySelector("#deal-document-hash");
   const consentInput = document.querySelector("#deal-synthetic");
@@ -160,7 +161,7 @@ if (dealForm) {
 
   faceInput.addEventListener("input", renderStudioMath);
   requestInput.addEventListener("input", renderStudioMath);
-  for (const input of [supplierInput, payerInput, dueInput, nonceInput, documentHashInput]) {
+  for (const input of [supplierInput, payerInput, dueInput, nonceInput, documentHashInput, targetInput]) {
     input.addEventListener("input", invalidatePreparedPackage);
   }
   documentInput.addEventListener("change", invalidatePreparedPackage);
@@ -193,7 +194,8 @@ if (dealForm) {
         requestedAdvance: requestInput.value,
         dueDate: dueInput.value,
         nonce: nonceInput.value,
-        documentHash
+        documentHash,
+        target: targetInput.value === "testnet" ? OPENBELL_TESTNET_TARGET : OPENBELL_MAINNET
       });
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
       preparedPackage = candidatePackage;

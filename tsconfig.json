@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["agent/**/*.ts", "vitest.config.ts"]
+  "include": ["agent/**/*.ts", "db/**/*.ts", "server/**/*.ts", "vitest.config.ts"]
 }

@@ -28,6 +28,26 @@ constructs calldata, authorizes a transaction, or promises financing. Its pre-AI
 only `min(requested advance, immutable contract maximum)`. Genuine risk assessment may lower that
 amount or reject the invoice, and supplier plus payer authority remains mandatory.
 
+## Connected testnet desk
+
+The current product branch adds a connected, no-value X Layer testnet journey at `/operate/`:
+
+- supplier and payer sign the same numeric-chain EIP-712 invoice in a browser handoff;
+- the supplier registers the exact invoice after a fresh simulation;
+- one supplier-authorized underwriting request is independently checked against both official
+  X Layer testnet RPCs before any model call;
+- the genuine first Bankr-mediated GPT-5.6 Terra response is durably sealed with its request and
+  response hashes—there is no recorded fallback or retry;
+- the current onchain underwriter signs only the bounded decision digest; and
+- funder and payer wallets can review, simulate, and execute only reconstructed, zero-value action
+  packages against the labelled fixture contracts.
+
+The service has a durable five-call daily ceiling, exact-request replay, confirmed-block rechecks,
+and local reconstruction of cached model/signature results. This branch is not yet the published
+site and has not produced a new model response or transaction. It remains
+`XLAYER TESTNET FIXTURE — NO REAL VALUE`: legal invoice validity, financing availability, canonical
+USDG, and any mainnet lifecycle remain outside the claim.
+
 ## Current status
 
 OpenBell is in pre-alpha development for BuildX AI Season. The contract is deployed and verified
