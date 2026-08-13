@@ -159,6 +159,8 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(html, /aria-live="polite"/);
   assert.match(proof, /<a[^>]+href="\/data\/openbell-receivables-fixture\.json"/);
   assert.match(studio, /<form class="deal-form" id="deal-form"/);
+  assert.match(studio, /id="deal-face-symbol">fixture tUSDG</);
+  assert.match(studio, /id="deal-request-symbol">fixture tUSDG</);
   assert.match(studio, /<input id="deal-document"[^>]+type="file"/);
   assert.match(studio, /<button[^>]+id="download-package"[^>]+disabled/);
   assert.match(operate, /XLAYER TESTNET FIXTURE/);
@@ -183,6 +185,8 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(dealModule, /export const createPreparationGuard/);
   assert.match(dealModule, /Supplier and payer must be nonzero addresses/);
   assert.match(script, /const invalidatePreparedPackage = \(\) =>/);
+  assert.match(script, /const symbol = dealPackage\.target\.settlementTokenSymbol/);
+  assert.match(script, /targetInput\.addEventListener\("input", renderTargetLabels\)/);
   assert.match(script, /const studioOperationGuard = createPreparationGuard\(\)/);
   assert.match(script, /studioOperationGuard\.invalidate\(\)/);
   assert.match(script, /const preparationRevision = studioOperationGuard\.begin\(\)/);

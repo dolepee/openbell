@@ -118,6 +118,8 @@ if (dealForm) {
   const dueInput = document.querySelector("#deal-due");
   const nonceInput = document.querySelector("#deal-nonce");
   const targetInput = document.querySelector("#deal-target");
+  const faceSymbol = document.querySelector("#deal-face-symbol");
+  const requestSymbol = document.querySelector("#deal-request-symbol");
   const documentInput = document.querySelector("#deal-document");
   const documentHashInput = document.querySelector("#deal-document-hash");
   const consentInput = document.querySelector("#deal-synthetic");
@@ -146,6 +148,12 @@ if (dealForm) {
     clearCreditMemo();
   };
 
+  const renderTargetLabels = () => {
+    const target = targetInput.value === "testnet" ? OPENBELL_TESTNET_TARGET : OPENBELL_MAINNET;
+    faceSymbol.textContent = target.settlementTokenSymbol;
+    requestSymbol.textContent = target.settlementTokenSymbol;
+  };
+
   const renderStudioMath = () => {
     try {
       const economics = calculateDealEconomics(faceInput.value, requestInput.value);
@@ -164,6 +172,7 @@ if (dealForm) {
   for (const input of [supplierInput, payerInput, dueInput, nonceInput, documentHashInput, targetInput]) {
     input.addEventListener("input", invalidatePreparedPackage);
   }
+  targetInput.addEventListener("input", renderTargetLabels);
   documentInput.addEventListener("change", invalidatePreparedPackage);
   consentInput.addEventListener("change", invalidatePreparedPackage);
 
@@ -227,6 +236,7 @@ if (dealForm) {
     URL.revokeObjectURL(url);
   });
 
+  renderTargetLabels();
   renderStudioMath();
 }
 
@@ -234,11 +244,12 @@ const renderCreditMemo = (dealPackage) => {
   if (!creditMemo || !reviewEmpty) return;
   const terms = dealPackage.invoiceTerms;
   const request = dealPackage.underwritingRequest;
+  const symbol = dealPackage.target.settlementTokenSymbol;
   setText("#memo-id", compact(terms.invoiceId));
-  setText("#memo-face", `${baseUnitsToDecimal(BigInt(terms.faceValue))} USDG`);
-  setText("#memo-request", `${baseUnitsToDecimal(BigInt(request.requestedAdvance))} USDG`);
-  setText("#memo-max", `${baseUnitsToDecimal(BigInt(request.immutableMaximumAdvance))} USDG`);
-  setText("#memo-bound", `${baseUnitsToDecimal(BigInt(request.preAiUpperBound))} USDG`);
+  setText("#memo-face", `${baseUnitsToDecimal(BigInt(terms.faceValue))} ${symbol}`);
+  setText("#memo-request", `${baseUnitsToDecimal(BigInt(request.requestedAdvance))} ${symbol}`);
+  setText("#memo-max", `${baseUnitsToDecimal(BigInt(request.immutableMaximumAdvance))} ${symbol}`);
+  setText("#memo-bound", `${baseUnitsToDecimal(BigInt(request.preAiUpperBound))} ${symbol}`);
   setText("#memo-supplier", terms.supplier);
   setText("#memo-payer", terms.payer);
   setText("#memo-due", new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(Number(terms.dueDate) * 1000)));
