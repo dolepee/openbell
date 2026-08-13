@@ -142,6 +142,7 @@ const tokenAbi = [{
 const hex32 = /^0x[0-9a-fA-F]{64}$/;
 const signature = /^0x[0-9a-fA-F]{130}$/;
 const uint = /^(0|[1-9][0-9]*)$/;
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const canonicalJson = (value) => {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
@@ -168,6 +169,9 @@ const asUint = (value, label) => {
 };
 const asSignature = (value, label) => {
   if (!signature.test(value)) throw new Error(`${label} must be one canonical 65-byte signature.`);
+  const s = BigInt(`0x${value.slice(66, 130)}`);
+  const v = Number.parseInt(value.slice(130, 132), 16);
+  if (s === 0n || s > SECP256K1_N / 2n || (v !== 27 && v !== 28)) throw new Error(`${label} must use canonical low-s ECDSA with v 27 or 28.`);
   return value;
 };
 

@@ -137,6 +137,12 @@ test("connected decision finalization rejects wrong signer and changed decision 
   await assert.rejects(finalizeConnectedAssessment(candidate, await payer.signTypedData(typedData)), /wrong signer/);
   assert.throws(() => connectedDecisionTypedData({ ...candidate, decision: { ...candidate.decision, advanceAmount: "74000000" } }), /digest changed/);
   assert.throws(() => connectedDecisionTypedData({ ...candidate, signingRequest: { ...candidate.signingRequest, chainId: 1952 } }), /Unsupported decision signing request/);
+  const canonical = await underwriter.signTypedData(typedData);
+  const s = BigInt(`0x${canonical.slice(66, 130)}`);
+  const v = Number.parseInt(canonical.slice(130, 132), 16);
+  const highS = (0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n - s).toString(16).padStart(64, "0");
+  const malleated = `${canonical.slice(0, 66)}${highS}${v === 27 ? "1c" : "1b"}`;
+  await assert.rejects(finalizeConnectedAssessment(candidate, malleated), /canonical low-s ECDSA/);
 });
 
 test("rejection recovers only the declared underwriter", async () => {
