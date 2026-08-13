@@ -263,7 +263,6 @@ executeButton?.addEventListener("click", async () => {
   }
 });
 
-const historyValue = (selector) => Number(document.querySelector(selector).value);
 assessmentForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   assessmentError.textContent = "";
@@ -282,12 +281,12 @@ assessmentForm?.addEventListener("submit", async (event) => {
       registrationTransactionHash,
       funder: document.querySelector("#assessment-funder").value.trim(),
       payerHistory: {
-        completedSettlements: historyValue("#history-completed"),
-        onTimeSettlements: historyValue("#history-ontime"),
-        lateSettlements: historyValue("#history-late"),
-        defaults: historyValue("#history-defaults"),
-        concentrationBps: historyValue("#history-concentration"),
-        daysSinceLastSettlement: historyValue("#history-days")
+        completedSettlements: 0,
+        onTimeSettlements: 0,
+        lateSettlements: 0,
+        defaults: 0,
+        concentrationBps: 0,
+        daysSinceLastSettlement: 0
       },
       redactedContext: document.querySelector("#assessment-context").value
     };

@@ -29,7 +29,7 @@ const unsignedRequest: Omit<ConnectedUnderwritingRequest, "supplierAuthorization
   issuedAt: 1_786_550_000,
   dueDate: 1_789_142_000,
   requestedAdvance: "75000000",
-  payerHistory: { completedSettlements: 12, onTimeSettlements: 12, lateSettlements: 0, defaults: 0, concentrationBps: 2_500, daysSinceLastSettlement: 12 },
+  payerHistory: { completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0, defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0 },
   redactedContext: "Synthetic X Layer testnet fixture evidence; no real value.",
   syntheticFixtureAcknowledged: true
 };
@@ -148,11 +148,19 @@ test("registered objective evidence produces exact bounded approval actions and 
 
 test("genuine model rejection emits only supplier rejection action", async () => {
   const h = harness({ verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 9_000, reasons: ["PRIOR_DEFAULT"], explanation: "Prior default." });
-  const result = await h.service.authorize(await authorizedRequest({ payerHistory: { ...request.payerHistory, defaults: 1 } }));
+  const result = await h.service.authorize(request);
   expect(result.decision.verdict).toBe("REJECT");
   expect(result.actions).toHaveLength(1);
   expect(result.actions[0]?.kind).toBe("ATTEST_REJECTION");
   expect(result.actions[0]?.signer).toBe(supplier.address);
+});
+
+test("supplier-declared payer history is rejected before chain, model, signer or DB access", async () => {
+  const h = harness(approval);
+  const withClaimedHistory = await authorizedRequest({ payerHistory: { ...request.payerHistory, completedSettlements: 1, onTimeSettlements: 1 } });
+  await expect(h.service.authorize(withClaimedHistory)).rejects.toThrow("CONNECTED_UNVERIFIED_PAYER_HISTORY_FORBIDDEN");
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0, signerCalls: 0 });
+  expect(h.store.rows.size).toBe(0);
 });
 
 test("changed retry conflicts before a second observer, model, or signature call", async () => {

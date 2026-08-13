@@ -208,7 +208,7 @@ test("supplier assessment authority binds the confirmed registration, funder and
     session,
     registrationTransactionHash: `0x${"12".repeat(32)}`,
     funder: funder.address,
-    payerHistory: { completedSettlements: 4, onTimeSettlements: 4, lateSettlements: 0, defaults: 0, concentrationBps: 2_500, daysSinceLastSettlement: 12 },
+    payerHistory: { completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0, defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0 },
     redactedContext: "Synthetic fixture evidence only."
   });
   assert.equal(connectedAssessmentTypedData(unsigned).domain.chainId, 1952);
@@ -222,6 +222,13 @@ test("supplier assessment authority binds the confirmed registration, funder and
     supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(unsigned))
   });
   assert.match(authorized.supplierAuthorization, /^0x[0-9a-f]{130}$/i);
+  await assert.rejects(() => buildConnectedAssessmentRequest({
+    session,
+    registrationTransactionHash: unsigned.registrationTransactionHash,
+    funder: funder.address,
+    payerHistory: { ...unsigned.payerHistory, completedSettlements: 1 },
+    redactedContext: unsigned.redactedContext
+  }), /Unverified payer history is disabled/);
   await assert.rejects(() => buildConnectedAssessmentRequest({
     session,
     registrationTransactionHash: unsigned.registrationTransactionHash,

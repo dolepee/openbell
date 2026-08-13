@@ -317,6 +317,7 @@ export async function buildConnectedAssessmentRequest({ session: sessionCandidat
     history[key] = value;
   }
   if (history.concentrationBps > 10_000 || history.onTimeSettlements + history.lateSettlements > history.completedSettlements) throw new Error("Payer history is inconsistent.");
+  if (Object.values(history).some((value) => value !== 0)) throw new Error("Unverified payer history is disabled for connected assessments.");
   const context = String(redactedContext).trim();
   if (!context || context.length > 2_000) throw new Error("Redacted context must contain 1 to 2,000 characters.");
   const unsigned = {

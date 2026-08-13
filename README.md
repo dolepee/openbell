@@ -36,6 +36,8 @@ The current product branch adds a connected, no-value X Layer testnet journey at
 - the supplier registers the exact invoice after a fresh simulation;
 - one supplier-authorized underwriting request is independently checked against both official
   X Layer testnet RPCs before any model call;
+- supplier-declared payer performance is rejected; fresh connected assessments use zero imported
+  history until historical claims can be independently derived from confirmed receipts;
 - the genuine first Bankr-mediated GPT-5.6 Terra response is durably sealed with its request and
   response hashes—there is no recorded fallback or retry;
 - the current onchain underwriter signs only the bounded decision digest; and

@@ -326,6 +326,9 @@ code { font-family: var(--mono); }
 .assessment-form textarea { min-height: 108px; resize: vertical; }
 .assessment-history { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 14px; margin: 20px 0 0; padding: 16px; border: 1px solid var(--line); }
 .assessment-history legend { padding: 0 8px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; }
+.assessment-history-note { margin: 20px 0; padding: 16px; border: 1px solid var(--line); background: #edf1e9; }
+.assessment-history-note strong { font-size: .76rem; letter-spacing: .06em; text-transform: uppercase; }
+.assessment-history-note p { margin: 8px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.55; }
 .assessment-actions { display: grid; gap: 10px; margin-top: 24px; }
 .review-intro { align-self: start; }
 .review-intro h2 { margin: 20px 0 0; font-size: clamp(52px, 5.5vw, 82px); letter-spacing: -.07em; line-height: .9; }

@@ -59,7 +59,11 @@ export const connectedUnderwritingRequestSchema = z.object({
   redactedContext: z.string().trim().min(1).max(2_000),
   syntheticFixtureAcknowledged: z.literal(true),
   supplierAuthorization: signature
-}).strict();
+}).strict().superRefine((request, context) => {
+  if (Object.values(request.payerHistory).some((value) => value !== 0)) {
+    context.addIssue({ code: "custom", message: "CONNECTED_UNVERIFIED_PAYER_HISTORY_FORBIDDEN" });
+  }
+});
 
 export type ConnectedUnderwritingRequest = z.infer<typeof connectedUnderwritingRequestSchema>;
 
