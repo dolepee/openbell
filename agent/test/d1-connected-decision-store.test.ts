@@ -1,5 +1,7 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
+import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
+import { connectedDailyBudgetTableSql, connectedDecisionTableSql } from "../../db/schema.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../src/d1-connected-decision-store.js";
 
 class StatementAdapter {
@@ -19,6 +21,10 @@ const database = (): D1DatabaseLike => {
 };
 const invoiceId = `0x${"aa".repeat(32)}` as const;
 const requestHash = `0x${"bb".repeat(32)}` as const;
+
+test("Sites D1 migration is byte-derived from the runtime schema", () => {
+  expect(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8")).toBe(`${connectedDecisionTableSql};\n\n${connectedDailyBudgetTableSql};\n`);
+});
 
 test("D1 store atomically claims once and returns the exact completed envelope", async () => {
   let clock = 100;
