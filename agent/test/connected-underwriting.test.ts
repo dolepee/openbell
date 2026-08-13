@@ -11,6 +11,7 @@ import {
 } from "../src/connected-underwriting.js";
 import type { InvoiceRiskInput, ModelDecision, UnderwritingModel } from "../src/schema.js";
 import { buildStrictBankrRequest } from "../src/live-model.js";
+import { BANKR_APPROVAL_EXPLANATION, BANKR_REJECTION_EXPLANATION } from "../src/live-model.js";
 
 const supplier = privateKeyToAccount(`0x${"11".repeat(32)}`);
 const payer = privateKeyToAccount(`0x${"22".repeat(32)}`);
@@ -93,7 +94,7 @@ const approval: ModelDecision = {
   feeBps: 100,
   confidenceBps: 9_700,
   reasons: ["DUAL_SIGNATURES_VERIFIED", "DOCUMENT_HASH_VERIFIED", "CLEAN_DUPLICATE_CHECK", "LIMITED_PAYER_HISTORY"],
-  explanation: "Synthetic evidence is acceptable within bounded terms."
+  explanation: BANKR_APPROVAL_EXPLANATION
 };
 
 function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed) {
@@ -166,7 +167,7 @@ test("durable replay remains exact when the confirmed block advances during the 
 });
 
 test("genuine model rejection emits only supplier rejection action", async () => {
-  const h = harness({ verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 9_000, reasons: ["MODEL_UNCERTAINTY"], explanation: "The supplied synthetic evidence is insufficient." });
+  const h = harness({ verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 9_000, reasons: ["MODEL_UNCERTAINTY"], explanation: BANKR_REJECTION_EXPLANATION });
   const result = await h.service.authorize(request);
   expect(result.decision.verdict).toBe("REJECT");
   expect(result.actions).toHaveLength(1);
@@ -186,6 +187,12 @@ test.each([
   expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1, signerCalls: 0 });
   const stored = h.store.rows.get(request.invoiceId);
   expect(stored?.status).toBe("FAILED");
+});
+
+test("free-form model explanation fails before signing even with supported reasons", async () => {
+  const h = harness({ ...approval, explanation: "The payer has prior defaults despite the zero-history evidence." });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_EXPLANATION_UNSUPPORTED");
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1, signerCalls: 0 });
 });
 
 test("supplier-declared payer history is rejected before chain, model, signer or DB access", async () => {

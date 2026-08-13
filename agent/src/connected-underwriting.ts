@@ -11,7 +11,7 @@ import {
 } from "viem";
 import { z } from "zod";
 import { underwriteInvoice } from "./underwriter.js";
-import { buildStrictBankrRequest } from "./live-model.js";
+import { BANKR_APPROVAL_EXPLANATION, BANKR_REJECTION_EXPLANATION, buildStrictBankrRequest } from "./live-model.js";
 import { boundedDecisionSchema, modelDecisionSchema, type BoundedDecision, type InvoiceRiskInput, type UnderwritingModel } from "./schema.js";
 
 export const CONNECTED_TESTNET = Object.freeze({
@@ -178,6 +178,8 @@ function assertModelReasonsSupported(input: InvoiceRiskInput, decision: z.infer<
   if (!hasVerifiedHistory && decision.reasons.some((reason) => unsupportedZeroHistoryReasons.has(reason))) {
     throw new Error("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
   }
+  const expectedExplanation = decision.verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
+  if (decision.explanation !== expectedExplanation) throw new Error("CONNECTED_MODEL_EXPLANATION_UNSUPPORTED");
 }
 
 function committedModelId(input: InvoiceRiskInput, evidence: z.infer<typeof modelEvidenceSchema>): string {
