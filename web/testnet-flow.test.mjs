@@ -132,9 +132,15 @@ test("rejection recovers only the declared underwriter", async () => {
 });
 
 test("token approvals and settlement reconstruct fixed contract calls without arbitrary targets", async () => {
-  const fundingApproval = await validateBrowserAction(wrap("APPROVE_FUNDING", funder.address, null, { invoiceId: terms.invoiceId, amount: "75000000" }));
+  const { hashTypedData } = await import("viem");
+  const typedData = approvalTypedData(approval);
+  const fundingApproval = await validateBrowserAction(wrap("APPROVE_FUNDING", funder.address, hashTypedData(typedData), { approval, underwriter: underwriter.address, underwriterSignature: await underwriter.signTypedData(typedData) }));
   assert.equal(fundingApproval.to, OPENBELL_TESTNET.settlementToken);
   assert.equal(fundingApproval.value, 0n);
+  await assert.rejects(
+    validateBrowserAction(wrap("APPROVE_FUNDING", payer.address, hashTypedData(typedData), { approval, underwriter: underwriter.address, underwriterSignature: await underwriter.signTypedData(typedData) })),
+    /bound funder/
+  );
   const settlement = await validateBrowserAction(wrap("SETTLE_INVOICE", payer.address, null, { invoiceId: terms.invoiceId, repaymentAmount: "75750000" }));
   assert.equal(settlement.to, OPENBELL_TESTNET.receivables);
   await assert.rejects(

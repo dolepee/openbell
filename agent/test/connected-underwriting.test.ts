@@ -81,6 +81,8 @@ const observation = (overrides: Partial<RegisteredInvoiceObservation> = {}): Reg
   underwriter: underwriter.address,
   paused: false,
   decisionNonceUnused: true,
+  documentHashRegistered: true,
+  invoiceDigestRegistered: true,
   ...overrides
 });
 

@@ -92,6 +92,8 @@ export interface RegisteredInvoiceObservation {
   readonly underwriter: `0x${string}`;
   readonly paused: false;
   readonly decisionNonceUnused: true;
+  readonly documentHashRegistered: true;
+  readonly invoiceDigestRegistered: true;
 }
 
 export interface ConnectedInvoiceObserver {
@@ -146,7 +148,9 @@ const registeredObservationSchema = z.object({
   dueDate: z.number().int().positive(),
   underwriter: address,
   paused: z.literal(false),
-  decisionNonceUnused: z.literal(true)
+  decisionNonceUnused: z.literal(true),
+  documentHashRegistered: z.literal(true),
+  invoiceDigestRegistered: z.literal(true)
 }).strict();
 
 const canonicalJson = (value: unknown): string => {
@@ -286,7 +290,11 @@ function buildActionResult(decision: BoundedDecision, observation: RegisteredInv
     modelEvidence,
     observation,
     actions: [
-      { ...base, kind: "APPROVE_FUNDING", signer: decision.funder, authorizedDigest: null, payload: { invoiceId: decision.invoiceId, amount: decision.advanceAmount } },
+      { ...base, kind: "APPROVE_FUNDING", signer: decision.funder, authorizedDigest: digest, payload: {
+        approval: { invoiceId: decision.invoiceId, invoiceDigest: decision.invoiceDigest, funder: decision.funder, advanceAmount: decision.advanceAmount, repaymentAmount: decision.repaymentAmount, riskTimestamp: String(decision.riskTimestamp), expiresAt: String(decision.expiresAt), riskReasonsHash: decision.riskReasonsHash, modelHash: decision.modelHash, nonce },
+        underwriter: signer,
+        underwriterSignature: signature
+      } },
       { ...base, kind: "FUND_INVOICE", signer: decision.funder, authorizedDigest: digest, payload: {
         approval: { invoiceId: decision.invoiceId, invoiceDigest: decision.invoiceDigest, funder: decision.funder, advanceAmount: decision.advanceAmount, repaymentAmount: decision.repaymentAmount, riskTimestamp: String(decision.riskTimestamp), expiresAt: String(decision.expiresAt), riskReasonsHash: decision.riskReasonsHash, modelHash: decision.modelHash, nonce },
         underwriter: signer,

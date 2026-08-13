@@ -19,6 +19,8 @@ const abi = [
   { type: "function", name: "underwriter", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { type: "function", name: "paused", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "bool" }] },
   { type: "function", name: "usedDecisionNonces", stateMutability: "view", inputs: [{ name: "signer", type: "address" }, { name: "nonce", type: "uint256" }], outputs: [{ name: "", type: "bool" }] },
+  { type: "function", name: "usedDocumentHashes", stateMutability: "view", inputs: [{ name: "documentHash", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] },
+  { type: "function", name: "usedInvoiceDigests", stateMutability: "view", inputs: [{ name: "invoiceDigest", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] },
   { type: "function", name: "invoices", stateMutability: "view", inputs: [{ name: "invoiceId", type: "bytes32" }], outputs: [
     { name: "status", type: "uint8" }, { name: "supplier", type: "address" }, { name: "payer", type: "address" }, { name: "funder", type: "address" },
     { name: "faceValue", type: "uint128" }, { name: "advanceAmount", type: "uint128" }, { name: "repaymentAmount", type: "uint128" }, { name: "dueDate", type: "uint64" },
@@ -61,7 +63,7 @@ const unsignedRequest: Omit<ConnectedUnderwritingRequest, "supplierAuthorization
 };
 const request: ConnectedUnderwritingRequest = { ...unsignedRequest, supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(unsignedRequest)) };
 
-async function rpc(label: string, overrides: { pinnedHash?: Hex; status?: number; usedNonce?: boolean; head?: number } = {}): Promise<ReadOnlyJsonRpc> {
+async function rpc(label: string, overrides: { pinnedHash?: Hex; status?: number; usedNonce?: boolean; head?: number; documentRegistered?: boolean; digestRegistered?: boolean } = {}): Promise<ReadOnlyJsonRpc> {
   const supplierSignature = await supplier.signTypedData(typedData);
   const payerSignature = await payer.signTypedData(typedData);
   const input = encodeFunctionData({ abi, functionName: "registerInvoice", args: [terms, supplierSignature, payerSignature] });
@@ -85,6 +87,8 @@ async function rpc(label: string, overrides: { pinnedHash?: Hex; status?: number
         if (decoded.functionName === "underwriter") return encodeFunctionResult({ abi, functionName: "underwriter", result: underwriter.address });
         if (decoded.functionName === "paused") return encodeFunctionResult({ abi, functionName: "paused", result: false });
         if (decoded.functionName === "usedDecisionNonces") return encodeFunctionResult({ abi, functionName: "usedDecisionNonces", result: overrides.usedNonce ?? false });
+        if (decoded.functionName === "usedDocumentHashes") return encodeFunctionResult({ abi, functionName: "usedDocumentHashes", result: overrides.documentRegistered ?? true });
+        if (decoded.functionName === "usedInvoiceDigests") return encodeFunctionResult({ abi, functionName: "usedInvoiceDigests", result: overrides.digestRegistered ?? true });
         if (decoded.functionName === "invoices") return encodeFunctionResult({ abi, functionName: "invoices", result: [overrides.status ?? 1, supplier.address, payer.address, "0x0000000000000000000000000000000000000000", terms.faceValue, 0n, 0n, terms.dueDate, terms.documentHash, invoiceDigest, `0x${"00".repeat(32)}`] });
       }
       throw new Error(`unexpected ${method}`);
@@ -114,4 +118,9 @@ test("non-registered state and provider identity collapse fail closed", async ()
 
 test("registration requires twelve confirmations on both providers", async () => {
   await expect(new TwoProviderConnectedInvoiceObserver([await rpc("official-a", { head: 100 }), await rpc("official-b", { head: 100 })]).inspect(request, "123")).rejects.toThrow("CONNECTED_RPC_INSUFFICIENT_CONFIRMATIONS");
+});
+
+test("contract duplicate-index membership is required before clean evidence is derived", async () => {
+  await expect(new TwoProviderConnectedInvoiceObserver([await rpc("official-a", { documentRegistered: false }), await rpc("official-b", { documentRegistered: false })]).inspect(request, "123")).rejects.toThrow("CONNECTED_RPC_INVOICE_NOT_AUTHORIZABLE");
+  await expect(new TwoProviderConnectedInvoiceObserver([await rpc("official-a", { digestRegistered: false }), await rpc("official-b", { digestRegistered: false })]).inspect(request, "123")).rejects.toThrow("CONNECTED_RPC_INVOICE_NOT_AUTHORIZABLE");
 });

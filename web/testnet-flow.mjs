@@ -456,12 +456,24 @@ export async function validateBrowserAction(candidate) {
     invoiceDigest = rejection.invoiceDigest;
     expiresAt = rejection.expiresAt;
     data = encodeFunctionData({ abi: receivablesAbi, functionName: "attestRejection", args: [rejection, candidate.payload.underwriterSignature] });
-  } else if (candidate.kind === "APPROVE_FUNDING" || candidate.kind === "APPROVE_SETTLEMENT") {
+  } else if (candidate.kind === "APPROVE_FUNDING") {
+    allowedKeys(candidate.payload, ["approval", "underwriter", "underwriterSignature"], "Funding approval payload");
+    const approval = normalizeApproval(candidate.payload.approval);
+    if (signer !== approval.funder) throw new Error("Only the bound funder may approve funding.");
+    const underwriter = asAddress(candidate.payload.underwriter, "Underwriter");
+    await assertSignature({ typedData: approvalTypedData(candidate.payload.approval), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
+    invoiceId = approval.invoiceId;
+    invoiceDigest = approval.invoiceDigest;
+    amount = approval.advanceAmount;
+    expiresAt = approval.expiresAt;
+    to = OPENBELL_TESTNET.settlementToken;
+    data = encodeFunctionData({ abi: tokenAbi, functionName: "approve", args: [OPENBELL_TESTNET.receivables, amount] });
+  } else if (candidate.kind === "APPROVE_SETTLEMENT") {
     allowedKeys(candidate.payload, ["invoiceId", "amount"], "Token approval payload");
     invoiceId = asHash(candidate.payload.invoiceId, "Invoice ID");
     amount = asUint(candidate.payload.amount, "Token approval amount");
     if (amount === 0n) throw new Error("Token approval amount must be nonzero.");
-    if (candidate.authorizedDigest !== null) throw new Error("Token approval cannot carry an EIP-712 digest.");
+    if (candidate.authorizedDigest !== null) throw new Error("Settlement approval cannot carry an EIP-712 digest.");
     to = OPENBELL_TESTNET.settlementToken;
     data = encodeFunctionData({ abi: tokenAbi, functionName: "approve", args: [OPENBELL_TESTNET.receivables, amount] });
   } else if (candidate.kind === "FUND_INVOICE") {

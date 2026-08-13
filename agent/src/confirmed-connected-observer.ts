@@ -34,6 +34,8 @@ const abi = [
   { type: "function", name: "underwriter", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { type: "function", name: "paused", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "bool" }] },
   { type: "function", name: "usedDecisionNonces", stateMutability: "view", inputs: [{ name: "signer", type: "address" }, { name: "nonce", type: "uint256" }], outputs: [{ name: "", type: "bool" }] },
+  { type: "function", name: "usedDocumentHashes", stateMutability: "view", inputs: [{ name: "documentHash", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] },
+  { type: "function", name: "usedInvoiceDigests", stateMutability: "view", inputs: [{ name: "invoiceDigest", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] },
   { type: "function", name: "invoices", stateMutability: "view", inputs: [{ name: "invoiceId", type: "bytes32" }], outputs: [
     { name: "status", type: "uint8" }, { name: "supplier", type: "address" }, { name: "payer", type: "address" }, { name: "funder", type: "address" },
     { name: "faceValue", type: "uint128" }, { name: "advanceAmount", type: "uint128" }, { name: "repaymentAmount", type: "uint128" }, { name: "dueDate", type: "uint64" },
@@ -62,15 +64,14 @@ const exactAddress = (value: unknown, label: string) => {
   try { return getAddress(value); } catch { throw new Error(`CONNECTED_RPC_INVALID_${label}`); }
 };
 const call = async (rpc: ReadOnlyJsonRpc, data: Hex, block: Hex): Promise<Hex> => hex(await rpc.request("eth_call", [{ to: CONNECTED_TESTNET.receivables, data }, block]), "CALL_RESULT");
-const read = async <T>(rpc: ReadOnlyJsonRpc, functionName: "settlementToken" | "underwriter" | "paused" | "usedDecisionNonces" | "invoices" | "hashInvoice", args: readonly unknown[], block: Hex): Promise<T> => {
+const read = async <T>(rpc: ReadOnlyJsonRpc, functionName: "settlementToken" | "underwriter" | "paused" | "usedDecisionNonces" | "usedDocumentHashes" | "usedInvoiceDigests" | "invoices" | "hashInvoice", args: readonly unknown[], block: Hex): Promise<T> => {
   const data = encodeFunctionData({ abi, functionName, args: args as never });
   return decodeFunctionResult({ abi, functionName, data: await call(rpc, data, block) }) as T;
 };
 
-interface ProviderObservation extends RegisteredInvoiceObservation { readonly verificationBlockHash: Hex }
 const MINIMUM_CONFIRMATIONS = 12n;
 
-async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwritingRequest, nonce: string, verificationBlock: bigint): Promise<ProviderObservation> {
+async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwritingRequest, nonce: string, verificationBlock: bigint): Promise<RegisteredInvoiceObservation> {
   if (quantity(await rpc.request("eth_chainId", []), "CHAIN_ID") !== 1952n) throw new Error("CONNECTED_RPC_WRONG_CHAIN");
   const blockTag = `0x${verificationBlock.toString(16)}` as Hex;
   const transaction = object(await rpc.request("eth_getTransactionByHash", [request.registrationTransactionHash]), "TRANSACTION");
@@ -118,7 +119,9 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
   const paused = await read<boolean>(rpc, "paused", [], blockTag);
   const usedNonce = await read<boolean>(rpc, "usedDecisionNonces", [underwriter, BigInt(nonce)], blockTag);
   const [status, supplier, payer, , faceValue, , , dueDate, documentHash, invoiceDigest] = await read<readonly [number, `0x${string}`, `0x${string}`, `0x${string}`, bigint, bigint, bigint, bigint, Hex, Hex, Hex]>(rpc, "invoices", [request.invoiceId], blockTag);
-  if (Number(status) !== 1 || paused || usedNonce) throw new Error("CONNECTED_RPC_INVOICE_NOT_AUTHORIZABLE");
+  const documentHashRegistered = await read<boolean>(rpc, "usedDocumentHashes", [request.documentHash], blockTag);
+  const invoiceDigestRegistered = await read<boolean>(rpc, "usedInvoiceDigests", [invoiceDigest], blockTag);
+  if (Number(status) !== 1 || paused || usedNonce || !documentHashRegistered || !invoiceDigestRegistered) throw new Error("CONNECTED_RPC_INVOICE_NOT_AUTHORIZABLE");
   const finalPinned = object(await rpc.request("eth_getBlockByNumber", [blockTag, false]), "FINAL_PINNED_BLOCK");
   if (hash(finalPinned.hash, "FINAL_PINNED_HASH") !== verificationBlockHash || quantity(finalPinned.number, "FINAL_PINNED_NUMBER") !== verificationBlock) throw new Error("CONNECTED_RPC_PINNED_REORG");
   const finalReceiptBlock = object(await rpc.request("eth_getBlockByNumber", [`0x${receiptBlock.toString(16)}`, false]), "FINAL_RECEIPT_BLOCK");
@@ -130,7 +133,6 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
     settlementToken: settlementToken as typeof CONNECTED_TESTNET.settlementToken,
     blockNumber: verificationBlock.toString(),
     blockHash: verificationBlockHash,
-    verificationBlockHash,
     blockTimestamp,
     registrationTransactionHash: request.registrationTransactionHash,
     status: "REGISTERED",
@@ -144,7 +146,9 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
     dueDate: Number(dueDate),
     underwriter,
     paused: false,
-    decisionNonceUnused: true
+    decisionNonceUnused: true,
+    documentHashRegistered: true,
+    invoiceDigestRegistered: true
   };
 }
 
