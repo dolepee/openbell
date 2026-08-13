@@ -68,6 +68,7 @@ const read = async <T>(rpc: ReadOnlyJsonRpc, functionName: "settlementToken" | "
 };
 
 interface ProviderObservation extends RegisteredInvoiceObservation { readonly verificationBlockHash: Hex }
+const MINIMUM_CONFIRMATIONS = 12n;
 
 async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwritingRequest, nonce: string, verificationBlock: bigint): Promise<ProviderObservation> {
   if (quantity(await rpc.request("eth_chainId", []), "CHAIN_ID") !== 1952n) throw new Error("CONNECTED_RPC_WRONG_CHAIN");
@@ -79,6 +80,7 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
   if (quantity(transaction.value, "TX_VALUE") !== 0n || receipt.status !== "0x1") throw new Error("CONNECTED_RPC_FAILED_OR_VALUE_TRANSACTION");
   const receiptBlock = quantity(receipt.blockNumber, "RECEIPT_BLOCK");
   if (receiptBlock > verificationBlock) throw new Error("CONNECTED_RPC_UNCONFIRMED_TRANSACTION");
+  if (verificationBlock - receiptBlock + 1n < MINIMUM_CONFIRMATIONS) throw new Error("CONNECTED_RPC_INSUFFICIENT_CONFIRMATIONS");
   const receiptBlockHash = hash(receipt.blockHash, "RECEIPT_BLOCK_HASH");
   if (quantity(transaction.blockNumber, "TX_BLOCK") !== receiptBlock || hash(transaction.blockHash, "TX_BLOCK_HASH") !== receiptBlockHash) throw new Error("CONNECTED_RPC_TRANSACTION_RECEIPT_BLOCK_MISMATCH");
   const canonicalReceiptBlock = object(await rpc.request("eth_getBlockByNumber", [`0x${receiptBlock.toString(16)}`, false]), "RECEIPT_CANONICAL_BLOCK");

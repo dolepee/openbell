@@ -210,3 +210,14 @@ test("only the registered supplier can authorize the paid assessment", async () 
   expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0, signerCalls: 0 });
   expect(h.store.rows.size).toBe(0);
 });
+
+test("malleated high-s supplier authority is rejected before any side effect", async () => {
+  const original = request.supplierAuthorization;
+  const originalS = BigInt(`0x${original.slice(66, 130)}`);
+  const originalV = Number.parseInt(original.slice(130, 132), 16);
+  const highS = (0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n - originalS).toString(16).padStart(64, "0");
+  const malleated = `${original.slice(0, 66)}${highS}${originalV === 27 ? "1c" : "1b"}`;
+  const h = harness(approval);
+  await expect(h.service.authorize({ ...request, supplierAuthorization: malleated })).rejects.toThrow("CONNECTED_NON_CANONICAL_SIGNATURE");
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0, signerCalls: 0 });
+});

@@ -28,7 +28,12 @@ export const CONNECTED_TESTNET = Object.freeze({
 const address = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((value) => getAddress(value));
 const bytes32 = z.string().regex(/^0x[a-fA-F0-9]{64}$/).transform((value) => value.toLowerCase() as Hex);
 const uintString = z.string().regex(/^(0|[1-9][0-9]*)$/);
-const signature = z.string().regex(/^0x[a-fA-F0-9]{130}$/).transform((value) => value as Hex);
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
+const signature = z.string().regex(/^0x[a-fA-F0-9]{130}$/).superRefine((value, context) => {
+  const s = BigInt(`0x${value.slice(66, 130)}`);
+  const v = Number.parseInt(value.slice(130, 132), 16);
+  if (s === 0n || s > SECP256K1_N / 2n || (v !== 27 && v !== 28)) context.addIssue({ code: "custom", message: "CONNECTED_NON_CANONICAL_SIGNATURE" });
+}).transform((value) => value as Hex);
 const historySchema = z.object({
   completedSettlements: z.number().int().nonnegative(),
   onTimeSettlements: z.number().int().nonnegative(),
