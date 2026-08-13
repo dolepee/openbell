@@ -34,6 +34,7 @@ test("D1 store atomically claims once and returns the exact completed envelope",
   expect(await store.load(invoiceId)).toEqual({ requestHash, status: "CLAIMED" });
   const concurrent = await store.claim(invoiceId, requestHash, "{\"request\":1}");
   expect(concurrent).toEqual({ claimed: false, row: { requestHash, status: "CLAIMED" } });
+  await store.beginModel(invoiceId, requestHash);
   await store.complete(invoiceId, requestHash, "{\"result\":1}");
   const replay = await store.claim(invoiceId, requestHash, "{\"request\":1}");
   expect(replay).toEqual({ claimed: false, row: { requestHash, status: "COMPLETE", resultJson: "{\"result\":1}" } });
@@ -47,6 +48,24 @@ test("D1 store seals failure and refuses later state replacement", async () => {
   const replay = await store.claim(invoiceId, requestHash, "{}");
   expect(replay.row).toEqual({ requestHash, status: "FAILED", failureCode: "LIVE_MODEL_TIMEOUT" });
   await expect(store.complete(invoiceId, requestHash, "{}")).rejects.toThrow("CONNECTED_STORE_COMPLETE_CONFLICT");
+});
+
+test("a stale pre-model claim is recoverable without duplicating a model call", async () => {
+  let clock = 1_000;
+  const store = new D1ConnectedDecisionStore(database(), () => clock);
+  await store.claim(invoiceId, requestHash, "{}");
+  clock += 60_001;
+  expect(await store.claim(invoiceId, requestHash, "{}")).toEqual({ claimed: true, row: { requestHash, status: "CLAIMED" } });
+});
+
+test("an uncertain stale model call is sealed failed and never retried", async () => {
+  let clock = 1_000;
+  const store = new D1ConnectedDecisionStore(database(), () => clock);
+  await store.claim(invoiceId, requestHash, "{}");
+  await store.beginModel(invoiceId, requestHash);
+  clock += 60_001;
+  const replay = await store.claim(invoiceId, requestHash, "{}");
+  expect(replay).toEqual({ claimed: false, row: { requestHash, status: "FAILED", failureCode: "CONNECTED_MODEL_OUTCOME_UNCERTAIN" } });
 });
 
 test("same invoice with a changed request hash remains an auditable conflict", async () => {

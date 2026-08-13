@@ -261,6 +261,74 @@ export const rejectionTypedData = (rejection) => ({
   message: normalizeRejection(rejection)
 });
 
+const walletDecisionTypedData = (typedData) => ({
+  ...typedData,
+  types: {
+    EIP712Domain: [
+      { name: "name", type: "string" },
+      { name: "version", type: "string" },
+      { name: "chainId", type: "uint256" },
+      { name: "verifyingContract", type: "address" }
+    ],
+    ...typedData.types
+  }
+});
+
+export function connectedDecisionTypedData(assessment) {
+  allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest"], "Connected assessment");
+  const { decision, observation, signingRequest } = assessment;
+  const decisionKeys = decision?.verdict === "REJECT"
+    ? ["verdict", "invoiceId", "invoiceDigest", "riskTimestamp", "expiresAt", "riskReasonsHash", "modelHash", "reasons", "explanation", "modelId"]
+    : ["verdict", "invoiceId", "invoiceDigest", "funder", "advanceAmount", "repaymentAmount", "riskTimestamp", "expiresAt", "riskReasonsHash", "modelHash", "reasons", "explanation", "modelId"];
+  allowedKeys(decision, decisionKeys, "Bounded decision");
+  if (decision.verdict !== "REJECT" && decision.verdict !== "APPROVE") throw new Error("Unsupported bounded decision verdict.");
+  if (asHash(decision.invoiceId, "Decision invoice ID") !== asHash(observation?.invoiceId, "Observed invoice ID")) throw new Error("Decision invoice changed.");
+  if (!Number.isSafeInteger(decision.riskTimestamp) || !Number.isSafeInteger(decision.expiresAt) || decision.expiresAt <= decision.riskTimestamp) throw new Error("Decision timing is invalid.");
+  if (assessment.modelEvidence?.decision?.verdict !== decision.verdict) throw new Error("Model evidence and bounded decision disagree.");
+  allowedKeys(signingRequest, ["schemaVersion", "label", "chainId", "underwriter", "authorizedDigest", "nonce"], "Decision signing request");
+  if (signingRequest.schemaVersion !== "openbell-connected-decision-signing-v1" || signingRequest.label !== OPENBELL_TESTNET.label || signingRequest.chainId !== "1952") throw new Error("Unsupported decision signing request.");
+  const underwriter = asAddress(signingRequest.underwriter, "Underwriter");
+  if (underwriter !== asAddress(observation?.underwriter, "Observed underwriter")) throw new Error("Decision underwriter changed.");
+  const common = {
+    invoiceId: decision.invoiceId,
+    invoiceDigest: decision.invoiceDigest,
+    riskTimestamp: String(decision.riskTimestamp),
+    expiresAt: String(decision.expiresAt),
+    riskReasonsHash: decision.riskReasonsHash,
+    modelHash: decision.modelHash,
+    nonce: signingRequest.nonce
+  };
+  const message = decision.verdict === "REJECT" ? common : {
+    ...common,
+    funder: decision.funder,
+    advanceAmount: decision.advanceAmount,
+    repaymentAmount: decision.repaymentAmount
+  };
+  const typedData = decision.verdict === "REJECT" ? rejectionTypedData(message) : approvalTypedData(message);
+  if (hashTypedData(typedData).toLowerCase() !== asHash(signingRequest.authorizedDigest, "Authorized digest")) throw new Error("Decision digest changed.");
+  return walletDecisionTypedData(typedData);
+}
+
+export async function finalizeConnectedAssessment(assessment, underwriterSignature) {
+  const walletTypedData = connectedDecisionTypedData(assessment);
+  const typedData = { ...walletTypedData, types: assessment.decision.verdict === "REJECT" ? rejectionTypes : approvalTypes };
+  await assertSignature({ typedData, authorizedDigest: assessment.signingRequest.authorizedDigest, expectedSigner: assessment.signingRequest.underwriter, value: underwriterSignature });
+  const base = { schemaVersion: "openbell-testnet-browser-action-v1", label: OPENBELL_TESTNET.label, chainId: "1952" };
+  const underwriter = asAddress(assessment.signingRequest.underwriter, "Underwriter");
+  const message = walletTypedData.message;
+  const actions = assessment.decision.verdict === "REJECT" ? [{
+    ...base, kind: "ATTEST_REJECTION", signer: assessment.observation.supplier, authorizedDigest: assessment.signingRequest.authorizedDigest,
+    payload: { rejection: Object.fromEntries(Object.entries(message).map(([key, value]) => [key, typeof value === "bigint" ? value.toString() : value])), underwriter, underwriterSignature }
+  }] : [
+    { ...base, kind: "APPROVE_FUNDING", signer: assessment.decision.funder, authorizedDigest: assessment.signingRequest.authorizedDigest, payload: { approval: Object.fromEntries(Object.entries(message).map(([key, value]) => [key, typeof value === "bigint" ? value.toString() : value])), underwriter, underwriterSignature } },
+    { ...base, kind: "FUND_INVOICE", signer: assessment.decision.funder, authorizedDigest: assessment.signingRequest.authorizedDigest, payload: { approval: Object.fromEntries(Object.entries(message).map(([key, value]) => [key, typeof value === "bigint" ? value.toString() : value])), underwriter, underwriterSignature } },
+    { ...base, kind: "APPROVE_SETTLEMENT", signer: assessment.observation.payer, authorizedDigest: null, payload: { invoiceId: assessment.decision.invoiceId, amount: assessment.decision.repaymentAmount } },
+    { ...base, kind: "SETTLE_INVOICE", signer: assessment.observation.payer, authorizedDigest: null, payload: { invoiceId: assessment.decision.invoiceId, repaymentAmount: assessment.decision.repaymentAmount } }
+  ];
+  await Promise.all(actions.map(validateBrowserAction));
+  return actions;
+}
+
 export const connectedAssessmentTypedData = (request) => {
   const evidenceHash = keccak256(stringToHex(canonicalJson({
     registrationTransactionHash: request.registrationTransactionHash,

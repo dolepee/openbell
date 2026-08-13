@@ -4,7 +4,6 @@ import {
   hashTypedData,
   keccak256,
   parseAbiParameters,
-  recoverAddress,
   recoverTypedDataAddress,
   stringToHex,
   type Hex
@@ -103,7 +102,7 @@ export interface ConnectedInvoiceObserver {
   inspect(request: ConnectedUnderwritingRequest, decisionNonce: string): Promise<RegisteredInvoiceObservation>;
 }
 
-type StoredStatus = "CLAIMED" | "COMPLETE" | "FAILED";
+type StoredStatus = "CLAIMED" | "MODEL_IN_FLIGHT" | "COMPLETE" | "FAILED";
 export interface StoredConnectedDecision {
   readonly requestHash: Hex;
   readonly status: StoredStatus;
@@ -113,14 +112,10 @@ export interface StoredConnectedDecision {
 export interface ConnectedDecisionStore {
   load(invoiceId: Hex): Promise<StoredConnectedDecision | null>;
   claim(invoiceId: Hex, requestHash: Hex, requestJson: string): Promise<{ claimed: boolean; row: StoredConnectedDecision }>;
+  beginModel(invoiceId: Hex, requestHash: Hex): Promise<void>;
   complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
   fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void>;
   reserveDailyModelCall(day: string, maximum: number): Promise<boolean>;
-}
-
-export interface ExactDecisionSigner {
-  readonly address: `0x${string}`;
-  sign(typedData: Record<string, unknown>, digest: Hex): Promise<Hex>;
 }
 
 const modelEvidenceSchema = z.object({
@@ -154,6 +149,14 @@ const registeredObservationSchema = z.object({
   decisionNonceUnused: z.literal(true),
   documentHashRegistered: z.literal(true),
   invoiceDigestRegistered: z.literal(true)
+}).strict();
+const signingRequestSchema = z.object({
+  schemaVersion: z.literal("openbell-connected-decision-signing-v1"),
+  label: z.literal(CONNECTED_TESTNET.label),
+  chainId: z.literal("1952"),
+  underwriter: address,
+  authorizedDigest: bytes32,
+  nonce: uintString
 }).strict();
 
 const canonicalJson = (value: unknown): string => {
@@ -300,38 +303,19 @@ const connectedPolicy = {
   maxTenorSeconds: CONNECTED_TESTNET.maxTenorSeconds
 } as const;
 
-function buildActionResult(decision: BoundedDecision, observation: RegisteredInvoiceObservation, nonce: string, signer: `0x${string}`, signature: Hex, digest: Hex, modelEvidence: z.infer<typeof modelEvidenceSchema>) {
-  const base = { schemaVersion: "openbell-testnet-browser-action-v1", label: CONNECTED_TESTNET.label, chainId: "1952" } as const;
-  if (decision.verdict === "REJECT") {
-    return {
-      decision,
-      modelEvidence,
-      observation,
-      actions: [{ ...base, kind: "ATTEST_REJECTION", signer: observation.supplier, authorizedDigest: digest, payload: {
-        rejection: { invoiceId: decision.invoiceId, invoiceDigest: decision.invoiceDigest, riskTimestamp: String(decision.riskTimestamp), expiresAt: String(decision.expiresAt), riskReasonsHash: decision.riskReasonsHash, modelHash: decision.modelHash, nonce },
-        underwriter: signer,
-        underwriterSignature: signature
-      } }]
-    };
-  }
+function buildUnsignedAssessmentResult(decision: BoundedDecision, observation: RegisteredInvoiceObservation, nonce: string, digest: Hex, modelEvidence: z.infer<typeof modelEvidenceSchema>) {
   return {
     decision,
     modelEvidence,
     observation,
-    actions: [
-      { ...base, kind: "APPROVE_FUNDING", signer: decision.funder, authorizedDigest: digest, payload: {
-        approval: { invoiceId: decision.invoiceId, invoiceDigest: decision.invoiceDigest, funder: decision.funder, advanceAmount: decision.advanceAmount, repaymentAmount: decision.repaymentAmount, riskTimestamp: String(decision.riskTimestamp), expiresAt: String(decision.expiresAt), riskReasonsHash: decision.riskReasonsHash, modelHash: decision.modelHash, nonce },
-        underwriter: signer,
-        underwriterSignature: signature
-      } },
-      { ...base, kind: "FUND_INVOICE", signer: decision.funder, authorizedDigest: digest, payload: {
-        approval: { invoiceId: decision.invoiceId, invoiceDigest: decision.invoiceDigest, funder: decision.funder, advanceAmount: decision.advanceAmount, repaymentAmount: decision.repaymentAmount, riskTimestamp: String(decision.riskTimestamp), expiresAt: String(decision.expiresAt), riskReasonsHash: decision.riskReasonsHash, modelHash: decision.modelHash, nonce },
-        underwriter: signer,
-        underwriterSignature: signature
-      } },
-      { ...base, kind: "APPROVE_SETTLEMENT", signer: observation.payer, authorizedDigest: null, payload: { invoiceId: decision.invoiceId, amount: decision.repaymentAmount } },
-      { ...base, kind: "SETTLE_INVOICE", signer: observation.payer, authorizedDigest: null, payload: { invoiceId: decision.invoiceId, repaymentAmount: decision.repaymentAmount } }
-    ]
+    signingRequest: {
+      schemaVersion: "openbell-connected-decision-signing-v1" as const,
+      label: CONNECTED_TESTNET.label,
+      chainId: "1952" as const,
+      underwriter: observation.underwriter,
+      authorizedDigest: digest,
+      nonce
+    }
   };
 }
 
@@ -340,10 +324,9 @@ export class ConnectedUnderwritingService {
     observer: ConnectedInvoiceObserver;
     store: ConnectedDecisionStore;
     modelFactory: () => UnderwritingModel;
-    signer: ExactDecisionSigner;
   }) {}
 
-  async authorize(candidate: unknown): Promise<ReturnType<typeof buildActionResult>> {
+  async authorize(candidate: unknown): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> {
     const request = connectedUnderwritingRequestSchema.parse(candidate);
     const { supplierAuthorization: _supplierAuthorization, ...unsignedRequest } = request;
     const recoveredSupplier = await recoverTypedDataAddress({ ...connectedAssessmentTypedData(unsignedRequest), signature: request.supplierAuthorization });
@@ -351,13 +334,13 @@ export class ConnectedUnderwritingService {
     const requestJson = canonicalJson(request);
     const requestHash = requestHashOf(request);
     const nonce = BigInt(requestHash).toString();
-    const returnStored = async (row: StoredConnectedDecision): Promise<ReturnType<typeof buildActionResult>> => {
+    const returnStored = async (row: StoredConnectedDecision): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> => {
       if (row.requestHash !== requestHash) throw new Error("CONNECTED_DECISION_REQUEST_CONFLICT");
       if (row.status === "COMPLETE" && row.resultJson) {
         const parsed: unknown = JSON.parse(row.resultJson);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         const record = parsed as Record<string, unknown>;
-        if (Object.keys(record).sort().join(",") !== "actions,decision,modelEvidence,observation") throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
+        if (Object.keys(record).sort().join(",") !== "decision,modelEvidence,observation,signingRequest") throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         const decision = boundedDecisionSchema.parse(record.decision);
         const modelEvidence = modelEvidenceSchema.parse(record.modelEvidence);
         const storedObservation = registeredObservationSchema.parse(record.observation) as RegisteredInvoiceObservation;
@@ -370,35 +353,29 @@ export class ConnectedUnderwritingService {
           now: storedObservation.blockTimestamp
         });
         if (canonicalJson(reconstructedDecision) !== canonicalJson(decision)) throw new Error("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
-        const { typedData, digest } = typedDecision(decision, nonce);
-        const actions = Array.isArray(record.actions) ? record.actions : [];
-        const signedAction = decision.verdict === "REJECT" ? actions[0] : actions[1];
-        if (!signedAction || typeof signedAction !== "object" || Array.isArray(signedAction)) throw new Error("CONNECTED_DECISION_CORRUPT_ACTIONS");
-        const payload = (signedAction as Record<string, unknown>).payload;
-        if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("CONNECTED_DECISION_CORRUPT_ACTIONS");
-        const signer = address.parse((payload as Record<string, unknown>).underwriter);
-        const storedSignature = signature.parse((payload as Record<string, unknown>).underwriterSignature);
-        if (signer !== storedObservation.underwriter || await recoverAddress({ hash: digest, signature: storedSignature }) !== signer) throw new Error("CONNECTED_DECISION_CORRUPT_SIGNATURE");
-        const rebuilt = buildActionResult(decision, storedObservation, nonce, signer, storedSignature, digest, modelEvidence);
+        const { digest } = typedDecision(decision, nonce);
+        const storedSigningRequest = signingRequestSchema.parse(record.signingRequest);
+        if (storedSigningRequest.underwriter !== storedObservation.underwriter || storedSigningRequest.authorizedDigest !== digest || storedSigningRequest.nonce !== nonce) {
+          throw new Error("CONNECTED_DECISION_CORRUPT_SIGNING_REQUEST");
+        }
+        const rebuilt = buildUnsignedAssessmentResult(decision, storedObservation, nonce, digest, modelEvidence);
         if (canonicalJson(rebuilt) !== canonicalJson(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         return rebuilt;
       }
       if (row.status === "FAILED") throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
       throw new Error("CONNECTED_DECISION_IN_PROGRESS_OR_RECONCILIATION_REQUIRED");
     };
-    const existing = await this.dependencies.store.load(request.invoiceId);
-    if (existing) return returnStored(existing);
-    const observation = await this.dependencies.observer.inspect(request, nonce);
-    assertObservation(request, observation);
-    if (observation.underwriter !== getAddress(this.dependencies.signer.address)) throw new Error("CONNECTED_SIGNER_NOT_CURRENT_UNDERWRITER");
     const claim = await this.dependencies.store.claim(request.invoiceId, requestHash, requestJson);
     if (!claim.claimed) return returnStored(claim.row);
     try {
+      const observation = await this.dependencies.observer.inspect(request, nonce);
+      assertObservation(request, observation);
       const input = riskInputFrom(request, observation);
       const budgetDay = new Date(observation.blockTimestamp * 1_000).toISOString().slice(0, 10);
       if (!await this.dependencies.store.reserveDailyModelCall(budgetDay, 5)) {
         throw new Error("CONNECTED_DAILY_MODEL_BUDGET_EXHAUSTED");
       }
+      await this.dependencies.store.beginModel(request.invoiceId, requestHash);
       const model = this.dependencies.modelFactory();
       const modelDecision = modelDecisionSchema.strict().parse(await model.decide(input));
       const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
@@ -406,7 +383,6 @@ export class ConnectedUnderwritingService {
       assertModelReasonsSupported(input, modelDecision);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
       assertObservation(request, postModelObservation);
-      if (postModelObservation.underwriter !== getAddress(this.dependencies.signer.address)) throw new Error("CONNECTED_SIGNER_NOT_CURRENT_UNDERWRITER");
       const beforeBlock = BigInt(observation.blockNumber);
       const afterBlock = BigInt(postModelObservation.blockNumber);
       if (afterBlock < beforeBlock || (afterBlock === beforeBlock && postModelObservation.blockHash !== observation.blockHash)) {
@@ -419,11 +395,8 @@ export class ConnectedUnderwritingService {
         policy: connectedPolicy,
         now: postModelObservation.blockTimestamp
       });
-      const { typedData, digest } = typedDecision(decision, nonce);
-      const signature = await this.dependencies.signer.sign(typedData, digest);
-      const recovered = await recoverAddress({ hash: digest, signature });
-      if (recovered !== getAddress(this.dependencies.signer.address)) throw new Error("CONNECTED_DECISION_SIGNATURE_WRONG_SIGNER");
-      const result = buildActionResult(decision, postModelObservation, nonce, getAddress(this.dependencies.signer.address), signature, digest, modelEvidence);
+      const { digest } = typedDecision(decision, nonce);
+      const result = buildUnsignedAssessmentResult(decision, postModelObservation, nonce, digest, modelEvidence);
       const resultJson = JSON.stringify(result);
       await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson);
       return result;

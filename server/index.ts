@@ -1,5 +1,3 @@
-import { getAddress, type Hex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import { TwoProviderConnectedInvoiceObserver, type ReadOnlyJsonRpc } from "../agent/src/confirmed-connected-observer.js";
 import { ConnectedUnderwritingService, connectedUnderwritingRequestSchema } from "../agent/src/connected-underwriting.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../agent/src/d1-connected-decision-store.js";
@@ -10,7 +8,6 @@ interface Environment {
   readonly ASSETS: AssetBinding;
   readonly DB: D1DatabaseLike;
   readonly BANKR_API_KEY: string;
-  readonly TESTNET_UNDERWRITER_PRIVATE_KEY: Hex;
 }
 
 const officialProviders = [
@@ -105,7 +102,6 @@ const underwritingResponse = async (request: Request, config: Environment): Prom
   }
   try {
     connectedUnderwritingRequestSchema.parse(body);
-    const account = privateKeyToAccount(config.TESTNET_UNDERWRITER_PRIVATE_KEY);
     const model = new StrictBankrUnderwritingModel({ apiKey: config.BANKR_API_KEY });
     const observer = new TwoProviderConnectedInvoiceObserver(officialProviders.map(
       ({ label, endpoint }) => new OfficialReadOnlyRpc(label, endpoint)
@@ -113,11 +109,7 @@ const underwritingResponse = async (request: Request, config: Environment): Prom
     const service = new ConnectedUnderwritingService({
       observer,
       store: new D1ConnectedDecisionStore(config.DB),
-      modelFactory: () => model,
-      signer: {
-        address: getAddress(account.address),
-        sign: async (_typedData, digest) => account.sign({ hash: digest })
-      }
+      modelFactory: () => model
     });
     return json(await service.authorize(body));
   } catch (error) {

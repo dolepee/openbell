@@ -6,7 +6,9 @@ import {
   assertWalletContext,
   buildInvoiceStateCall,
   buildConnectedAssessmentRequest,
+  connectedDecisionTypedData,
   createInvoiceSession,
+  finalizeConnectedAssessment,
   walletInvoiceTypedData,
   walletConnectedAssessmentTypedData,
   registrationActionFromSession,
@@ -35,12 +37,15 @@ const assessmentWorkspace = document.querySelector("#assessment-workspace");
 const assessmentForm = document.querySelector("#assessment-form");
 const assessmentError = document.querySelector("#assessment-error");
 const assessmentResult = document.querySelector("#assessment-result");
+const signDecisionButton = document.querySelector("#sign-decision");
+const downloadAssessmentButton = document.querySelector("#download-assessment");
 
 let account;
 let chainId;
 let action;
 let invoiceSession;
 let registrationTransactionHash;
+let pendingAssessment;
 
 const compact = (value) => `${value.slice(0, 10)}…${value.slice(-6)}`;
 const setText = (selector, value) => {
@@ -87,6 +92,11 @@ const refreshSessionState = () => {
   downloadSessionButton.disabled = false;
   downloadRegistrationButton.disabled = invoiceSession.supplierSignature === null || invoiceSession.payerSignature === null;
 };
+const refreshDecisionState = () => {
+  const expected = pendingAssessment?.signingRequest?.underwriter?.toLowerCase();
+  signDecisionButton.disabled = !expected || account?.toLowerCase() !== expected || chainId !== OPENBELL_TESTNET.chainId;
+  downloadAssessmentButton.disabled = !pendingAssessment;
+};
 const renderWallet = () => {
   const connected = Boolean(account);
   connectButton.textContent = connected ? compact(account) : "Connect wallet";
@@ -96,6 +106,7 @@ const renderWallet = () => {
   connectButton.setAttribute("aria-pressed", String(connected));
   refreshExecutionState();
   refreshSessionState();
+  refreshDecisionState();
 };
 const refreshWallet = async ({ requestAccounts = false } = {}) => {
   if (!provider) return renderWallet();
@@ -303,22 +314,16 @@ assessmentForm?.addEventListener("submit", async (event) => {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result?.error ?? `Underwriting returned HTTP ${response.status}.`);
-    if (!result?.decision || !result?.modelEvidence || !Array.isArray(result.actions)) throw new Error("Underwriting response is incomplete.");
+    if (!result?.decision || !result?.modelEvidence || !result?.signingRequest) throw new Error("Underwriting response is incomplete.");
     if (result.modelEvidence.decision?.verdict !== result.decision.verdict) throw new Error("Model evidence and bounded decision disagree.");
-    const validatedActions = await Promise.all(result.actions.map(validateBrowserAction));
-    if (validatedActions.some((item) => item.invoiceId !== invoiceSession.dealPackage.invoiceTerms.invoiceId)) throw new Error("Decision actions target a different invoice.");
-    setText("#assessment-verdict", result.decision.verdict === "REJECT" ? "Invoice rejected." : "Bounded terms approved.");
-    setText("#assessment-economics", result.decision.verdict === "REJECT" ? "Zero funding actions were produced." : `${formatUnits(BigInt(result.decision.advanceAmount), 6)} fixture tUSDG advance · ${formatUnits(BigInt(result.decision.repaymentAmount), 6)} due`);
+    connectedDecisionTypedData(result);
+    pendingAssessment = result;
+    setText("#assessment-verdict", result.decision.verdict === "REJECT" ? "Rejection assessed · awaiting underwriter." : "Terms assessed · awaiting underwriter.");
+    setText("#assessment-economics", result.decision.verdict === "REJECT" ? "No execution authority exists until the underwriter signs." : `${formatUnits(BigInt(result.decision.advanceAmount), 6)} fixture tUSDG advance · ${formatUnits(BigInt(result.decision.repaymentAmount), 6)} due · unsigned`);
     setText("#assessment-provider", `${result.modelEvidence.requestedModel} · response ${compact(result.modelEvidence.providerResponseId)} · first attempt sealed`);
     const actionsNode = document.querySelector("#assessment-actions");
-    actionsNode.replaceChildren(...result.actions.map((item, index) => {
-      const download = document.createElement("button");
-      download.type = "button";
-      download.className = "button button-secondary";
-      download.textContent = `Download ${item.kind.replaceAll("_", " ").toLowerCase()}`;
-      download.addEventListener("click", () => downloadJson(`openbell-${index + 1}-${item.kind.toLowerCase()}.json`, item));
-      return download;
-    }));
+    actionsNode.replaceChildren();
+    refreshDecisionState();
     assessmentResult.hidden = false;
     assessmentResult.focus();
   } catch (error) {
@@ -327,6 +332,42 @@ assessmentForm?.addEventListener("submit", async (event) => {
     button.disabled = false;
     button.setAttribute("aria-busy", "false");
     button.textContent = "Authorize one assessment";
+  }
+});
+
+downloadAssessmentButton?.addEventListener("click", () => {
+  if (pendingAssessment) downloadJson("openbell-unsigned-assessment.json", pendingAssessment);
+});
+
+signDecisionButton?.addEventListener("click", async () => {
+  assessmentError.textContent = "";
+  try {
+    if (!pendingAssessment) throw new Error("No unsigned assessment is ready.");
+    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
+    if (account?.toLowerCase() !== pendingAssessment.signingRequest.underwriter.toLowerCase()) throw new Error("Connect the current underwriter wallet.");
+    signDecisionButton.disabled = true;
+    signDecisionButton.textContent = "Awaiting underwriter signature…";
+    const typedData = connectedDecisionTypedData(pendingAssessment);
+    const signingJson = JSON.stringify(typedData, (_, value) => typeof value === "bigint" ? value.toString() : value);
+    const underwriterSignature = await rpc("eth_signTypedData_v4", [account, signingJson]);
+    const actions = await finalizeConnectedAssessment(pendingAssessment, underwriterSignature);
+    const validated = await Promise.all(actions.map(validateBrowserAction));
+    if (validated.some((item) => item.invoiceId !== invoiceSession.dealPackage.invoiceTerms.invoiceId)) throw new Error("Decision actions target a different invoice.");
+    setText("#assessment-verdict", pendingAssessment.decision.verdict === "REJECT" ? "Rejection approved by underwriter." : "Bounded terms approved by underwriter.");
+    const actionsNode = document.querySelector("#assessment-actions");
+    actionsNode.replaceChildren(...actions.map((item, index) => {
+      const download = document.createElement("button");
+      download.type = "button";
+      download.className = "button button-secondary";
+      download.textContent = `Download ${item.kind.replaceAll("_", " ").toLowerCase()}`;
+      download.addEventListener("click", () => downloadJson(`openbell-${index + 1}-${item.kind.toLowerCase()}.json`, item));
+      return download;
+    }));
+  } catch (error) {
+    assessmentError.textContent = error instanceof Error ? error.message : "The decision was not signed.";
+  } finally {
+    signDecisionButton.textContent = "Approve decision as underwriter";
+    refreshDecisionState();
   }
 });
 

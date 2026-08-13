@@ -8,9 +8,11 @@ import {
   assertActionAgainstInvoice,
   assertWalletContext,
   buildConnectedAssessmentRequest,
+  connectedDecisionTypedData,
   connectedAssessmentTypedData,
   invoiceTypedData,
   createInvoiceSession,
+  finalizeConnectedAssessment,
   rejectionTypedData,
   registrationActionFromSession,
   walletInvoiceTypedData,
@@ -45,6 +47,14 @@ const approval = {
   modelHash: `0x${"ee".repeat(32)}`,
   nonce: "9"
 };
+
+const assessment = {
+  decision: { verdict: "APPROVE", ...approval, nonce: undefined, riskTimestamp: Number(approval.riskTimestamp), expiresAt: Number(approval.expiresAt), reasons: ["LIMITED_PAYER_HISTORY"], explanation: "The supplied synthetic evidence supports approval within the returned structured limits.", modelId: "bankr:gpt-5.6-terra:receipt:test" },
+  modelEvidence: { provider: "bankr-chat-completions", decision: { verdict: "APPROVE" } },
+  observation: { invoiceId: terms.invoiceId, supplier: supplier.address, payer: payer.address, underwriter: underwriter.address },
+  signingRequest: { schemaVersion: "openbell-connected-decision-signing-v1", label: OPENBELL_TESTNET.label, chainId: "1952", underwriter: underwriter.address, authorizedDigest: "", nonce: approval.nonce }
+};
+delete assessment.decision.nonce;
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({
   schemaVersion: "openbell-testnet-browser-action-v1",
@@ -107,6 +117,26 @@ test("wrong signer, altered amount, and wrong wallet context fail closed", async
     validateBrowserAction({ ...valid, payload: { ...valid.payload, approval: { ...approval, advanceAmount: "76000000" } } }),
     /digest does not match/
   );
+});
+
+test("an explicit underwriter wallet signature finalizes exact connected actions", async () => {
+  const { hashTypedData } = await import("viem");
+  const typedData = approvalTypedData(approval);
+  const candidate = { ...assessment, signingRequest: { ...assessment.signingRequest, authorizedDigest: hashTypedData(typedData) } };
+  const walletTypedData = connectedDecisionTypedData(candidate);
+  assert.equal(walletTypedData.domain.chainId, 1952);
+  const underwriterSignature = await underwriter.signTypedData(typedData);
+  const actions = await finalizeConnectedAssessment(candidate, underwriterSignature);
+  assert.deepEqual(actions.map(({ kind }) => kind), ["APPROVE_FUNDING", "FUND_INVOICE", "APPROVE_SETTLEMENT", "SETTLE_INVOICE"]);
+});
+
+test("connected decision finalization rejects wrong signer and changed decision digest", async () => {
+  const { hashTypedData } = await import("viem");
+  const typedData = approvalTypedData(approval);
+  const candidate = { ...assessment, signingRequest: { ...assessment.signingRequest, authorizedDigest: hashTypedData(typedData) } };
+  await assert.rejects(finalizeConnectedAssessment(candidate, await payer.signTypedData(typedData)), /wrong signer/);
+  assert.throws(() => connectedDecisionTypedData({ ...candidate, decision: { ...candidate.decision, advanceAmount: "74000000" } }), /digest changed/);
+  assert.throws(() => connectedDecisionTypedData({ ...candidate, signingRequest: { ...candidate.signingRequest, chainId: 1952 } }), /Unsupported decision signing request/);
 });
 
 test("rejection recovers only the declared underwriter", async () => {

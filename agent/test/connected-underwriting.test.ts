@@ -54,6 +54,9 @@ class MemoryStore implements ConnectedDecisionStore {
     this.rows.set(invoiceId, row);
     return { claimed: true, row };
   }
+  async beginModel(invoiceId: `0x${string}`, requestHash: `0x${string}`): Promise<void> {
+    this.rows.set(invoiceId, { requestHash, status: "MODEL_IN_FLIGHT" });
+  }
   async complete(invoiceId: `0x${string}`, requestHash: `0x${string}`, resultJson: string): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "COMPLETE", resultJson });
   }
@@ -101,7 +104,6 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
   const store = new MemoryStore();
   let observerCalls = 0;
   let modelCalls = 0;
-  let signerCalls = 0;
   let capturedInput: InvoiceRiskInput | undefined;
   const model: UnderwritingModel & { readonly lastReceipt?: unknown } = {
     modelId: "bankr:gpt-5.6-terra",
@@ -126,28 +128,24 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
   const service = new ConnectedUnderwritingService({
     store,
     observer: { async inspect() { observerCalls += 1; return observerCalls === 1 ? observed : postObserved; } },
-    modelFactory: () => model,
-    signer: {
-      address: underwriter.address,
-      async sign(_typedData, digest) { signerCalls += 1; return underwriter.sign({ hash: digest }); }
-    }
+    modelFactory: () => model
   });
-  return { service, store, calls: () => ({ observerCalls, modelCalls, signerCalls }), capturedInput: () => capturedInput };
+  return { service, store, calls: () => ({ observerCalls, modelCalls }), capturedInput: () => capturedInput };
 }
 
-test("registered objective evidence produces exact bounded approval actions and durable byte replay", async () => {
+test("registered objective evidence produces an unsigned bounded assessment and durable byte replay", async () => {
   const h = harness(approval);
   const first = await h.service.authorize(request);
   expect(first.decision.verdict).toBe("APPROVE");
   if (first.decision.verdict !== "APPROVE") throw new Error("expected approval");
   expect(first.decision.advanceAmount).toBe("75000000");
   expect(first.decision.repaymentAmount).toBe("75750000");
-  expect(first.actions.map((action) => action.kind)).toEqual(["APPROVE_FUNDING", "FUND_INVOICE", "APPROVE_SETTLEMENT", "SETTLE_INVOICE"]);
+  expect(first.signingRequest).toMatchObject({ underwriter: underwriter.address, chainId: "1952" });
   expect(h.capturedInput()?.evidence).toEqual({ supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true });
   const stored = JSON.stringify(first);
   const second = await h.service.authorize(JSON.parse(JSON.stringify(request)));
   expect(JSON.stringify(second)).toBe(stored);
-  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test("durable replay remains exact when the confirmed block advances during the model call", async () => {
@@ -163,16 +161,14 @@ test("durable replay remains exact when the confirmed block advances during the 
   expect(first.observation.blockHash).toBe(postObservation.blockHash);
   const second = await h.service.authorize(request);
   expect(JSON.stringify(second)).toBe(JSON.stringify(first));
-  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
-test("genuine model rejection emits only supplier rejection action", async () => {
+test("genuine model rejection emits an unsigned underwriter signing request", async () => {
   const h = harness({ verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 9_000, reasons: ["MODEL_UNCERTAINTY"], explanation: BANKR_REJECTION_EXPLANATION });
   const result = await h.service.authorize(request);
   expect(result.decision.verdict).toBe("REJECT");
-  expect(result.actions).toHaveLength(1);
-  expect(result.actions[0]?.kind).toBe("ATTEST_REJECTION");
-  expect(result.actions[0]?.signer).toBe(supplier.address);
+  expect(result.signingRequest.underwriter).toBe(underwriter.address);
 });
 
 test.each([
@@ -184,7 +180,7 @@ test.each([
 ] as const)("unsupported zero-history model reason %s fails before signing", async (reason) => {
   const h = harness({ ...approval, reasons: [reason] });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
-  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1, signerCalls: 0 });
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1 });
   const stored = h.store.rows.get(request.invoiceId);
   expect(stored?.status).toBe("FAILED");
 });
@@ -192,14 +188,14 @@ test.each([
 test("free-form model explanation fails before signing even with supported reasons", async () => {
   const h = harness({ ...approval, explanation: "The payer has prior defaults despite the zero-history evidence." });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_EXPLANATION_UNSUPPORTED");
-  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1, signerCalls: 0 });
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1 });
 });
 
 test("supplier-declared payer history is rejected before chain, model, signer or DB access", async () => {
   const h = harness(approval);
   const withClaimedHistory = await authorizedRequest({ payerHistory: { ...request.payerHistory, completedSettlements: 1, onTimeSettlements: 1 } });
   await expect(h.service.authorize(withClaimedHistory)).rejects.toThrow("CONNECTED_UNVERIFIED_PAYER_HISTORY_FORBIDDEN");
-  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0, signerCalls: 0 });
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
   expect(h.store.rows.size).toBe(0);
 });
 
@@ -207,7 +203,7 @@ test("changed retry conflicts before a second observer, model, or signature call
   const h = harness(approval);
   await h.service.authorize(request);
   await expect(h.service.authorize(await authorizedRequest({ requestedAdvance: "74000000" }))).rejects.toThrow("CONNECTED_DECISION_REQUEST_CONFLICT");
-  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test("durable replay rejects a coherently edited decision row without external calls", async () => {
@@ -219,7 +215,7 @@ test("durable replay rejects a coherently edited decision row without external c
   parsed.decision.advanceAmount = "74000000";
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
-  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test.each(["providerResponseId", "responseHash"] as const)("durable replay rejects edited model provenance field %s", async (field) => {
@@ -231,7 +227,7 @@ test.each(["providerResponseId", "responseHash"] as const)("durable replay rejec
   parsed.modelEvidence[field] = field === "providerResponseId" ? "forged-response" : `0x${"ef".repeat(32)}`;
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
-  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test("durable replay recomputes and rejects an edited Bankr request hash", async () => {
@@ -243,35 +239,35 @@ test("durable replay recomputes and rejects an edited Bankr request hash", async
   parsed.modelEvidence.requestHash = `0x${"ef".repeat(32)}`;
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_REQUEST_HASH_MISMATCH");
-  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1, signerCalls: 1 });
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test("first model failure is durable and never retried", async () => {
   const h = harness(new Error("LIVE_MODEL_TIMEOUT"));
   await expect(h.service.authorize(request)).rejects.toThrow("LIVE_MODEL_TIMEOUT");
   await expect(h.service.authorize(request)).rejects.toThrow("LIVE_MODEL_TIMEOUT");
-  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1, signerCalls: 0 });
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1 });
 });
 
 test("wrong deployment or invoice state fails before reservation, model, or signature", async () => {
   const h = harness(approval, observation({ status: "REGISTERED", paused: true as false }));
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_OBSERVATION_NOT_AUTHORIZABLE");
-  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 0, signerCalls: 0 });
-  expect(h.store.rows.size).toBe(0);
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 0 });
+  expect(h.store.rows.get(request.invoiceId)?.status).toBe("FAILED");
 });
 
-test("configured signer must still be the current onchain underwriter", async () => {
+test("the unsigned signing request binds the current onchain underwriter without server-side signing", async () => {
   const h = harness(approval, observation({ underwriter: payer.address }));
-  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_SIGNER_NOT_CURRENT_UNDERWRITER");
-  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 0, signerCalls: 0 });
-  expect(h.store.rows.size).toBe(0);
+  const result = await h.service.authorize(request);
+  expect(result.signingRequest.underwriter).toBe(payer.address);
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test("only the registered supplier can authorize the paid assessment", async () => {
   const h = harness(approval);
   const forged = { ...request, supplierAuthorization: await payer.signTypedData(connectedAssessmentTypedData(unsignedRequest)) };
   await expect(h.service.authorize(forged)).rejects.toThrow("CONNECTED_ASSESSMENT_WRONG_SUPPLIER_SIGNATURE");
-  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0, signerCalls: 0 });
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
   expect(h.store.rows.size).toBe(0);
 });
 
@@ -283,5 +279,5 @@ test("malleated high-s supplier authority is rejected before any side effect", a
   const malleated = `${original.slice(0, 66)}${highS}${originalV === 27 ? "1c" : "1b"}`;
   const h = harness(approval);
   await expect(h.service.authorize({ ...request, supplierAuthorization: malleated })).rejects.toThrow("CONNECTED_NON_CANONICAL_SIGNATURE");
-  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0, signerCalls: 0 });
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
 });
