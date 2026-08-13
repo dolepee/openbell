@@ -14,6 +14,8 @@ export const BANKR_MAX_OUTPUT_TOKENS = 1_200 as const;
 export const BANKR_TIMEOUT_MS = 30_000 as const;
 export const BANKR_MAX_RESPONSE_BYTES = 64 * 1_024;
 export const BANKR_CHAT_COMPLETIONS_URL = "https://llm.bankr.bot/v1/chat/completions" as const;
+export const BANKR_APPROVAL_EXPLANATION = "The supplied synthetic evidence supports approval within the returned structured limits." as const;
+export const BANKR_REJECTION_EXPLANATION = "The supplied synthetic evidence does not support approval." as const;
 const BANKR_INPUT_USD_PER_MILLION = 2;
 const BANKR_OUTPUT_USD_PER_MILLION = 12;
 
@@ -40,7 +42,7 @@ export const decisionJsonSchema = {
         ]
       }
     },
-    explanation: { type: "string", minLength: 1, maxLength: 600 }
+    explanation: { type: "string", enum: [BANKR_APPROVAL_EXPLANATION, BANKR_REJECTION_EXPLANATION] }
   }
 } as const;
 
@@ -183,6 +185,8 @@ export class StrictBankrUnderwritingModel implements UnderwritingModel {
       const envelope = chatCompletionEnvelopeSchema.parse(JSON.parse(raw));
       if (envelope.model !== BANKR_UNDERWRITING_MODEL) throw new Error("LIVE_MODEL_RETURNED_MODEL_MISMATCH");
       const decision = modelDecisionSchema.strict().parse(JSON.parse(envelope.choices[0]!.message.content));
+      const expectedExplanation = decision.verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
+      if (decision.explanation !== expectedExplanation) throw new Error("LIVE_MODEL_EXPLANATION_VERDICT_MISMATCH");
       this.#lastReceipt = {
         provider: "bankr-chat-completions",
         providerResponseId: envelope.id,

@@ -6,6 +6,14 @@ export const OPENBELL_MAINNET = Object.freeze({
   settlementTokenSymbol: "USDG",
   settlementTokenDecimals: 6
 });
+export const OPENBELL_TESTNET_TARGET = Object.freeze({
+  network: "X Layer testnet fixture",
+  chainId: "1952",
+  verifyingContract: "0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18",
+  settlementToken: "0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703",
+  settlementTokenSymbol: "fixture tUSDG",
+  settlementTokenDecimals: 6
+});
 
 const addressPattern = /^0x[0-9a-fA-F]{40}$/;
 const hashPattern = /^0x[0-9a-fA-F]{64}$/;
@@ -60,8 +68,13 @@ export const buildUnsignedDealPackage = async ({
   dueDate: dueDateInput,
   nonce: nonceInput,
   documentHash: documentHashInput,
-  createdAtMs = Date.now()
+  createdAtMs = Date.now(),
+  target = OPENBELL_MAINNET
 }) => {
+  const supportedTarget = [OPENBELL_MAINNET, OPENBELL_TESTNET_TARGET].find((candidate) =>
+    Object.keys(candidate).every((key) => candidate[key] === target?.[key]) && Object.keys(target ?? {}).length === Object.keys(candidate).length
+  );
+  if (!supportedTarget) throw new Error("Deal package targets an unsupported OpenBell deployment.");
   if (!addressPattern.test(supplier) || !addressPattern.test(payer)) throw new Error("Enter valid supplier and payer addresses.");
   if (supplier.toLowerCase() === zeroAddress || payer.toLowerCase() === zeroAddress) {
     throw new Error("Supplier and payer must be nonzero addresses.");
@@ -90,8 +103,8 @@ export const buildUnsignedDealPackage = async ({
   };
   const identityPreimage = JSON.stringify({
     domain: "OPENBELL_RECEIVABLES_DEAL_V2",
-    chainId: OPENBELL_MAINNET.chainId,
-    verifyingContract: OPENBELL_MAINNET.verifyingContract.toLowerCase(),
+    chainId: supportedTarget.chainId,
+    verifyingContract: supportedTarget.verifyingContract.toLowerCase(),
     ...terms
   });
   terms.invoiceId = await sha256(new TextEncoder().encode(identityPreimage));
@@ -100,7 +113,7 @@ export const buildUnsignedDealPackage = async ({
     schemaVersion: "openbell-receivables-deal-preparation-v1",
     createdAt: new Date(createdAtMs).toISOString(),
     boundary: "UNSIGNED PREPARATION ONLY — NOT UNDERWRITTEN — NOT A TRANSACTION",
-    target: { ...OPENBELL_MAINNET },
+    target: { ...supportedTarget },
     invoiceTerms: terms,
     underwritingRequest: {
       requestedAdvance: economics.requestedAdvance.toString(),
@@ -147,7 +160,8 @@ export const validateUnsignedDealPackage = async (candidate) => {
     dueDate,
     nonce: terms.nonce,
     documentHash: terms.documentHash,
-    createdAtMs
+    createdAtMs,
+    target: candidate.target
   });
   if (stableJson(candidate) !== stableJson(rebuilt)) throw new Error("Package fields do not match the deterministic OpenBell preparation.");
   return rebuilt;

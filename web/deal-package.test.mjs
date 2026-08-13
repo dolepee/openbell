@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, decimalToBaseUnits, validateUnsignedDealPackage } from "./deal-package.mjs";
+import { OPENBELL_TESTNET_TARGET, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, decimalToBaseUnits, validateUnsignedDealPackage } from "./deal-package.mjs";
 
 const validInput = {
   supplier: "0x1111111111111111111111111111111111111111",
@@ -80,6 +80,14 @@ test("deal package fails closed on unsafe or impossible terms", async () => {
   await assert.rejects(() => buildUnsignedDealPackage({ ...validInput, dueDate: "2027-01-01" }), /90-day tenor/);
 });
 
+test("testnet preparation is explicit, deterministic, and permanently labelled as a fixture", async () => {
+  const prepared = await buildUnsignedDealPackage({ ...validInput, target: OPENBELL_TESTNET_TARGET });
+  assert.equal(prepared.target.chainId, "1952");
+  assert.equal(prepared.target.settlementTokenSymbol, "fixture tUSDG");
+  assert.equal(prepared.target.verifyingContract, OPENBELL_TESTNET_TARGET.verifyingContract);
+  assert.deepEqual(await validateUnsignedDealPackage(JSON.parse(JSON.stringify(prepared))), prepared);
+});
+
 test("package review reconstructs every field and rejects coherent-looking drift", async () => {
   const valid = await buildUnsignedDealPackage(validInput);
   assert.deepEqual(await validateUnsignedDealPackage(JSON.parse(JSON.stringify(valid))), valid);
@@ -93,6 +101,6 @@ test("package review reconstructs every field and rejects coherent-looking drift
   );
   await assert.rejects(
     () => validateUnsignedDealPackage({ ...valid, target: { ...valid.target, chainId: "1952" } }),
-    /do not match/
+    /unsupported OpenBell deployment/
   );
 });

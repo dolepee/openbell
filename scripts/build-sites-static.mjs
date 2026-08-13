@@ -1,4 +1,5 @@
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { build } from "esbuild";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +13,7 @@ await rm(distRoot, { recursive: true, force: true });
 await mkdir(clientRoot, { recursive: true });
 await mkdir(serverRoot, { recursive: true });
 
-for (const path of ["index.html", "app.js", "deal-package.mjs", "styles.css", "data", "public", "studio", "workspace", "proof", "architecture"]) {
+for (const path of ["index.html", "app.js", "deal-package.mjs", "styles.css", "data", "public", "studio", "operate", "workspace", "proof", "architecture"]) {
   await cp(resolve(webRoot, path), resolve(clientRoot, path), { recursive: true });
 }
 
@@ -21,10 +22,16 @@ await writeFile(
   `/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n`,
 );
 
-await writeFile(
-  resolve(serverRoot, "index.js"),
-  `export default {\n  async fetch(request, env) {\n    const url = new URL(request.url);\n    if (url.pathname === "/") url.pathname = "/index.html";\n    else if (url.pathname.endsWith("/")) url.pathname += "index.html";\n    else if (!url.pathname.split("/").at(-1).includes(".")) url.pathname += "/index.html";\n    return env.ASSETS.fetch(new Request(url, request));\n  },\n};\n`,
-);
+await build({
+  entryPoints: [resolve(repositoryRoot, "server/index.ts")],
+  outfile: resolve(serverRoot, "index.js"),
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: "es2022",
+  minify: true,
+  legalComments: "none"
+});
 
 await writeFile(
   resolve(serverRoot, "wrangler.json"),

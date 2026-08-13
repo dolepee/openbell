@@ -19,10 +19,11 @@
     "pree2e:fixture": "forge build --offline --quiet",
     "e2e:fixture": "tsx agent/scripts/run-fixture.ts",
     "web:export": "node web/scripts/export-fixture.mjs",
-    "web:check": "npm run web:export && node --test web/deal-package.test.mjs web/site.test.mjs",
+    "web:bundle": "node scripts/build-web-apps.mjs",
+    "web:check": "npm run web:export && npm run web:bundle && node --test web/deal-package.test.mjs web/testnet-flow.test.mjs web/site.test.mjs",
     "web:serve": "python3 -m http.server 4187 -d web",
-    "site:build": "node scripts/build-sites-static.mjs",
-    "site:check": "npm run site:build && node --check dist/server/index.js && cmp web/index.html dist/client/index.html && cmp web/data/openbell-xlayer-mainnet-deployment.json dist/client/data/openbell-xlayer-mainnet-deployment.json && cmp web/data/openbell-xlayer-testnet-lifecycle.json dist/client/data/openbell-xlayer-testnet-lifecycle.json",
+    "site:build": "npm run web:bundle && node scripts/build-sites-static.mjs",
+    "site:check": "npm run site:build && node --check dist/server/index.js && test -f drizzle/0000_connected_underwriting.sql && cmp web/index.html dist/client/index.html && cmp web/data/openbell-xlayer-mainnet-deployment.json dist/client/data/openbell-xlayer-mainnet-deployment.json && cmp web/data/openbell-xlayer-testnet-lifecycle.json dist/client/data/openbell-xlayer-testnet-lifecycle.json",
     "check:public-boundary": "node scripts/check-public-boundary.mjs",
     "check:evidence-parity": "cmp evidence/openbell-xlayer-mainnet-deployment.json web/data/openbell-xlayer-mainnet-deployment.json && cmp evidence/openbell-xlayer-mainnet-verification-record.json web/data/openbell-xlayer-mainnet-verification-record.json && cmp evidence/openbell-xlayer-mainnet-observations.json web/data/openbell-xlayer-mainnet-observations.json && cmp evidence/openbell-xlayer-mainnet-observation-verification.json web/data/openbell-xlayer-mainnet-observation-verification.json && node scripts/verify-mainnet-observations.mjs | cmp evidence/openbell-xlayer-mainnet-observation-verification.json -",
     "check": "forge fmt --check && npm run typecheck && npm test && npm run e2e:fixture && npm run web:check && npm run check:evidence-parity && npm run check:public-boundary && npm run site:check"
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "26.2.0",
+    "esbuild": "^0.28.2",
     "tsx": "4.23.12",
     "typescript": "7.0.2",
     "vitest": "4.1.10"

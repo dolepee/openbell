@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connected testnet desk — OpenBell</title>
+    <meta name="description" content="Validate, simulate and execute one exact OpenBell no-value testnet action with the required wallet." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://openbell.dolepee.com/operate/" />
+    <meta name="theme-color" content="#101712" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://openbell.dolepee.com/operate/" />
+    <meta property="og:title" content="OpenBell connected testnet desk" />
+    <meta property="og:description" content="A fail-closed wallet workspace for exact, no-value OpenBell actions on X Layer testnet." />
+    <meta property="og:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/operate/app.js"></script>
+  </head>
+  <body data-page="operate" class="operate-page">
+    <a class="skip-link" href="#main">Skip to the connected desk</a>
+    <div class="status-bar" role="note"><span><i class="status-dot"></i> XLAYER TESTNET FIXTURE</span><span>NO REAL VALUE</span><span>EXACT ACTIONS ONLY</span></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
+      <div class="nav-right">
+        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/">Deal studio</a><a href="/operate/" aria-current="page">Connected desk</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a></nav>
+        <a class="header-cta" href="/proof/#testnet">Verify lifecycle <span aria-hidden="true">↗</span></a>
+      </div>
+    </header>
+
+    <main id="main" class="operate-shell">
+      <header class="operate-hero">
+        <div><p class="overline">OPENBELL · CONNECTED EXECUTION</p><h1>One exact action.<br />One required signer.</h1></div>
+        <p>This desk reconstructs each action from structured OpenBell fields, verifies every EIP-712 signer, simulates with transaction value zero, and only then asks the matching wallet to continue.</p>
+      </header>
+
+      <section class="session-workspace" aria-labelledby="session-title">
+        <form class="session-load" id="session-form" novalidate>
+          <p class="overline">DUAL-SIGNATURE HANDOFF</p>
+          <h2 id="session-title">Supplier signs. Payer countersigns.</h2>
+          <p>Load an unsigned testnet deal from the Studio, or continue a session received from the other party. The document stays local; each wallet signs the same numeric-chain EIP-712 digest.</p>
+          <label for="session-file">Unsigned deal or invoice-session JSON</label>
+          <input id="session-file" name="sessionFile" type="file" accept="application/json,.json" required aria-describedby="session-help session-error" aria-invalid="false" />
+          <small id="session-help">Only the frozen chain-1952 fixture contract is accepted.</small>
+          <button class="button button-secondary" type="submit"><span>Load signing session</span><span aria-hidden="true">→</span></button>
+          <p class="form-error" id="session-error" role="alert" aria-live="assertive"></p>
+        </form>
+        <article class="session-state" id="session-panel" hidden tabindex="-1">
+          <header><span>INVOICE</span><code id="session-invoice"></code></header>
+          <dl><div><dt>Supplier</dt><dd id="session-supplier">WAITING</dd></div><div><dt>Payer</dt><dd id="session-payer">WAITING</dd></div><div><dt>Digest</dt><dd><code id="session-digest"></code></dd></div></dl>
+          <button class="button button-primary" id="sign-invoice" type="button" disabled>Sign as connected party</button>
+          <div class="session-downloads"><button class="button button-secondary" id="download-session" type="button" disabled>Download handoff</button><button class="button button-secondary" id="download-registration" type="button" disabled>Download registration action</button></div>
+        </article>
+      </section>
+
+      <section class="operate-grid" aria-label="Connected testnet workflow">
+        <article class="operate-card">
+          <header><span>01 / WALLET</span><b>CHAIN 1952</b></header>
+          <h2>Bring the correct role.</h2>
+          <p id="wallet-state" role="status" aria-live="polite">Checking for a compatible browser wallet…</p>
+          <button class="button button-primary" id="connect-wallet" type="button" aria-pressed="false">Connect wallet</button>
+          <small>Supplier registers or rejects. Funder approves and funds. Payer approves and settles. The connected address must match the package.</small>
+        </article>
+
+        <form class="operate-card" id="action-form" novalidate>
+          <header><span>02 / ACTION</span><b>LOCAL PARSE</b></header>
+          <h2>Load one reviewed package.</h2>
+          <label for="action-file">OpenBell browser action JSON</label>
+          <input id="action-file" name="actionFile" type="file" accept="application/json,.json" required aria-describedby="action-help action-error" aria-invalid="false" />
+          <p id="action-help">Parsed locally. Maximum 64 KiB. Arbitrary targets, calldata, values and string-chain EIP-712 domains are rejected.</p>
+          <button class="button button-secondary" type="submit"><span>Validate exact action</span><span aria-hidden="true">→</span></button>
+          <p class="form-error" id="action-error" role="alert" aria-live="assertive"></p>
+        </form>
+
+        <article class="operate-card action-review" id="action-panel" hidden tabindex="-1">
+          <header><span>03 / REVIEW</span><b>ZERO VALUE</b></header>
+          <h2 id="action-kind">Action pending</h2>
+          <dl>
+            <div><dt>Required signer</dt><dd><code id="action-signer"></code></dd></div>
+            <div><dt>Contract</dt><dd><code id="action-target"></code></dd></div>
+            <div><dt>Native value</dt><dd id="action-value"></dd></div>
+            <div><dt>Fixture amount</dt><dd id="action-amount"></dd></div>
+            <div><dt>Rebuilt calldata</dt><dd><code id="action-calldata"></code></dd></div>
+          </dl>
+          <button class="button button-primary" id="execute-action" type="button" disabled aria-busy="false"><span>Simulate and continue</span><span aria-hidden="true">→</span></button>
+          <p>Simulation runs immediately before the wallet prompt. The desk never accepts private keys or pre-signed transactions.</p>
+        </article>
+      </section>
+
+      <section class="operate-receipt" id="receipt-panel" hidden tabindex="-1" aria-live="polite">
+        <div><p class="overline">CONFIRMED ACTION</p><h2>The wallet action landed.</h2></div>
+        <p>This is a single-provider wallet receipt, not final two-provider lifecycle verification. Open the transaction now; the evidence verifier remains the source of canonical finality claims.</p>
+        <a class="button button-secondary" id="receipt-link" href="#" target="_blank" rel="noreferrer">Open receipt</a>
+      </section>
+
+      <section class="assessment-workspace" id="assessment-workspace" hidden aria-labelledby="assessment-title">
+        <form class="assessment-form" id="assessment-form" novalidate>
+          <p class="overline">LIVE UNDERWRITING · ONE ATTEMPT</p>
+          <h2 id="assessment-title">Ask only after registration.</h2>
+          <p>The supplier authorizes one paid assessment. Two official RPCs independently verify the registered, dual-signed invoice before GPT-5.6 Terra is called. The genuine first response is final.</p>
+          <label>Funder address<input id="assessment-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
+          <div class="assessment-history-note"><strong>Fresh payer · zero imported history</strong><p>The connected path does not accept supplier-declared performance. Historical claims remain zero until OpenBell can independently derive them from confirmed receipts.</p></div>
+          <label>Redacted assessment context<textarea id="assessment-context" maxlength="2000" required>Authorized synthetic X Layer testnet fixture evidence. No real value.</textarea></label>
+          <div class="form-consent"><input id="assessment-consent" type="checkbox" required /><label for="assessment-consent">I understand this makes exactly one genuine model request; failures and results are not retried or substituted.</label></div>
+          <button class="button button-primary" id="request-assessment" type="submit">Authorize one assessment</button>
+          <p class="form-error" id="assessment-error" role="alert" aria-live="assertive"></p>
+        </form>
+        <article class="assessment-result" id="assessment-result" hidden tabindex="-1">
+          <p class="overline">GENUINE FIRST RESPONSE</p><h2 id="assessment-verdict">Decision sealed</h2>
+          <p id="assessment-economics"></p><p id="assessment-provider"></p>
+          <p>The supplier's assessment request creates no execution authority. The current onchain underwriter must separately review and sign the exact typed decision.</p>
+          <div class="assessment-actions"><button class="button button-secondary" id="download-assessment" type="button" disabled>Download unsigned assessment</button><button class="button button-primary" id="sign-decision" type="button" disabled>Approve decision as underwriter</button></div>
+          <div id="assessment-actions" class="assessment-actions"></div>
+        </article>
+      </section>
+
+      <section class="operate-boundary" aria-labelledby="operate-boundary-title">
+        <div><p class="overline">CURRENT PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Connected, bounded, still a fixture.</h2></div>
+        <p>The desk can prepare, dual-sign, register, request one genuine assessment, and execute exact no-value testnet actions. It does not verify legal invoice validity, promise financing, custody funds, or authorize any mainnet lifecycle.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded receivables credit on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/">Deal studio</a><a href="/operate/">Connected desk</a><a href="/proof/">Proof room</a></nav></footer>
+  </body>
+</html>

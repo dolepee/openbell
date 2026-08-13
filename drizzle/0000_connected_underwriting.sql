@@ -1,0 +1,18 @@
+CREATE TABLE IF NOT EXISTS connected_underwriting_decisions (
+  invoice_id TEXT PRIMARY KEY NOT NULL,
+  request_hash TEXT NOT NULL,
+  request_json TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('CLAIMED', 'MODEL_IN_FLIGHT', 'COMPLETE', 'FAILED')),
+  result_json TEXT,
+  failure_code TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  CHECK ((status = 'COMPLETE' AND result_json IS NOT NULL AND failure_code IS NULL)
+      OR (status = 'FAILED' AND result_json IS NULL AND failure_code IS NOT NULL)
+      OR (status IN ('CLAIMED', 'MODEL_IN_FLIGHT') AND result_json IS NULL AND failure_code IS NULL))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS connected_underwriting_daily_budget (
+  day TEXT PRIMARY KEY NOT NULL,
+  used INTEGER NOT NULL CHECK (used >= 0)
+) STRICT;

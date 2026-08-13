@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  BANKR_APPROVAL_EXPLANATION,
   BANKR_CHAT_COMPLETIONS_URL,
   BANKR_MAX_OUTPUT_TOKENS,
   BANKR_MAX_RESPONSE_BYTES,
@@ -32,7 +33,7 @@ const decision = {
   feeBps: 100,
   confidenceBps: 9700,
   reasons: ["DUAL_SIGNATURES_VERIFIED", "CLEAN_DUPLICATE_CHECK"],
-  explanation: "The bounded fixture advance is supported by the supplied evidence."
+  explanation: BANKR_APPROVAL_EXPLANATION
 };
 
 const message = (content: unknown = JSON.stringify(decision)) => ({ role: "assistant", content, refusal: null, annotations: [] });
@@ -99,6 +100,11 @@ describe("StrictBankrUnderwritingModel", () => {
   ])("rejects malformed decision output %#", async (badDecision) => {
     const badEnvelope = envelope({ choices: [{ index: 0, finish_reason: "stop", message: message(JSON.stringify(badDecision)) }] });
     await expect(modelWith((async () => jsonResponse(badEnvelope)) as typeof fetch).decide(input)).rejects.toThrow();
+  });
+
+  it("rejects a free-form explanation even when structured reasons are allowed", async () => {
+    const badEnvelope = envelope({ choices: [{ index: 0, finish_reason: "stop", message: message(JSON.stringify({ ...decision, explanation: "The payer has prior defaults." })) }] });
+    await expect(modelWith((async () => jsonResponse(badEnvelope)) as typeof fetch).decide(input)).rejects.toThrow("LIVE_MODEL_EXPLANATION_VERDICT_MISMATCH");
   });
 
   it("times out after exactly thirty seconds", async () => {
