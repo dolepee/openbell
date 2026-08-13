@@ -165,6 +165,20 @@ const canonicalJson = (value: unknown): string => {
 };
 const requestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
 const failureCode = (error: unknown): string => error instanceof Error ? error.message.slice(0, 160) : "CONNECTED_UNDERWRITING_FAILED";
+const unsupportedZeroHistoryReasons = new Set([
+  "STRONG_ON_TIME_HISTORY",
+  "LATE_PAYMENT_HISTORY",
+  "PRIOR_DEFAULT",
+  "HIGH_COUNTERPARTY_CONCENTRATION",
+  "STALE_SETTLEMENT_HISTORY"
+]);
+
+function assertModelReasonsSupported(input: InvoiceRiskInput, decision: z.infer<typeof modelDecisionSchema>): void {
+  const hasVerifiedHistory = Object.values(input.payerHistory).some((value) => value !== 0);
+  if (!hasVerifiedHistory && decision.reasons.some((reason) => unsupportedZeroHistoryReasons.has(reason))) {
+    throw new Error("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
+  }
+}
 
 function committedModelId(input: InvoiceRiskInput, evidence: z.infer<typeof modelEvidenceSchema>): string {
   const expectedRequestHash = buildStrictBankrRequest(input).requestHash;
@@ -384,9 +398,10 @@ export class ConnectedUnderwritingService {
         throw new Error("CONNECTED_DAILY_MODEL_BUDGET_EXHAUSTED");
       }
       const model = this.dependencies.modelFactory();
-      const modelDecision = await model.decide(input);
+      const modelDecision = modelDecisionSchema.strict().parse(await model.decide(input));
       const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
       if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
+      assertModelReasonsSupported(input, modelDecision);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
       assertObservation(request, postModelObservation);
       if (postModelObservation.underwriter !== getAddress(this.dependencies.signer.address)) throw new Error("CONNECTED_SIGNER_NOT_CURRENT_UNDERWRITER");

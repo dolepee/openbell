@@ -92,7 +92,7 @@ const approval: ModelDecision = {
   maximumAdvanceBps: 8_500,
   feeBps: 100,
   confidenceBps: 9_700,
-  reasons: ["DUAL_SIGNATURES_VERIFIED", "DOCUMENT_HASH_VERIFIED", "CLEAN_DUPLICATE_CHECK", "STRONG_ON_TIME_HISTORY"],
+  reasons: ["DUAL_SIGNATURES_VERIFIED", "DOCUMENT_HASH_VERIFIED", "CLEAN_DUPLICATE_CHECK", "LIMITED_PAYER_HISTORY"],
   explanation: "Synthetic evidence is acceptable within bounded terms."
 };
 
@@ -166,12 +166,26 @@ test("durable replay remains exact when the confirmed block advances during the 
 });
 
 test("genuine model rejection emits only supplier rejection action", async () => {
-  const h = harness({ verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 9_000, reasons: ["PRIOR_DEFAULT"], explanation: "Prior default." });
+  const h = harness({ verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 9_000, reasons: ["MODEL_UNCERTAINTY"], explanation: "The supplied synthetic evidence is insufficient." });
   const result = await h.service.authorize(request);
   expect(result.decision.verdict).toBe("REJECT");
   expect(result.actions).toHaveLength(1);
   expect(result.actions[0]?.kind).toBe("ATTEST_REJECTION");
   expect(result.actions[0]?.signer).toBe(supplier.address);
+});
+
+test.each([
+  "STRONG_ON_TIME_HISTORY",
+  "LATE_PAYMENT_HISTORY",
+  "PRIOR_DEFAULT",
+  "HIGH_COUNTERPARTY_CONCENTRATION",
+  "STALE_SETTLEMENT_HISTORY"
+] as const)("unsupported zero-history model reason %s fails before signing", async (reason) => {
+  const h = harness({ ...approval, reasons: [reason] });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1, signerCalls: 0 });
+  const stored = h.store.rows.get(request.invoiceId);
+  expect(stored?.status).toBe("FAILED");
 });
 
 test("supplier-declared payer history is rejected before chain, model, signer or DB access", async () => {
