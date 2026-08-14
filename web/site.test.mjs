@@ -76,6 +76,7 @@ test("multi-page launch surface separates product, deal preparation, verified ca
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
   assert.match(overview, /One invoice\.<br \/>Three limits\.<br \/><em>Zero ambiguity\.<\/em>/);
   assert.match(overview, /min\(request, model, code\)/);
+  assert.match(overview, /href="\/operate\/">Try the connected journey/);
   assert.match(overview, /No mainnet lifecycle or real-value activity/);
   assert.match(studio, /BROWSER-ONLY PREPARATION/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
@@ -164,6 +165,9 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(studio, /<input id="deal-document"[^>]+type="file"/);
   assert.match(studio, /<button[^>]+id="download-package"[^>]+disabled/);
   assert.match(operate, /XLAYER TESTNET FIXTURE/);
+  assert.match(operate, /Three accounts\. One guided testnet journey\./);
+  assert.match(operate, /supplier, payer, and funder addresses must be distinct/);
+  assert.match(operate, /https:\/\/web3\.okx\.com\/en\/xlayer\/faucet/);
   assert.match(operate, /id="connect-wallet"[^>]+aria-pressed="false"/);
   assert.match(operate, /id="action-file"[^>]+aria-describedby="action-help action-error"[^>]+aria-invalid="false"/);
   assert.match(operate, /id="execute-action"[^>]+disabled[^>]+aria-busy="false"/);

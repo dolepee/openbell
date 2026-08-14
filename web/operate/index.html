@@ -36,6 +36,24 @@
         <p>This desk reconstructs each action from structured OpenBell fields, verifies every EIP-712 signer, simulates with transaction value zero, and only then asks the matching wallet to continue.</p>
       </header>
 
+      <section class="operate-readiness" aria-labelledby="readiness-title">
+        <div class="readiness-copy">
+          <p class="overline">BEFORE YOU START</p>
+          <h2 id="readiness-title">Three accounts. One guided testnet journey.</h2>
+          <p>One person may control all three accounts, but the supplier, payer, and funder addresses must be distinct. OpenBell's configured underwriter remains separate and signs only after the genuine assessment.</p>
+        </div>
+        <ol>
+          <li><span>01</span><div><strong>Create three wallet accounts</strong><small>Supplier, payer, and funder must use different addresses.</small></div></li>
+          <li><span>02</span><div><strong>Claim testnet OKB for each</strong><small>Each signing account needs gas on X Layer testnet.</small></div></li>
+          <li><span>03</span><div><strong>Prepare a synthetic deal</strong><small>Use the Deal Studio, then pass the downloaded JSON between roles.</small></div></li>
+          <li><span>04</span><div><strong>Pause for underwriting</strong><small>The supplier requests one genuine assessment; OpenBell separately signs the exact result.</small></div></li>
+        </ol>
+        <div class="readiness-actions">
+          <a class="button button-primary" href="/studio/">Prepare testnet deal</a>
+          <a class="button button-secondary" href="https://web3.okx.com/en/xlayer/faucet" target="_blank" rel="noreferrer">Open official faucet ↗</a>
+        </div>
+      </section>
+
       <section class="session-workspace" aria-labelledby="session-title">
         <form class="session-load" id="session-form" novalidate>
           <p class="overline">DUAL-SIGNATURE HANDOFF</p>
