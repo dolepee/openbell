@@ -3,16 +3,22 @@ import test from "node:test";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   OPENBELL_TESTNET,
+  FIXTURE_CLAIM_AMOUNT,
   approvalTypedData,
   addInvoiceSessionSignature,
   assertActionAgainstInvoice,
+  assertFixtureClaimAvailable,
+  assertFixtureClaimCompleted,
   assertWalletContext,
+  buildFixtureClaimStateCalls,
   buildConnectedAssessmentRequest,
   connectedDecisionTypedData,
   connectedAssessmentTypedData,
+  createFixtureClaimAction,
   invoiceTypedData,
   createInvoiceSession,
   finalizeConnectedAssessment,
+  fixtureClaimPackage,
   rejectionTypedData,
   registrationActionFromSession,
   walletInvoiceTypedData,
@@ -183,6 +189,74 @@ test("token approvals and settlement reconstruct fixed contract calls without ar
     validateBrowserAction({ ...wrap("SETTLE_INVOICE", payer.address, null, { invoiceId: terms.invoiceId, repaymentAmount: "75750000" }), to: payer.address }),
     /unsupported or missing fields/
   );
+});
+
+test("fixture-token claim reconstructs one fixed zero-value token call", async () => {
+  const { encodeFunctionData } = await import("viem");
+  const action = await createFixtureClaimAction(funder.address);
+  assert.equal(action.kind, "CLAIM_FIXTURE_TOKENS");
+  assert.equal(action.signer, funder.address);
+  assert.equal(action.to, OPENBELL_TESTNET.settlementToken);
+  assert.equal(action.value, 0n);
+  assert.equal(action.amount, FIXTURE_CLAIM_AMOUNT);
+  assert.equal(action.invoiceId, null);
+  assert.equal(action.authorizedDigest, undefined);
+  assert.equal(action.data, encodeFunctionData({ abi: [{ type: "function", name: "claimFixtureTokens", stateMutability: "nonpayable", inputs: [], outputs: [] }], functionName: "claimFixtureTokens" }));
+  assert.throws(() => assertWalletContext(action, { account: payer.address, chainId: 1952 }), /required signer/);
+  assert.throws(() => assertWalletContext(action, { account: funder.address, chainId: 196 }), /chain 1952/);
+  await assert.rejects(validateBrowserAction({ ...fixtureClaimPackage(funder.address), chainId: "196" }), /wrong chain/);
+  await assert.rejects(validateBrowserAction({ ...fixtureClaimPackage(funder.address), to: payer.address }), /unsupported or missing fields/);
+  await assert.rejects(validateBrowserAction({ ...fixtureClaimPackage(funder.address), authorizedDigest: `0x${"aa".repeat(32)}` }), /cannot carry/);
+  await assert.rejects(validateBrowserAction({ ...fixtureClaimPackage(funder.address), payload: { target: payer.address } }), /unsupported or missing fields/);
+  assert.throws(() => fixtureClaimPackage("0x0000000000000000000000000000000000000000"), /must be nonzero/);
+});
+
+test("fixture-token claim binds preflight state and confirmed balance increase", async () => {
+  const { encodeFunctionResult } = await import("viem");
+  const action = await createFixtureClaimAction(payer.address);
+  const calls = buildFixtureClaimStateCalls(payer.address);
+  assert.match(calls.hasClaimed, /^0x[0-9a-f]+$/i);
+  assert.match(calls.balance, /^0x[0-9a-f]+$/i);
+  assert.match(calls.faucetAmount, /^0x[0-9a-f]+$/i);
+  const boolAbi = [{ type: "function", name: "hasClaimed", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "bool" }] }];
+  const balanceAbi = [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] }];
+  const amountAbi = [{ type: "function", name: "FAUCET_AMOUNT", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] }];
+  const encodeClaimed = (value) => encodeFunctionResult({ abi: boolAbi, functionName: "hasClaimed", result: value });
+  const encodeBalance = (value) => encodeFunctionResult({ abi: balanceAbi, functionName: "balanceOf", result: value });
+  const encodeAmount = (value) => encodeFunctionResult({ abi: amountAbi, functionName: "FAUCET_AMOUNT", result: value });
+  const available = assertFixtureClaimAvailable(action, {
+    hasClaimedResult: encodeClaimed(false),
+    balanceResult: encodeBalance(25_000_000n),
+    faucetAmountResult: encodeAmount(FIXTURE_CLAIM_AMOUNT)
+  });
+  assert.equal(available.balance, 25_000_000n);
+  assert.throws(() => assertFixtureClaimAvailable(action, {
+    hasClaimedResult: encodeClaimed(true),
+    balanceResult: encodeBalance(25_000_000n),
+    faucetAmountResult: encodeAmount(FIXTURE_CLAIM_AMOUNT)
+  }), /already claimed/);
+  assert.throws(() => assertFixtureClaimAvailable(action, {
+    hasClaimedResult: encodeClaimed(false),
+    balanceResult: encodeBalance(25_000_000n),
+    faucetAmountResult: encodeAmount(999_000_000n)
+  }), /amount changed/);
+  const completed = assertFixtureClaimCompleted(action, {
+    hasClaimedResult: encodeClaimed(true),
+    balanceResult: encodeBalance(1_025_000_000n)
+  }, available.balance);
+  assert.equal(completed.balance, 1_025_000_000n);
+  assert.throws(() => assertFixtureClaimCompleted(action, {
+    hasClaimedResult: encodeClaimed(false),
+    balanceResult: encodeBalance(1_025_000_000n)
+  }, available.balance), /flag was not set/);
+  assert.throws(() => assertFixtureClaimCompleted(action, {
+    hasClaimedResult: encodeClaimed(true),
+    balanceResult: encodeBalance(1_024_999_999n)
+  }, available.balance), /did not increase by exactly/);
+  assert.throws(() => assertFixtureClaimCompleted(action, {
+    hasClaimedResult: encodeClaimed(true),
+    balanceResult: encodeBalance(1_025_000_001n)
+  }, available.balance), /did not increase by exactly/);
 });
 
 test("onchain invoice state binds role, amount, status, digest, and expiry", async () => {

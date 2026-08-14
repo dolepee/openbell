@@ -22,6 +22,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; color: var(--ink); background: var(--paper); }
 a { color: inherit; }
@@ -276,6 +277,19 @@ code { font-family: var(--mono); }
 .operate-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 80px; align-items: end; padding: 48px 0 68px; border-bottom: 1px solid var(--line-dark); }
 .operate-hero h1 { max-width: 820px; margin: 14px 0 0; font-size: clamp(48px, 7vw, 108px); line-height: .91; letter-spacing: -.065em; }
 .operate-hero > p { max-width: 560px; margin: 0 0 8px; color: var(--muted); font-size: 15px; line-height: 1.75; }
+.operate-readiness { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(420px, 1.2fr) minmax(210px, .55fr); gap: 38px; align-items: center; padding: 34px; border: 1px solid var(--line-dark); border-top: 0; background: #dfe5dc; }
+.readiness-copy h2 { margin: 8px 0 12px; font-size: clamp(28px, 3.2vw, 48px); line-height: .95; letter-spacing: -.05em; }
+.readiness-copy > p:last-child { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.operate-readiness ol { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0; padding: 0; border: 1px solid var(--line-dark); list-style: none; }
+.operate-readiness li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; min-height: 92px; padding: 16px; }
+.operate-readiness li:nth-child(even) { border-left: 1px solid var(--line-dark); }
+.operate-readiness li:nth-child(n+3) { border-top: 1px solid var(--line-dark); }
+.operate-readiness li > span { color: var(--green); font: 750 9px var(--mono); }
+.operate-readiness strong, .operate-readiness small { display: block; }
+.operate-readiness strong { font-size: 12px; }
+.operate-readiness small { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.readiness-actions { display: grid; gap: 10px; }
+.readiness-actions .button { width: 100%; text-align: center; }
 .session-workspace { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, .85fr); border: 1px solid var(--line-dark); border-top: 0; }
 .session-load, .session-state { min-width: 0; padding: 32px; }
 .session-load { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; }
@@ -304,6 +318,11 @@ code { font-family: var(--mono); }
 .operate-card h2 { margin: 0 0 16px; font-size: 27px; letter-spacing: -.04em; }
 .operate-card p, .operate-card small { color: var(--muted); font-size: 10px; line-height: 1.65; }
 .operate-card .button { width: 100%; margin: 20px 0 14px; }
+.fixture-claim-control { margin: 18px 0; padding: 15px; border: 1px solid var(--line); background: white; }
+.fixture-claim-control .button { margin: 0 0 10px; }
+.fixture-claim-control small, .fixture-claim-control p { display: block; margin: 0; }
+.fixture-claim-control #fixture-claim-state { margin-top: 10px; color: var(--green); font-weight: 750; }
+.fixture-claim-control .form-error { color: var(--red); }
 .operate-card label { display: block; margin: 18px 0 9px; font: 750 9px var(--mono); letter-spacing: .07em; }
 .operate-card input[type="file"] { width: 100%; min-height: 48px; padding: 12px; border: 1px solid var(--line-dark); background: white; font: 650 10px var(--mono); }
 .operate-card input[aria-invalid="true"] { border-color: #9b2c2c; }
@@ -977,6 +996,7 @@ code { font-family: var(--mono); }
   .studio-next { gap: 45px; padding-top: 85px; }
   .package-review { grid-template-columns: 1fr; gap: 45px; padding-top: 95px; }
   .operate-hero { grid-template-columns: 1fr; gap: 30px; }
+  .operate-readiness { grid-template-columns: 1fr; }
   .session-workspace { grid-template-columns: 1fr; }
   .session-state { border-top: 1px solid var(--line-dark); border-left: 0; }
   .operate-grid { grid-template-columns: 1fr; }
@@ -1036,6 +1056,10 @@ code { font-family: var(--mono); }
   .operate-shell { width: calc(100% - 24px); padding-top: 38px; }
   .operate-hero { padding: 30px 0 42px; }
   .operate-hero h1 { font-size: clamp(42px, 15vw, 68px); }
+  .operate-readiness { gap: 24px; padding: 26px 20px; }
+  .operate-readiness ol { grid-template-columns: 1fr; }
+  .operate-readiness li:nth-child(even) { border-left: 0; }
+  .operate-readiness li + li { border-top: 1px solid var(--line-dark); }
   .operate-receipt, .operate-boundary { padding: 28px 22px; }
   .assessment-history { grid-template-columns: 1fr 1fr; }
   .session-load { grid-template-columns: 1fr; padding: 25px 20px; }

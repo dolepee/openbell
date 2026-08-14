@@ -3,10 +3,14 @@ import {
   OPENBELL_TESTNET,
   addInvoiceSessionSignature,
   assertActionAgainstInvoice,
+  assertFixtureClaimAvailable,
+  assertFixtureClaimCompleted,
   assertWalletContext,
+  buildFixtureClaimStateCalls,
   buildInvoiceStateCall,
   buildConnectedAssessmentRequest,
   connectedDecisionTypedData,
+  createFixtureClaimAction,
   createInvoiceSession,
   finalizeConnectedAssessment,
   walletInvoiceTypedData,
@@ -19,6 +23,9 @@ import {
 const provider = globalThis.ethereum;
 const connectButton = document.querySelector("#connect-wallet");
 const walletState = document.querySelector("#wallet-state");
+const claimFixtureButton = document.querySelector("#claim-fixture-tokens");
+const fixtureClaimState = document.querySelector("#fixture-claim-state");
+const fixtureClaimError = document.querySelector("#fixture-claim-error");
 const actionForm = document.querySelector("#action-form");
 const actionFile = document.querySelector("#action-file");
 const actionError = document.querySelector("#action-error");
@@ -60,6 +67,11 @@ const setBusy = (busy, text) => {
   executeButton.disabled = busy || !action;
   executeButton.setAttribute("aria-busy", String(busy));
   executeButton.querySelector("span").textContent = text;
+};
+const setFixtureClaimBusy = (busy, text) => {
+  claimFixtureButton.disabled = busy || !account || chainId !== OPENBELL_TESTNET.chainId;
+  claimFixtureButton.setAttribute("aria-busy", String(busy));
+  claimFixtureButton.textContent = text;
 };
 const rpc = (method, params = []) => {
   if (!provider?.request) throw new Error("No compatible browser wallet was found.");
@@ -104,6 +116,7 @@ const renderWallet = () => {
     ? "Install an EIP-1193 wallet to use the connected desk."
     : connected ? `Connected · chain ${chainId ?? "unknown"}` : "No wallet connected. Nothing can be signed or sent.";
   connectButton.setAttribute("aria-pressed", String(connected));
+  setFixtureClaimBusy(false, "Review fixture tUSDG claim");
   refreshExecutionState();
   refreshSessionState();
   refreshDecisionState();
@@ -141,6 +154,31 @@ connectButton?.addEventListener("click", async () => {
   }
 });
 
+const renderAction = () => {
+  setText("#action-kind", action.kind.replaceAll("_", " "));
+  setText("#action-signer", action.signer);
+  setText("#action-target", action.to);
+  setText("#action-value", "0 OKB");
+  setText("#action-amount", action.amount === null ? "Not applicable" : `${formatUnits(action.amount, 6)} fixture tUSDG`);
+  setText("#action-calldata", compact(action.data));
+  actionPanel.hidden = false;
+  actionPanel.focus();
+  refreshExecutionState();
+};
+
+claimFixtureButton?.addEventListener("click", async () => {
+  fixtureClaimError.textContent = "";
+  receiptPanel.hidden = true;
+  try {
+    if (!account) throw new Error("Connect the funder or payer account first.");
+    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
+    action = await createFixtureClaimAction(account);
+    renderAction();
+  } catch (error) {
+    fixtureClaimError.textContent = error instanceof Error ? error.message : "Fixture-token claim could not be prepared.";
+  }
+});
+
 actionForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   setError();
@@ -153,15 +191,7 @@ actionForm?.addEventListener("submit", async (event) => {
     if (!file) throw new Error("Select one OpenBell action package.");
     if (file.size > 64 * 1024) throw new Error("Action package exceeds the 64 KiB browser limit.");
     action = await validateBrowserAction(JSON.parse(await file.text()));
-    setText("#action-kind", action.kind.replaceAll("_", " "));
-    setText("#action-signer", action.signer);
-    setText("#action-target", action.to);
-    setText("#action-value", "0 OKB");
-    setText("#action-amount", action.amount === null ? "Not applicable" : `${formatUnits(action.amount, 6)} fixture tUSDG`);
-    setText("#action-calldata", compact(action.data));
-    actionPanel.hidden = false;
-    actionPanel.focus();
-    refreshExecutionState();
+    renderAction();
   } catch (error) {
     setError(error instanceof Error ? error.message : "Action package is invalid.");
   }
@@ -242,14 +272,26 @@ const waitForReceipt = async (transactionHash) => {
 
 executeButton?.addEventListener("click", async () => {
   if (!action) return;
+  const isFixtureClaim = action.kind === "CLAIM_FIXTURE_TOKENS";
   try {
     setError();
     assertWalletContext(action, { account, chainId });
     setBusy(true, "Simulating exact action…");
     const executingAction = action;
     const transaction = { from: executingAction.signer, to: executingAction.to, data: executingAction.data, value: "0x0" };
-    const invoiceResult = await rpc("eth_call", [{ to: OPENBELL_TESTNET.receivables, data: buildInvoiceStateCall(executingAction.invoiceId) }, "latest"]);
-    assertActionAgainstInvoice(executingAction, invoiceResult, Math.floor(Date.now() / 1_000));
+    let fixtureClaimBefore;
+    if (isFixtureClaim) {
+      const calls = buildFixtureClaimStateCalls(executingAction.signer);
+      const [hasClaimedResult, balanceResult, faucetAmountResult] = await Promise.all([
+        rpc("eth_call", [{ to: OPENBELL_TESTNET.settlementToken, data: calls.hasClaimed }, "latest"]),
+        rpc("eth_call", [{ to: OPENBELL_TESTNET.settlementToken, data: calls.balance }, "latest"]),
+        rpc("eth_call", [{ to: OPENBELL_TESTNET.settlementToken, data: calls.faucetAmount }, "latest"])
+      ]);
+      fixtureClaimBefore = assertFixtureClaimAvailable(executingAction, { hasClaimedResult, balanceResult, faucetAmountResult });
+    } else {
+      const invoiceResult = await rpc("eth_call", [{ to: OPENBELL_TESTNET.receivables, data: buildInvoiceStateCall(executingAction.invoiceId) }, "latest"]);
+      assertActionAgainstInvoice(executingAction, invoiceResult, Math.floor(Date.now() / 1_000));
+    }
     await rpc("eth_call", [transaction, "latest"]);
     await rpc("eth_estimateGas", [transaction]);
     setBusy(true, "Confirm in wallet…");
@@ -257,6 +299,18 @@ executeButton?.addEventListener("click", async () => {
     setBusy(true, "Waiting for receipt…");
     const receipt = await waitForReceipt(transactionHash);
     if (receipt.status !== "0x1") throw new Error("The transaction receipt reports failure.");
+    if (isFixtureClaim) {
+      if (!receipt.blockNumber) throw new Error("The confirmed fixture-token receipt is missing its block number.");
+      const calls = buildFixtureClaimStateCalls(executingAction.signer);
+      const [hasClaimedResult, balanceResult] = await Promise.all([
+        rpc("eth_call", [{ to: OPENBELL_TESTNET.settlementToken, data: calls.hasClaimed }, receipt.blockNumber]),
+        rpc("eth_call", [{ to: OPENBELL_TESTNET.settlementToken, data: calls.balance }, receipt.blockNumber])
+      ]);
+      const completed = assertFixtureClaimCompleted(executingAction, { hasClaimedResult, balanceResult }, fixtureClaimBefore.balance);
+      fixtureClaimState.textContent = `Claim confirmed · ${formatUnits(completed.balance, 6)} fixture tUSDG available.`;
+      setFixtureClaimBusy(false, "Fixture tUSDG claimed");
+      claimFixtureButton.disabled = true;
+    }
     receiptLink.href = `${OPENBELL_TESTNET.explorerTransactionBase}${transactionHash}`;
     receiptLink.textContent = compact(transactionHash);
     receiptPanel.hidden = false;
@@ -271,6 +325,7 @@ executeButton?.addEventListener("click", async () => {
   } catch (error) {
     setBusy(false, "Simulate and continue");
     setError(error instanceof Error ? error.message : "The exact action was not executed.");
+    if (isFixtureClaim) fixtureClaimError.textContent = error instanceof Error ? error.message : "Fixture-token claim failed.";
   }
 });
 
