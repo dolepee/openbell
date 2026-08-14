@@ -671,7 +671,7 @@ export function assertFixtureClaimCompleted(action, { hasClaimedResult, balanceR
   const claimed = decodeFunctionResult({ abi: tokenAbi, functionName: "hasClaimed", data: hasClaimedResult });
   const balance = decodeFunctionResult({ abi: tokenAbi, functionName: "balanceOf", data: balanceResult });
   if (!claimed) throw new Error("Fixture-token claim flag was not set.");
-  if (balance < previousBalance + FIXTURE_CLAIM_AMOUNT) throw new Error("Fixture-token balance did not increase by the faucet amount.");
+  if (balance !== previousBalance + FIXTURE_CLAIM_AMOUNT) throw new Error("Fixture-token balance did not increase by exactly the faucet amount.");
   return Object.freeze({ balance, claimed });
 }
 

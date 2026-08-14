@@ -252,7 +252,11 @@ test("fixture-token claim binds preflight state and confirmed balance increase",
   assert.throws(() => assertFixtureClaimCompleted(action, {
     hasClaimedResult: encodeClaimed(true),
     balanceResult: encodeBalance(1_024_999_999n)
-  }, available.balance), /did not increase/);
+  }, available.balance), /did not increase by exactly/);
+  assert.throws(() => assertFixtureClaimCompleted(action, {
+    hasClaimedResult: encodeClaimed(true),
+    balanceResult: encodeBalance(1_025_000_001n)
+  }, available.balance), /did not increase by exactly/);
 });
 
 test("onchain invoice state binds role, amount, status, digest, and expiry", async () => {
