@@ -169,6 +169,8 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(operate, /supplier, payer, and funder addresses must be distinct/);
   assert.match(operate, /https:\/\/web3\.okx\.com\/en\/xlayer\/faucet/);
   assert.match(operate, /id="connect-wallet"[^>]+aria-pressed="false"/);
+  assert.match(operate, /id="claim-fixture-tokens"[^>]+disabled[^>]+aria-busy="false"[^>]+aria-describedby="fixture-claim-help fixture-claim-error"/);
+  assert.match(operate, /Funder and payer each claim 1,000 no-value fixture tUSDG/);
   assert.match(operate, /id="action-file"[^>]+aria-describedby="action-help action-error"[^>]+aria-invalid="false"/);
   assert.match(operate, /id="execute-action"[^>]+disabled[^>]+aria-busy="false"/);
   assert.match(testnetModule, /chainId: 1952/);
@@ -205,5 +207,6 @@ test("interactive controls use native accessible elements", async () => {
   assert.doesNotMatch(script, /const (?:preparation|review)Guard =/);
   assert.match(script, /reviewFile\.setAttribute\("aria-invalid", "true"\)/);
   assert.match(css, /:focus-visible/);
+  assert.match(css, /\[hidden\] \{ display: none !important; \}/);
   assert.match(css, /prefers-reduced-motion/);
 });

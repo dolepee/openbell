@@ -18,6 +18,8 @@ export const OPENBELL_TESTNET = Object.freeze({
   explorerTransactionBase: "https://www.okx.com/web3/explorer/xlayer-test/tx/"
 });
 
+export const FIXTURE_CLAIM_AMOUNT = 1_000_000_000n;
+
 export const invoiceTypes = Object.freeze({
   InvoiceTerms: [
     { name: "invoiceId", type: "bytes32" },
@@ -131,13 +133,43 @@ const receivablesAbi = [
   }
 ];
 
-const tokenAbi = [{
-  type: "function",
-  name: "approve",
-  stateMutability: "nonpayable",
-  inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }],
-  outputs: [{ name: "", type: "bool" }]
-}];
+const tokenAbi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }]
+  },
+  {
+    type: "function",
+    name: "claimFixtureTokens",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "hasClaimed",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "bool" }]
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "FAUCET_AMOUNT",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }]
+  }
+];
 
 const hex32 = /^0x[0-9a-fA-F]{64}$/;
 const signature = /^0x[0-9a-fA-F]{130}$/;
@@ -496,6 +528,22 @@ const basePackage = (candidate) => {
   if (candidate.chainId !== String(OPENBELL_TESTNET.chainId)) throw new Error("Action package targets the wrong chain.");
 };
 
+export const fixtureClaimPackage = (signerCandidate) => {
+  const signer = asAddress(signerCandidate, "Fixture claimant");
+  if (signer === "0x0000000000000000000000000000000000000000") throw new Error("Fixture claimant must be nonzero.");
+  return {
+    schemaVersion: "openbell-testnet-browser-action-v1",
+    label: OPENBELL_TESTNET.label,
+    chainId: String(OPENBELL_TESTNET.chainId),
+    kind: "CLAIM_FIXTURE_TOKENS",
+    signer,
+    authorizedDigest: null,
+    payload: {}
+  };
+};
+
+export const createFixtureClaimAction = (signerCandidate) => validateBrowserAction(fixtureClaimPackage(signerCandidate));
+
 export async function validateBrowserAction(candidate) {
   allowedKeys(candidate, ["schemaVersion", "label", "chainId", "kind", "signer", "authorizedDigest", "payload"], "Action package");
   basePackage(candidate);
@@ -507,7 +555,14 @@ export async function validateBrowserAction(candidate) {
   let invoiceDigest = null;
   let expiresAt = null;
 
-  if (candidate.kind === "REGISTER_INVOICE") {
+  if (candidate.kind === "CLAIM_FIXTURE_TOKENS") {
+    allowedKeys(candidate.payload, [], "Fixture claim payload");
+    if (candidate.authorizedDigest !== null) throw new Error("Fixture claim cannot carry an EIP-712 digest.");
+    to = OPENBELL_TESTNET.settlementToken;
+    amount = FIXTURE_CLAIM_AMOUNT;
+    invoiceId = null;
+    data = encodeFunctionData({ abi: tokenAbi, functionName: "claimFixtureTokens" });
+  } else if (candidate.kind === "REGISTER_INVOICE") {
     allowedKeys(candidate.payload, ["terms", "supplierSignature", "payerSignature"], "Registration payload");
     const terms = normalizeTerms(candidate.payload.terms);
     if (signer !== terms.supplier) throw new Error("Only the supplier may register the invoice.");
@@ -590,7 +645,38 @@ export function buildInvoiceStateCall(invoiceId) {
   return encodeFunctionData({ abi: receivablesAbi, functionName: "invoices", args: [asHash(invoiceId, "Invoice ID")] });
 }
 
+export function buildFixtureClaimStateCalls(accountCandidate) {
+  const account = asAddress(accountCandidate, "Fixture claimant");
+  return Object.freeze({
+    hasClaimed: encodeFunctionData({ abi: tokenAbi, functionName: "hasClaimed", args: [account] }),
+    balance: encodeFunctionData({ abi: tokenAbi, functionName: "balanceOf", args: [account] }),
+    faucetAmount: encodeFunctionData({ abi: tokenAbi, functionName: "FAUCET_AMOUNT" })
+  });
+}
+
+export function assertFixtureClaimAvailable(action, { hasClaimedResult, balanceResult, faucetAmountResult }) {
+  if (action.kind !== "CLAIM_FIXTURE_TOKENS") throw new Error("Action is not a fixture-token claim.");
+  const claimed = decodeFunctionResult({ abi: tokenAbi, functionName: "hasClaimed", data: hasClaimedResult });
+  const balance = decodeFunctionResult({ abi: tokenAbi, functionName: "balanceOf", data: balanceResult });
+  const faucetAmount = decodeFunctionResult({ abi: tokenAbi, functionName: "FAUCET_AMOUNT", data: faucetAmountResult });
+  if (claimed) throw new Error("This account already claimed fixture tUSDG.");
+  if (faucetAmount !== FIXTURE_CLAIM_AMOUNT || action.amount !== FIXTURE_CLAIM_AMOUNT) {
+    throw new Error("Fixture-token faucet amount changed.");
+  }
+  return Object.freeze({ balance, faucetAmount });
+}
+
+export function assertFixtureClaimCompleted(action, { hasClaimedResult, balanceResult }, previousBalance) {
+  if (action.kind !== "CLAIM_FIXTURE_TOKENS") throw new Error("Action is not a fixture-token claim.");
+  const claimed = decodeFunctionResult({ abi: tokenAbi, functionName: "hasClaimed", data: hasClaimedResult });
+  const balance = decodeFunctionResult({ abi: tokenAbi, functionName: "balanceOf", data: balanceResult });
+  if (!claimed) throw new Error("Fixture-token claim flag was not set.");
+  if (balance < previousBalance + FIXTURE_CLAIM_AMOUNT) throw new Error("Fixture-token balance did not increase by the faucet amount.");
+  return Object.freeze({ balance, claimed });
+}
+
 export function assertActionAgainstInvoice(action, encodedResult, nowSeconds) {
+  if (action.kind === "CLAIM_FIXTURE_TOKENS") throw new Error("Fixture claims do not use invoice state.");
   if (!Number.isSafeInteger(nowSeconds) || nowSeconds < 0) throw new Error("Current time is invalid.");
   const [status, supplier, payer, funder, faceValue, advanceAmount, repaymentAmount, dueDate, documentHash, invoiceDigest] =
     decodeFunctionResult({ abi: receivablesAbi, functionName: "invoices", data: encodedResult });

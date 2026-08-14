@@ -79,6 +79,12 @@
           <h2>Bring the correct role.</h2>
           <p id="wallet-state" role="status" aria-live="polite">Checking for a compatible browser wallet…</p>
           <button class="button button-primary" id="connect-wallet" type="button" aria-pressed="false">Connect wallet</button>
+          <div class="fixture-claim-control">
+            <button class="button button-secondary" id="claim-fixture-tokens" type="button" disabled aria-busy="false" aria-describedby="fixture-claim-help fixture-claim-error">Review fixture tUSDG claim</button>
+            <small id="fixture-claim-help">Funder and payer each claim 1,000 no-value fixture tUSDG from the fixed token contract. The exact zero-value call opens in the review panel before simulation.</small>
+            <p id="fixture-claim-state" role="status" aria-live="polite">No fixture-token claim reviewed.</p>
+            <p class="form-error" id="fixture-claim-error" role="alert" aria-live="assertive"></p>
+          </div>
           <small>Supplier registers or rejects. Funder approves and funds. Payer approves and settles. The connected address must match the package.</small>
         </article>
 

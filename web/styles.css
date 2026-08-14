@@ -22,6 +22,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; color: var(--ink); background: var(--paper); }
 a { color: inherit; }
@@ -317,6 +318,11 @@ code { font-family: var(--mono); }
 .operate-card h2 { margin: 0 0 16px; font-size: 27px; letter-spacing: -.04em; }
 .operate-card p, .operate-card small { color: var(--muted); font-size: 10px; line-height: 1.65; }
 .operate-card .button { width: 100%; margin: 20px 0 14px; }
+.fixture-claim-control { margin: 18px 0; padding: 15px; border: 1px solid var(--line); background: white; }
+.fixture-claim-control .button { margin: 0 0 10px; }
+.fixture-claim-control small, .fixture-claim-control p { display: block; margin: 0; }
+.fixture-claim-control #fixture-claim-state { margin-top: 10px; color: var(--green); font-weight: 750; }
+.fixture-claim-control .form-error { color: var(--red); }
 .operate-card label { display: block; margin: 18px 0 9px; font: 750 9px var(--mono); letter-spacing: .07em; }
 .operate-card input[type="file"] { width: 100%; min-height: 48px; padding: 12px; border: 1px solid var(--line-dark); background: white; font: 650 10px var(--mono); }
 .operate-card input[aria-invalid="true"] { border-color: #9b2c2c; }
