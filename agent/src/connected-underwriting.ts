@@ -26,6 +26,20 @@ export const CONNECTED_TESTNET = Object.freeze({
   maxTenorSeconds: 90 * 24 * 60 * 60,
   minConfidenceBps: 7_000
 });
+export const CONNECTED_MAINNET = Object.freeze({
+  schemaVersion: "openbell-mainnet-underwriting-v1",
+  label: "XLAYER MAINNET — REAL USDG",
+  chainId: 196,
+  receivables: "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+  settlementToken: "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+  maxAdvanceBps: 8_000,
+  maxFeeBps: 2_000,
+  maxRiskAgeSeconds: 3_600,
+  maxDecisionLifetimeSeconds: 1_800,
+  maxTenorSeconds: 90 * 24 * 60 * 60,
+  minConfidenceBps: 7_000
+});
+export type ConnectedDeployment = typeof CONNECTED_TESTNET | typeof CONNECTED_MAINNET;
 
 const address = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((value) => getAddress(value));
 const bytes32 = z.string().regex(/^0x[a-fA-F0-9]{64}$/).transform((value) => value.toLowerCase() as Hex);
@@ -49,9 +63,7 @@ const historySchema = z.object({
   }
 });
 
-export const connectedUnderwritingRequestSchema = z.object({
-  schemaVersion: z.literal(CONNECTED_TESTNET.schemaVersion),
-  label: z.literal(CONNECTED_TESTNET.label),
+const requestFields = {
   registrationTransactionHash: bytes32,
   invoiceId: bytes32,
   documentHash: bytes32,
@@ -64,20 +76,38 @@ export const connectedUnderwritingRequestSchema = z.object({
   requestedAdvance: uintString,
   payerHistory: historySchema,
   redactedContext: z.string().trim().min(1).max(2_000),
-  syntheticFixtureAcknowledged: z.literal(true),
   supplierAuthorization: signature
-}).strict().superRefine((request, context) => {
+} as const;
+const enforceZeroHistory = (request: { payerHistory: z.infer<typeof historySchema> }, context: z.RefinementCtx) => {
   if (Object.values(request.payerHistory).some((value) => value !== 0)) {
     context.addIssue({ code: "custom", message: "CONNECTED_UNVERIFIED_PAYER_HISTORY_FORBIDDEN" });
   }
-});
+};
+export const connectedUnderwritingRequestSchema = z.object({
+  schemaVersion: z.literal(CONNECTED_TESTNET.schemaVersion),
+  label: z.literal(CONNECTED_TESTNET.label),
+  ...requestFields,
+  syntheticFixtureAcknowledged: z.literal(true)
+}).strict().superRefine(enforceZeroHistory);
+export const mainnetUnderwritingRequestSchema = z.object({
+  schemaVersion: z.literal(CONNECTED_MAINNET.schemaVersion),
+  label: z.literal(CONNECTED_MAINNET.label),
+  ...requestFields,
+  realValueAcknowledged: z.literal(true)
+}).strict().superRefine(enforceZeroHistory);
 
-export type ConnectedUnderwritingRequest = z.infer<typeof connectedUnderwritingRequestSchema>;
+type TestnetUnderwritingRequest = z.infer<typeof connectedUnderwritingRequestSchema>;
+export type ConnectedUnderwritingRequest = Omit<TestnetUnderwritingRequest, "schemaVersion" | "label" | "syntheticFixtureAcknowledged"> & {
+  readonly schemaVersion: typeof CONNECTED_TESTNET.schemaVersion | typeof CONNECTED_MAINNET.schemaVersion;
+  readonly label: typeof CONNECTED_TESTNET.label | typeof CONNECTED_MAINNET.label;
+  readonly syntheticFixtureAcknowledged?: true;
+  readonly realValueAcknowledged?: true;
+};
 
 export interface RegisteredInvoiceObservation {
-  readonly chainId: 1952;
-  readonly receivables: typeof CONNECTED_TESTNET.receivables;
-  readonly settlementToken: typeof CONNECTED_TESTNET.settlementToken;
+  readonly chainId: number;
+  readonly receivables: `0x${string}`;
+  readonly settlementToken: `0x${string}`;
   readonly blockNumber: string;
   readonly blockHash: Hex;
   readonly blockTimestamp: number;
@@ -128,9 +158,9 @@ const modelEvidenceSchema = z.object({
   decision: modelDecisionSchema.strict()
 }).strict();
 const registeredObservationSchema = z.object({
-  chainId: z.literal(1952),
-  receivables: z.literal(CONNECTED_TESTNET.receivables),
-  settlementToken: z.literal(CONNECTED_TESTNET.settlementToken),
+  chainId: z.number().int().positive(),
+  receivables: address,
+  settlementToken: address,
   blockNumber: uintString,
   blockHash: bytes32,
   blockTimestamp: z.number().int().nonnegative(),
@@ -152,8 +182,8 @@ const registeredObservationSchema = z.object({
 }).strict();
 const signingRequestSchema = z.object({
   schemaVersion: z.literal("openbell-connected-decision-signing-v1"),
-  label: z.literal(CONNECTED_TESTNET.label),
-  chainId: z.literal("1952"),
+  label: z.string().min(1),
+  chainId: uintString,
   underwriter: address,
   authorizedDigest: bytes32,
   nonce: uintString
@@ -212,23 +242,29 @@ const rejectionTypes = {
     { name: "nonce", type: "uint256" }
   ]
 } as const;
-const domain = { name: "OpenBell Receivables", version: "1", chainId: 1952, verifyingContract: CONNECTED_TESTNET.receivables } as const;
+const domainFor = (deployment: ConnectedDeployment) => ({
+  name: "OpenBell Receivables",
+  version: "1",
+  chainId: deployment.chainId,
+  verifyingContract: deployment.receivables
+} as const);
 const assessmentTypes = { UnderwritingRequest: [
   { name: "invoiceId", type: "bytes32" }, { name: "documentHash", type: "bytes32" },
   { name: "supplier", type: "address" }, { name: "payer", type: "address" }, { name: "funder", type: "address" },
   { name: "faceValue", type: "uint128" }, { name: "requestedAdvance", type: "uint128" }, { name: "evidenceHash", type: "bytes32" }
 ] } as const;
 
-export function connectedAssessmentTypedData(candidate: Omit<ConnectedUnderwritingRequest, "supplierAuthorization">) {
+export function connectedAssessmentTypedData(candidate: Omit<ConnectedUnderwritingRequest, "supplierAuthorization">, deployment: ConnectedDeployment = CONNECTED_TESTNET) {
+  const valueBoundaryAcknowledged = candidate.syntheticFixtureAcknowledged ?? candidate.realValueAcknowledged;
   const evidenceHash = keccak256(stringToHex(canonicalJson({
     registrationTransactionHash: candidate.registrationTransactionHash,
     issuedAt: candidate.issuedAt,
     dueDate: candidate.dueDate,
     payerHistory: candidate.payerHistory,
     redactedContext: candidate.redactedContext,
-    syntheticFixtureAcknowledged: candidate.syntheticFixtureAcknowledged
+    valueBoundaryAcknowledged
   })));
-  return { domain, types: assessmentTypes, primaryType: "UnderwritingRequest" as const, message: {
+  return { domain: domainFor(deployment), types: assessmentTypes, primaryType: "UnderwritingRequest" as const, message: {
     invoiceId: candidate.invoiceId,
     documentHash: candidate.documentHash,
     supplier: candidate.supplier,
@@ -240,7 +276,8 @@ export function connectedAssessmentTypedData(candidate: Omit<ConnectedUnderwriti
   } };
 }
 
-function typedDecision(decision: BoundedDecision, nonce: string): { typedData: Record<string, unknown>; digest: Hex } {
+function typedDecision(decision: BoundedDecision, nonce: string, deployment: ConnectedDeployment): { typedData: Record<string, unknown>; digest: Hex } {
+  const domain = domainFor(deployment);
   if (decision.verdict === "APPROVE") {
     const typedData = { domain, types: approvalTypes, primaryType: "RiskApproval" as const, message: {
       invoiceId: decision.invoiceId as Hex,
@@ -268,8 +305,8 @@ function typedDecision(decision: BoundedDecision, nonce: string): { typedData: R
   return { typedData, digest: hashTypedData(typedData) };
 }
 
-function assertObservation(request: ConnectedUnderwritingRequest, observation: RegisteredInvoiceObservation): void {
-  if (observation.chainId !== CONNECTED_TESTNET.chainId || observation.receivables !== CONNECTED_TESTNET.receivables || observation.settlementToken !== CONNECTED_TESTNET.settlementToken) throw new Error("CONNECTED_OBSERVATION_WRONG_DEPLOYMENT");
+function assertObservation(request: ConnectedUnderwritingRequest, observation: RegisteredInvoiceObservation, deployment: ConnectedDeployment): void {
+  if (observation.chainId !== deployment.chainId || observation.receivables !== deployment.receivables || observation.settlementToken !== deployment.settlementToken) throw new Error("CONNECTED_OBSERVATION_WRONG_DEPLOYMENT");
   if (observation.status !== "REGISTERED" || observation.paused !== false || observation.decisionNonceUnused !== true) throw new Error("CONNECTED_OBSERVATION_NOT_AUTHORIZABLE");
   const pairs: Array<[unknown, unknown]> = [
     [observation.registrationTransactionHash, request.registrationTransactionHash], [observation.invoiceId, request.invoiceId],
@@ -294,24 +331,24 @@ const riskInputFrom = (request: ConnectedUnderwritingRequest, observation: Regis
   payerHistory: request.payerHistory,
   redactedContext: request.redactedContext
 });
-const connectedPolicy = {
-  maxAdvanceBps: CONNECTED_TESTNET.maxAdvanceBps,
-  maxFeeBps: CONNECTED_TESTNET.maxFeeBps,
-  maxRiskAgeSeconds: CONNECTED_TESTNET.maxRiskAgeSeconds,
-  maxDecisionLifetimeSeconds: CONNECTED_TESTNET.maxDecisionLifetimeSeconds,
-  minConfidenceBps: CONNECTED_TESTNET.minConfidenceBps,
-  maxTenorSeconds: CONNECTED_TESTNET.maxTenorSeconds
-} as const;
+const policyFor = (deployment: ConnectedDeployment) => ({
+  maxAdvanceBps: deployment.maxAdvanceBps,
+  maxFeeBps: deployment.maxFeeBps,
+  maxRiskAgeSeconds: deployment.maxRiskAgeSeconds,
+  maxDecisionLifetimeSeconds: deployment.maxDecisionLifetimeSeconds,
+  minConfidenceBps: deployment.minConfidenceBps,
+  maxTenorSeconds: deployment.maxTenorSeconds
+});
 
-function buildUnsignedAssessmentResult(decision: BoundedDecision, observation: RegisteredInvoiceObservation, nonce: string, digest: Hex, modelEvidence: z.infer<typeof modelEvidenceSchema>) {
+function buildUnsignedAssessmentResult(decision: BoundedDecision, observation: RegisteredInvoiceObservation, nonce: string, digest: Hex, modelEvidence: z.infer<typeof modelEvidenceSchema>, deployment: ConnectedDeployment) {
   return {
     decision,
     modelEvidence,
     observation,
     signingRequest: {
       schemaVersion: "openbell-connected-decision-signing-v1" as const,
-      label: CONNECTED_TESTNET.label,
-      chainId: "1952" as const,
+      label: deployment.label,
+      chainId: String(deployment.chainId),
       underwriter: observation.underwriter,
       authorizedDigest: digest,
       nonce
@@ -324,12 +361,14 @@ export class ConnectedUnderwritingService {
     observer: ConnectedInvoiceObserver;
     store: ConnectedDecisionStore;
     modelFactory: () => UnderwritingModel;
+    deployment?: ConnectedDeployment;
   }) {}
 
   async authorize(candidate: unknown): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> {
-    const request = connectedUnderwritingRequestSchema.parse(candidate);
+    const deployment = this.dependencies.deployment ?? CONNECTED_TESTNET;
+    const request = (deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema : mainnetUnderwritingRequestSchema).parse(candidate) as ConnectedUnderwritingRequest;
     const { supplierAuthorization: _supplierAuthorization, ...unsignedRequest } = request;
-    const recoveredSupplier = await recoverTypedDataAddress({ ...connectedAssessmentTypedData(unsignedRequest), signature: request.supplierAuthorization });
+    const recoveredSupplier = await recoverTypedDataAddress({ ...connectedAssessmentTypedData(unsignedRequest, deployment), signature: request.supplierAuthorization });
     if (recoveredSupplier !== request.supplier) throw new Error("CONNECTED_ASSESSMENT_WRONG_SUPPLIER_SIGNATURE");
     const requestJson = canonicalJson(request);
     const requestHash = requestHashOf(request);
@@ -344,21 +383,21 @@ export class ConnectedUnderwritingService {
         const decision = boundedDecisionSchema.parse(record.decision);
         const modelEvidence = modelEvidenceSchema.parse(record.modelEvidence);
         const storedObservation = registeredObservationSchema.parse(record.observation) as RegisteredInvoiceObservation;
-        assertObservation(request, storedObservation);
+        assertObservation(request, storedObservation, deployment);
         const storedInput = riskInputFrom(request, storedObservation);
         const reconstructedDecision = await underwriteInvoice({
           input: storedInput,
           model: { modelId: committedModelId(storedInput, modelEvidence), decide: async () => modelEvidence.decision },
-          policy: connectedPolicy,
+          policy: policyFor(deployment),
           now: storedObservation.blockTimestamp
         });
         if (canonicalJson(reconstructedDecision) !== canonicalJson(decision)) throw new Error("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
-        const { digest } = typedDecision(decision, nonce);
+        const { digest } = typedDecision(decision, nonce, deployment);
         const storedSigningRequest = signingRequestSchema.parse(record.signingRequest);
-        if (storedSigningRequest.underwriter !== storedObservation.underwriter || storedSigningRequest.authorizedDigest !== digest || storedSigningRequest.nonce !== nonce) {
+        if (storedSigningRequest.label !== deployment.label || storedSigningRequest.chainId !== String(deployment.chainId) || storedSigningRequest.underwriter !== storedObservation.underwriter || storedSigningRequest.authorizedDigest !== digest || storedSigningRequest.nonce !== nonce) {
           throw new Error("CONNECTED_DECISION_CORRUPT_SIGNING_REQUEST");
         }
-        const rebuilt = buildUnsignedAssessmentResult(decision, storedObservation, nonce, digest, modelEvidence);
+        const rebuilt = buildUnsignedAssessmentResult(decision, storedObservation, nonce, digest, modelEvidence, deployment);
         if (canonicalJson(rebuilt) !== canonicalJson(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         return rebuilt;
       }
@@ -369,7 +408,7 @@ export class ConnectedUnderwritingService {
     if (!claim.claimed) return returnStored(claim.row);
     try {
       const observation = await this.dependencies.observer.inspect(request, nonce);
-      assertObservation(request, observation);
+      assertObservation(request, observation, deployment);
       const input = riskInputFrom(request, observation);
       const budgetDay = new Date(observation.blockTimestamp * 1_000).toISOString().slice(0, 10);
       if (!await this.dependencies.store.reserveDailyModelCall(budgetDay, 5)) {
@@ -382,7 +421,7 @@ export class ConnectedUnderwritingService {
       if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
       assertModelReasonsSupported(input, modelDecision);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
-      assertObservation(request, postModelObservation);
+      assertObservation(request, postModelObservation, deployment);
       const beforeBlock = BigInt(observation.blockNumber);
       const afterBlock = BigInt(postModelObservation.blockNumber);
       if (afterBlock < beforeBlock || (afterBlock === beforeBlock && postModelObservation.blockHash !== observation.blockHash)) {
@@ -392,11 +431,11 @@ export class ConnectedUnderwritingService {
       const decision = await underwriteInvoice({
         input: postModelInput,
         model: { modelId: committedModelId(postModelInput, modelEvidence), decide: async () => modelDecision },
-        policy: connectedPolicy,
+        policy: policyFor(deployment),
         now: postModelObservation.blockTimestamp
       });
-      const { digest } = typedDecision(decision, nonce);
-      const result = buildUnsignedAssessmentResult(decision, postModelObservation, nonce, digest, modelEvidence);
+      const { digest } = typedDecision(decision, nonce, deployment);
+      const result = buildUnsignedAssessmentResult(decision, postModelObservation, nonce, digest, modelEvidence, deployment);
       const resultJson = JSON.stringify(result);
       await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson);
       return result;

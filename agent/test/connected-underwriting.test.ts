@@ -1,10 +1,12 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { expect, test } from "vitest";
 import {
+  CONNECTED_MAINNET,
   CONNECTED_TESTNET,
   ConnectedUnderwritingService,
   connectedAssessmentTypedData,
   type ConnectedDecisionStore,
+  type ConnectedDeployment,
   type ConnectedUnderwritingRequest,
   type RegisteredInvoiceObservation,
   type StoredConnectedDecision
@@ -100,7 +102,7 @@ const approval: ModelDecision = {
   explanation: BANKR_APPROVAL_EXPLANATION
 };
 
-function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed) {
+function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed, deployment: ConnectedDeployment = CONNECTED_TESTNET) {
   const store = new MemoryStore();
   let observerCalls = 0;
   let modelCalls = 0;
@@ -128,10 +130,70 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
   const service = new ConnectedUnderwritingService({
     store,
     observer: { async inspect() { observerCalls += 1; return observerCalls === 1 ? observed : postObserved; } },
-    modelFactory: () => model
+    modelFactory: () => model,
+    deployment
   });
   return { service, store, calls: () => ({ observerCalls, modelCalls }), capturedInput: () => capturedInput };
 }
+
+test("mainnet requests bind the genuine-value acknowledgement, chain-196 domain and production deployment", async () => {
+  const { syntheticFixtureAcknowledged: _fixtureBoundary, ...commonRequest } = unsignedRequest;
+  const unsignedMainnet: Omit<ConnectedUnderwritingRequest, "supplierAuthorization"> = {
+    ...commonRequest,
+    schemaVersion: CONNECTED_MAINNET.schemaVersion,
+    label: CONNECTED_MAINNET.label,
+    realValueAcknowledged: true
+  };
+  const mainnetRequest: ConnectedUnderwritingRequest = {
+    ...unsignedMainnet,
+    supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(unsignedMainnet, CONNECTED_MAINNET))
+  };
+  const mainnetObservation = observation({
+    chainId: CONNECTED_MAINNET.chainId,
+    receivables: CONNECTED_MAINNET.receivables,
+    settlementToken: CONNECTED_MAINNET.settlementToken,
+    registrationTransactionHash: mainnetRequest.registrationTransactionHash,
+    invoiceId: mainnetRequest.invoiceId,
+    documentHash: mainnetRequest.documentHash,
+    supplier: mainnetRequest.supplier,
+    payer: mainnetRequest.payer,
+    faceValue: mainnetRequest.faceValue,
+    issuedAt: mainnetRequest.issuedAt,
+    dueDate: mainnetRequest.dueDate
+  });
+  const h = harness(approval, mainnetObservation, mainnetObservation, CONNECTED_MAINNET);
+  const result = await h.service.authorize(mainnetRequest);
+  expect(result.signingRequest).toMatchObject({ label: CONNECTED_MAINNET.label, chainId: "196" });
+  expect(result.observation).toMatchObject({ chainId: 196, receivables: CONNECTED_MAINNET.receivables, settlementToken: CONNECTED_MAINNET.settlementToken });
+  await expect(h.service.authorize({ ...mainnetRequest, realValueAcknowledged: undefined })).rejects.toThrow();
+});
+
+test("mainnet service rejects a correctly signed testnet request before chain observation or model use", async () => {
+  const h = harness(approval, observation(), observation(), CONNECTED_MAINNET);
+  await expect(h.service.authorize(request)).rejects.toThrow();
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
+  expect(h.store.rows.size).toBe(0);
+});
+
+test("mainnet service rejects supplier authority signed for the testnet EIP-712 domain", async () => {
+  const { syntheticFixtureAcknowledged: _fixtureBoundary, ...commonRequest } = unsignedRequest;
+  const unsignedMainnet: Omit<ConnectedUnderwritingRequest, "supplierAuthorization"> = {
+    ...commonRequest,
+    schemaVersion: CONNECTED_MAINNET.schemaVersion,
+    label: CONNECTED_MAINNET.label,
+    realValueAcknowledged: true
+  };
+  const wrongDomainSignature = await supplier.signTypedData(connectedAssessmentTypedData(unsignedMainnet, CONNECTED_TESTNET));
+  const mainnetObservation = observation({
+    chainId: CONNECTED_MAINNET.chainId,
+    receivables: CONNECTED_MAINNET.receivables,
+    settlementToken: CONNECTED_MAINNET.settlementToken
+  });
+  const h = harness(approval, mainnetObservation, mainnetObservation, CONNECTED_MAINNET);
+  await expect(h.service.authorize({ ...unsignedMainnet, supplierAuthorization: wrongDomainSignature })).rejects.toThrow("CONNECTED_ASSESSMENT_WRONG_SUPPLIER_SIGNATURE");
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
+  expect(h.store.rows.size).toBe(0);
+});
 
 test("registered objective evidence produces an unsigned bounded assessment and durable byte replay", async () => {
   const h = harness(approval);

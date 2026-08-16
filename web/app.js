@@ -118,6 +118,8 @@ if (dealForm) {
   const dueInput = document.querySelector("#deal-due");
   const nonceInput = document.querySelector("#deal-nonce");
   const targetInput = document.querySelector("#deal-target");
+  const requestedTarget = new URL(globalThis.location.href).searchParams.get("target");
+  if (requestedTarget === "mainnet" || requestedTarget === "testnet") targetInput.value = requestedTarget;
   const faceSymbol = document.querySelector("#deal-face-symbol");
   const requestSymbol = document.querySelector("#deal-request-symbol");
   const documentInput = document.querySelector("#deal-document");

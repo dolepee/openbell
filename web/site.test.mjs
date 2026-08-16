@@ -61,14 +61,15 @@ test("public proof has exact semantic parity with only accepted local block-hash
 });
 
 test("multi-page launch surface separates product, deal preparation, verified cases, proof, and architecture", async () => {
-  const [overview, studio, workspace, proof, architecture] = await Promise.all([
+  const [overview, studio, mainnet, workspace, proof, architecture] = await Promise.all([
     read("./index.html"),
     read("./studio/index.html"),
+    read("./mainnet/index.html"),
     read("./workspace/index.html"),
     read("./proof/index.html"),
     read("./architecture/index.html")
   ]);
-  const pages = [overview, studio, workspace, proof, architecture];
+  const pages = [overview, studio, mainnet, workspace, proof, architecture];
   for (const page of pages) {
     assert.match(page, /<div class="nav-right">/);
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
@@ -76,12 +77,17 @@ test("multi-page launch surface separates product, deal preparation, verified ca
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
   assert.match(overview, /One invoice\.<br \/>Three limits\.<br \/><em>Zero ambiguity\.<\/em>/);
   assert.match(overview, /min\(request, model, code\)/);
-  assert.match(overview, /href="\/operate\/">Try the connected journey/);
+  assert.match(overview, /href="\/mainnet\/">Open live USDG desk/);
+  assert.match(overview, /href="\/operate\/">Testnet desk/);
   assert.match(overview, /No mainnet lifecycle or real-value activity/);
   assert.match(studio, /BROWSER-ONLY PREPARATION/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
   assert.match(studio, /AI assessment and both-party signatures happen after this boundary/);
+  assert.match(mainnet, /data-network="mainnet"/);
+  assert.match(mainnet, /<title>Live USDG desk — OpenBell<\/title>/);
+  assert.match(mainnet, /canonical USDG on X Layer mainnet/);
+  assert.match(mainnet, /rel="canonical" href="https:\/\/openbell\.dolepee\.com\/mainnet\/"/);
   assert.match(workspace, /Bankr-mediated GPT-5\.6 Terra · first response/);
   assert.match(workspace, /data-invoice="approved"/);
   assert.match(workspace, /data-invoice="rejected"/);
@@ -174,6 +180,8 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(operate, /id="action-file"[^>]+aria-describedby="action-help action-error"[^>]+aria-invalid="false"/);
   assert.match(operate, /id="execute-action"[^>]+disabled[^>]+aria-busy="false"/);
   assert.match(testnetModule, /chainId: 1952/);
+  assert.match(testnetModule, /chainId: 196/);
+  assert.match(testnetModule, /Fixture-token claims are forbidden on mainnet/);
   assert.match(testnetModule, /recoverTypedDataAddress/);
   assert.match(studio, /<form id="review-form" class="review-import"/);
   assert.match(studio, /<input id="review-file"[^>]+type="file"[^>]+aria-describedby="review-help review-error"/);
@@ -193,6 +201,7 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /const invalidatePreparedPackage = \(\) =>/);
   assert.match(script, /const symbol = dealPackage\.target\.settlementTokenSymbol/);
   assert.match(script, /targetInput\.addEventListener\("input", renderTargetLabels\)/);
+  assert.match(script, /requestedTarget === "mainnet" \|\| requestedTarget === "testnet"/);
   assert.match(script, /const studioOperationGuard = createPreparationGuard\(\)/);
   assert.match(script, /studioOperationGuard\.invalidate\(\)/);
   assert.match(script, /const preparationRevision = studioOperationGuard\.begin\(\)/);

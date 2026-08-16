@@ -1,5 +1,6 @@
 import { formatUnits } from "viem";
 import {
+  OPENBELL_MAINNET_CONNECTED,
   OPENBELL_TESTNET,
   addInvoiceSessionSignature,
   assertActionAgainstInvoice,
@@ -19,6 +20,53 @@ import {
   validateBrowserAction,
   validateInvoiceSession
 } from "../testnet-flow.mjs";
+
+const isMainnet = document.body.dataset.network === "mainnet" || globalThis.location?.pathname.startsWith("/mainnet");
+const ACTIVE_DEPLOYMENT = isMainnet ? OPENBELL_MAINNET_CONNECTED : OPENBELL_TESTNET;
+const ACTIVE_TOKEN_LABEL = isMainnet ? "USDG" : "fixture tUSDG";
+const UNDERWRITING_ENDPOINT = isMainnet ? "/api/mainnet-underwriting" : "/api/connected-underwriting";
+
+const configureMainnetSurface = () => {
+  if (!isMainnet) return;
+  document.body.dataset.network = "mainnet";
+  document.title = "Live USDG desk — OpenBell";
+  document.querySelector('link[rel="canonical"]')?.setAttribute("href", "https://openbell.dolepee.com/mainnet/");
+  document.querySelector('meta[name="description"]')?.setAttribute("content", "A fail-closed browser desk for exact OpenBell actions using real USDG on X Layer mainnet.");
+  document.querySelector('meta[property="og:url"]')?.setAttribute("content", "https://openbell.dolepee.com/mainnet/");
+  document.querySelector('meta[property="og:title"]')?.setAttribute("content", "OpenBell live USDG desk");
+  document.querySelector('meta[property="og:description"]')?.setAttribute("content", "A bounded receivables journey where AI proposes terms and X Layer enforces the smallest authorized amount.");
+  const status = document.querySelector(".status-bar");
+  if (status) status.innerHTML = "<span><i class=\"status-dot\"></i> XLAYER MAINNET</span><span>REAL USDG</span><span>EXACT ACTIONS ONLY</span>";
+  const currentNav = document.querySelector('.desktop-nav a[aria-current="page"]');
+  if (currentNav) { currentNav.href = "/mainnet/"; currentNav.textContent = "Live USDG desk"; }
+  const hero = document.querySelector(".operate-hero");
+  if (hero) hero.innerHTML = '<div><p class="overline">OPENBELL · LIVE USDG EXECUTION</p><h1>AI proposes.<br />X Layer limits.</h1></div><p>Prepare a real receivable, bind supplier and payer signatures, and move only the smallest amount permitted by the supplier request, AI decision, and immutable 80% contract ceiling.</p>';
+  const readiness = document.querySelector(".operate-readiness");
+  if (readiness) readiness.innerHTML = '<div class="readiness-copy"><p class="overline">BEFORE REAL VALUE MOVES</p><h2 id="readiness-title">Three independent roles. One genuine receivable.</h2><p>The supplier, payer, and funder must use distinct X Layer mainnet addresses. The payer acknowledges the underlying invoice; the funder provides canonical USDG only after the bounded decision is signed.</p></div><ol><li><span>01</span><div><strong>Prepare the genuine invoice</strong><small>Commit the source document locally; OpenBell never uploads it.</small></div></li><li><span>02</span><div><strong>Supplier and payer sign</strong><small>Both wallets authorize the same numeric chain-196 EIP-712 terms.</small></div></li><li><span>03</span><div><strong>Run bounded underwriting</strong><small>AI may tighten or refuse the request; it cannot exceed the contract ceiling.</small></div></li><li><span>04</span><div><strong>Fund and settle in USDG</strong><small>Every transaction is simulated, role-bound, and confirmed on X Layer.</small></div></li></ol><div class="readiness-actions"><a class="button button-primary" href="/studio/?target=mainnet">Prepare mainnet deal</a><a class="button button-secondary" href="/proof/" rel="noreferrer">Inspect deployment proof ↗</a></div>';
+  const fixtureControl = document.querySelector(".fixture-claim-control");
+  if (fixtureControl) fixtureControl.hidden = true;
+  const sessionCopy = document.querySelector(".session-load > p:not(.overline)");
+  if (sessionCopy) sessionCopy.textContent = "Load a mainnet deal from the Studio, or continue the exact session received from the other party. The document stays local; each wallet signs the same chain-196 digest.";
+  const sessionHelp = document.querySelector("#session-help");
+  if (sessionHelp) sessionHelp.textContent = "Only the verified chain-196 OpenBell contract and canonical USDG are accepted.";
+  const walletCard = document.querySelector(".operate-grid .operate-card");
+  if (walletCard) {
+    walletCard.querySelector("header b").textContent = "CHAIN 196";
+    walletCard.querySelector("h2").textContent = "Bring the exact role wallet.";
+    const note = walletCard.querySelector(":scope > small");
+    if (note) note.textContent = "Supplier registers or rejects. Funder approves and funds with USDG. Payer approves and settles. No wallet can act for another role.";
+  }
+  const amountLabel = document.querySelector("#action-amount")?.closest("div")?.querySelector("dt");
+  if (amountLabel) amountLabel.textContent = "USDG amount";
+  const receiptCopy = document.querySelector(".operate-receipt > p");
+  if (receiptCopy) receiptCopy.textContent = "The transaction landed on X Layer mainnet. Open the receipt and verify the exact contract, signer, and canonical USDG amount.";
+  const assessmentContext = document.querySelector("#assessment-context");
+  if (assessmentContext) assessmentContext.value = "Authorized evidence for a genuine receivable. No confidential document content is included.";
+  const boundary = document.querySelector(".operate-boundary");
+  if (boundary) boundary.innerHTML = '<div><p class="overline">LIVE PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Real settlement, bounded authority.</h2></div><p>OpenBell verifies signatures, observes confirmed registration through two official RPCs, obtains one genuine model response, and reconstructs exact USDG actions. It does not verify legal invoice validity, guarantee financing, or let the model custody funds.</p>';
+};
+
+configureMainnetSurface();
 
 const provider = globalThis.ethereum;
 const connectButton = document.querySelector("#connect-wallet");
@@ -69,7 +117,8 @@ const setBusy = (busy, text) => {
   executeButton.querySelector("span").textContent = text;
 };
 const setFixtureClaimBusy = (busy, text) => {
-  claimFixtureButton.disabled = busy || !account || chainId !== OPENBELL_TESTNET.chainId;
+  if (!claimFixtureButton) return;
+  claimFixtureButton.disabled = isMainnet || busy || !account || chainId !== OPENBELL_TESTNET.chainId;
   claimFixtureButton.setAttribute("aria-busy", String(busy));
   claimFixtureButton.textContent = text;
 };
@@ -100,13 +149,13 @@ const refreshSessionState = () => {
   const payer = invoiceSession.dealPackage.invoiceTerms.payer;
   const role = account?.toLowerCase() === supplier.toLowerCase() ? "supplierSignature"
     : account?.toLowerCase() === payer.toLowerCase() ? "payerSignature" : null;
-  signInvoiceButton.disabled = !role || invoiceSession[role] !== null || chainId !== OPENBELL_TESTNET.chainId;
+  signInvoiceButton.disabled = !role || invoiceSession[role] !== null || chainId !== ACTIVE_DEPLOYMENT.chainId;
   downloadSessionButton.disabled = false;
   downloadRegistrationButton.disabled = invoiceSession.supplierSignature === null || invoiceSession.payerSignature === null;
 };
 const refreshDecisionState = () => {
   const expected = pendingAssessment?.signingRequest?.underwriter?.toLowerCase();
-  signDecisionButton.disabled = !expected || account?.toLowerCase() !== expected || chainId !== OPENBELL_TESTNET.chainId;
+  signDecisionButton.disabled = !expected || account?.toLowerCase() !== expected || chainId !== ACTIVE_DEPLOYMENT.chainId;
   downloadAssessmentButton.disabled = !pendingAssessment;
 };
 const renderWallet = () => {
@@ -116,7 +165,7 @@ const renderWallet = () => {
     ? "Install an EIP-1193 wallet to use the connected desk."
     : connected ? `Connected · chain ${chainId ?? "unknown"}` : "No wallet connected. Nothing can be signed or sent.";
   connectButton.setAttribute("aria-pressed", String(connected));
-  setFixtureClaimBusy(false, "Review fixture tUSDG claim");
+  if (!isMainnet) setFixtureClaimBusy(false, "Review fixture tUSDG claim");
   refreshExecutionState();
   refreshSessionState();
   refreshDecisionState();
@@ -128,17 +177,17 @@ const refreshWallet = async ({ requestAccounts = false } = {}) => {
   chainId = Number.parseInt(await rpc("eth_chainId"), 16);
   renderWallet();
 };
-const switchToTestnet = async () => {
+const switchToActiveNetwork = async () => {
   try {
-    await rpc("wallet_switchEthereumChain", [{ chainId: OPENBELL_TESTNET.chainHex }]);
+    await rpc("wallet_switchEthereumChain", [{ chainId: ACTIVE_DEPLOYMENT.chainHex }]);
   } catch (error) {
     if (error?.code !== 4902) throw error;
     await rpc("wallet_addEthereumChain", [{
-      chainId: OPENBELL_TESTNET.chainHex,
-      chainName: "X Layer Testnet",
+      chainId: ACTIVE_DEPLOYMENT.chainHex,
+      chainName: isMainnet ? "X Layer Mainnet" : "X Layer Testnet",
       nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
-      rpcUrls: ["https://testrpc.xlayer.tech/terigon"],
-      blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer-test"]
+      rpcUrls: [isMainnet ? "https://rpc.xlayer.tech" : "https://testrpc.xlayer.tech/terigon"],
+      blockExplorerUrls: [isMainnet ? "https://www.okx.com/web3/explorer/xlayer" : "https://www.okx.com/web3/explorer/xlayer-test"]
     }]);
   }
   await refreshWallet();
@@ -148,7 +197,7 @@ connectButton?.addEventListener("click", async () => {
   try {
     setError();
     await refreshWallet({ requestAccounts: true });
-    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
+    if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
   } catch (error) {
     setError(error instanceof Error ? error.message : "Wallet connection failed.");
   }
@@ -159,7 +208,7 @@ const renderAction = () => {
   setText("#action-signer", action.signer);
   setText("#action-target", action.to);
   setText("#action-value", "0 OKB");
-  setText("#action-amount", action.amount === null ? "Not applicable" : `${formatUnits(action.amount, 6)} fixture tUSDG`);
+  setText("#action-amount", action.amount === null ? "Not applicable" : `${formatUnits(action.amount, 6)} ${ACTIVE_TOKEN_LABEL}`);
   setText("#action-calldata", compact(action.data));
   actionPanel.hidden = false;
   actionPanel.focus();
@@ -171,7 +220,8 @@ claimFixtureButton?.addEventListener("click", async () => {
   receiptPanel.hidden = true;
   try {
     if (!account) throw new Error("Connect the funder or payer account first.");
-    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
+    if (isMainnet) throw new Error("Fixture-token claims are unavailable on mainnet.");
+    if (chainId !== OPENBELL_TESTNET.chainId) await switchToActiveNetwork();
     action = await createFixtureClaimAction(account);
     renderAction();
   } catch (error) {
@@ -221,7 +271,7 @@ sessionForm?.addEventListener("submit", async (event) => {
   sessionError.textContent = "";
   try {
     const file = sessionFile.files?.[0];
-    if (!file) throw new Error("Select one unsigned testnet deal or invoice session.");
+    if (!file) throw new Error(`Select one unsigned ${isMainnet ? "mainnet" : "testnet"} deal or invoice session.`);
     if (file.size > 256 * 1024) throw new Error("Invoice handoff exceeds the 256 KiB browser limit.");
     const parsed = JSON.parse(await file.text());
     invoiceSession = parsed.schemaVersion === "openbell-receivables-deal-preparation-v1"
@@ -237,8 +287,8 @@ sessionForm?.addEventListener("submit", async (event) => {
 signInvoiceButton?.addEventListener("click", async () => {
   try {
     if (!invoiceSession || !account) throw new Error("Connect the supplier or payer wallet first.");
-    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
-    const typedData = walletInvoiceTypedData(invoiceSession.dealPackage.invoiceTerms);
+    if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
+    const typedData = walletInvoiceTypedData(invoiceSession.dealPackage.invoiceTerms, ACTIVE_DEPLOYMENT);
     const json = JSON.stringify(typedData, (_, value) => typeof value === "bigint" ? value.toString() : value);
     const signature = await rpc("eth_signTypedData_v4", [account, json]);
     invoiceSession = await addInvoiceSessionSignature(invoiceSession, account, signature);
@@ -289,7 +339,7 @@ executeButton?.addEventListener("click", async () => {
       ]);
       fixtureClaimBefore = assertFixtureClaimAvailable(executingAction, { hasClaimedResult, balanceResult, faucetAmountResult });
     } else {
-      const invoiceResult = await rpc("eth_call", [{ to: OPENBELL_TESTNET.receivables, data: buildInvoiceStateCall(executingAction.invoiceId) }, "latest"]);
+      const invoiceResult = await rpc("eth_call", [{ to: ACTIVE_DEPLOYMENT.receivables, data: buildInvoiceStateCall(executingAction.invoiceId) }, "latest"]);
       assertActionAgainstInvoice(executingAction, invoiceResult, Math.floor(Date.now() / 1_000));
     }
     await rpc("eth_call", [transaction, "latest"]);
@@ -311,7 +361,7 @@ executeButton?.addEventListener("click", async () => {
       setFixtureClaimBusy(false, "Fixture tUSDG claimed");
       claimFixtureButton.disabled = true;
     }
-    receiptLink.href = `${OPENBELL_TESTNET.explorerTransactionBase}${transactionHash}`;
+    receiptLink.href = `${ACTIVE_DEPLOYMENT.explorerTransactionBase}${transactionHash}`;
     receiptLink.textContent = compact(transactionHash);
     receiptPanel.hidden = false;
     receiptPanel.focus();
@@ -337,7 +387,7 @@ assessmentForm?.addEventListener("submit", async (event) => {
   try {
     if (!invoiceSession || !registrationTransactionHash) throw new Error("Confirm the registration transaction first.");
     if (!account || account.toLowerCase() !== invoiceSession.dealPackage.invoiceTerms.supplier.toLowerCase()) throw new Error("Connect the registered supplier wallet.");
-    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
+    if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
     if (!document.querySelector("#assessment-consent").checked) throw new Error("Confirm the single-attempt model boundary.");
     button.disabled = true;
     button.setAttribute("aria-busy", "true");
@@ -362,7 +412,7 @@ assessmentForm?.addEventListener("submit", async (event) => {
     const supplierAuthorization = await rpc("eth_signTypedData_v4", [account, signingJson]);
     const authorized = await buildConnectedAssessmentRequest({ ...fields, supplierAuthorization });
     button.textContent = "Verifying chain and assessing…";
-    const response = await fetch("/api/connected-underwriting", {
+    const response = await fetch(UNDERWRITING_ENDPOINT, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(authorized)
@@ -374,7 +424,7 @@ assessmentForm?.addEventListener("submit", async (event) => {
     connectedDecisionTypedData(result);
     pendingAssessment = result;
     setText("#assessment-verdict", result.decision.verdict === "REJECT" ? "Rejection assessed · awaiting underwriter." : "Terms assessed · awaiting underwriter.");
-    setText("#assessment-economics", result.decision.verdict === "REJECT" ? "No execution authority exists until the underwriter signs." : `${formatUnits(BigInt(result.decision.advanceAmount), 6)} fixture tUSDG advance · ${formatUnits(BigInt(result.decision.repaymentAmount), 6)} due · unsigned`);
+    setText("#assessment-economics", result.decision.verdict === "REJECT" ? "No execution authority exists until the underwriter signs." : `${formatUnits(BigInt(result.decision.advanceAmount), 6)} ${ACTIVE_TOKEN_LABEL} advance · ${formatUnits(BigInt(result.decision.repaymentAmount), 6)} due · unsigned`);
     setText("#assessment-provider", `${result.modelEvidence.requestedModel} · response ${compact(result.modelEvidence.providerResponseId)} · first attempt sealed`);
     const actionsNode = document.querySelector("#assessment-actions");
     actionsNode.replaceChildren();
@@ -398,7 +448,7 @@ signDecisionButton?.addEventListener("click", async () => {
   assessmentError.textContent = "";
   try {
     if (!pendingAssessment) throw new Error("No unsigned assessment is ready.");
-    if (chainId !== OPENBELL_TESTNET.chainId) await switchToTestnet();
+    if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
     if (account?.toLowerCase() !== pendingAssessment.signingRequest.underwriter.toLowerCase()) throw new Error("Connect the current underwriter wallet.");
     signDecisionButton.disabled = true;
     signDecisionButton.textContent = "Awaiting underwriter signature…";

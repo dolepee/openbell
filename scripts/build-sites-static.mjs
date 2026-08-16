@@ -13,7 +13,7 @@ await rm(distRoot, { recursive: true, force: true });
 await mkdir(clientRoot, { recursive: true });
 await mkdir(serverRoot, { recursive: true });
 
-for (const path of ["index.html", "app.js", "deal-package.mjs", "styles.css", "data", "public", "studio", "operate", "workspace", "proof", "architecture"]) {
+for (const path of ["index.html", "app.js", "deal-package.mjs", "styles.css", "data", "public", "studio", "operate", "mainnet", "workspace", "proof", "architecture"]) {
   await cp(resolve(webRoot, path), resolve(clientRoot, path), { recursive: true });
 }
 
@@ -42,7 +42,7 @@ await writeFile(
       compatibility_date: "2026-08-12",
       compatibility_flags: ["nodejs_compat"],
       no_bundle: true,
-      assets: { directory: "../client" },
+      assets: { directory: "../client", binding: "ASSETS" },
       observability: { enabled: true },
     },
     null,

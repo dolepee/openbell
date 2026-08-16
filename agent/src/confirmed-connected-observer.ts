@@ -9,6 +9,7 @@ import {
 } from "viem";
 import {
   CONNECTED_TESTNET,
+  type ConnectedDeployment,
   type ConnectedInvoiceObserver,
   type ConnectedUnderwritingRequest,
   type RegisteredInvoiceObservation
@@ -43,7 +44,7 @@ const abi = [
   ] }
 ] as const;
 const invoiceTypes = { InvoiceTerms: invoiceComponents } as const;
-const domain = { name: "OpenBell Receivables", version: "1", chainId: 1952, verifyingContract: CONNECTED_TESTNET.receivables } as const;
+const domainFor = (deployment: ConnectedDeployment) => ({ name: "OpenBell Receivables", version: "1", chainId: deployment.chainId, verifyingContract: deployment.receivables } as const);
 
 const hex = (value: unknown, label: string): Hex => {
   if (typeof value !== "string" || !/^0x[0-9a-fA-F]+$/.test(value)) throw new Error(`CONNECTED_RPC_INVALID_${label}`);
@@ -63,21 +64,21 @@ const exactAddress = (value: unknown, label: string) => {
   if (typeof value !== "string") throw new Error(`CONNECTED_RPC_INVALID_${label}`);
   try { return getAddress(value); } catch { throw new Error(`CONNECTED_RPC_INVALID_${label}`); }
 };
-const call = async (rpc: ReadOnlyJsonRpc, data: Hex, block: Hex): Promise<Hex> => hex(await rpc.request("eth_call", [{ to: CONNECTED_TESTNET.receivables, data }, block]), "CALL_RESULT");
-const read = async <T>(rpc: ReadOnlyJsonRpc, functionName: "settlementToken" | "underwriter" | "paused" | "usedDecisionNonces" | "usedDocumentHashes" | "usedInvoiceDigests" | "invoices" | "hashInvoice", args: readonly unknown[], block: Hex): Promise<T> => {
+const call = async (rpc: ReadOnlyJsonRpc, deployment: ConnectedDeployment, data: Hex, block: Hex): Promise<Hex> => hex(await rpc.request("eth_call", [{ to: deployment.receivables, data }, block]), "CALL_RESULT");
+const read = async <T>(rpc: ReadOnlyJsonRpc, deployment: ConnectedDeployment, functionName: "settlementToken" | "underwriter" | "paused" | "usedDecisionNonces" | "usedDocumentHashes" | "usedInvoiceDigests" | "invoices" | "hashInvoice", args: readonly unknown[], block: Hex): Promise<T> => {
   const data = encodeFunctionData({ abi, functionName, args: args as never });
-  return decodeFunctionResult({ abi, functionName, data: await call(rpc, data, block) }) as T;
+  return decodeFunctionResult({ abi, functionName, data: await call(rpc, deployment, data, block) }) as T;
 };
 
 const MINIMUM_CONFIRMATIONS = 12n;
 
-async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwritingRequest, nonce: string, verificationBlock: bigint): Promise<RegisteredInvoiceObservation> {
-  if (quantity(await rpc.request("eth_chainId", []), "CHAIN_ID") !== 1952n) throw new Error("CONNECTED_RPC_WRONG_CHAIN");
+async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwritingRequest, nonce: string, verificationBlock: bigint, deployment: ConnectedDeployment): Promise<RegisteredInvoiceObservation> {
+  if (quantity(await rpc.request("eth_chainId", []), "CHAIN_ID") !== BigInt(deployment.chainId)) throw new Error("CONNECTED_RPC_WRONG_CHAIN");
   const blockTag = `0x${verificationBlock.toString(16)}` as Hex;
   const transaction = object(await rpc.request("eth_getTransactionByHash", [request.registrationTransactionHash]), "TRANSACTION");
   const receipt = object(await rpc.request("eth_getTransactionReceipt", [request.registrationTransactionHash]), "RECEIPT");
   if (hash(transaction.hash, "TX_HASH") !== request.registrationTransactionHash || hash(receipt.transactionHash, "RECEIPT_TX_HASH") !== request.registrationTransactionHash) throw new Error("CONNECTED_RPC_TRANSACTION_HASH_MISMATCH");
-  if (exactAddress(transaction.to, "TX_TO") !== CONNECTED_TESTNET.receivables || exactAddress(receipt.to, "RECEIPT_TO") !== CONNECTED_TESTNET.receivables) throw new Error("CONNECTED_RPC_WRONG_CONTRACT");
+  if (exactAddress(transaction.to, "TX_TO") !== deployment.receivables || exactAddress(receipt.to, "RECEIPT_TO") !== deployment.receivables) throw new Error("CONNECTED_RPC_WRONG_CONTRACT");
   if (quantity(transaction.value, "TX_VALUE") !== 0n || receipt.status !== "0x1") throw new Error("CONNECTED_RPC_FAILED_OR_VALUE_TRANSACTION");
   const receiptBlock = quantity(receipt.blockNumber, "RECEIPT_BLOCK");
   if (receiptBlock > verificationBlock) throw new Error("CONNECTED_RPC_UNCONFIRMED_TRANSACTION");
@@ -107,20 +108,20 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
   };
   if (exactAddress(transaction.from, "TX_FROM") !== normalizedTerms.supplier) throw new Error("CONNECTED_RPC_WRONG_REGISTRATION_SENDER");
   if (exactAddress(receipt.from, "RECEIPT_FROM") !== normalizedTerms.supplier) throw new Error("CONNECTED_RPC_WRONG_RECEIPT_SENDER");
-  const typedData = { domain, types: invoiceTypes, primaryType: "InvoiceTerms" as const, message: normalizedTerms };
+  const typedData = { domain: domainFor(deployment), types: invoiceTypes, primaryType: "InvoiceTerms" as const, message: normalizedTerms };
   const localDigest = hashTypedData(typedData);
   if (await recoverTypedDataAddress({ ...typedData, signature: supplierSignature }) !== normalizedTerms.supplier) throw new Error("CONNECTED_RPC_WRONG_SUPPLIER_SIGNATURE");
   if (await recoverTypedDataAddress({ ...typedData, signature: payerSignature }) !== normalizedTerms.payer) throw new Error("CONNECTED_RPC_WRONG_PAYER_SIGNATURE");
-  const contractDigest = await read<Hex>(rpc, "hashInvoice", [normalizedTerms], blockTag);
+  const contractDigest = await read<Hex>(rpc, deployment, "hashInvoice", [normalizedTerms], blockTag);
   if (localDigest !== contractDigest.toLowerCase()) throw new Error("CONNECTED_RPC_INVOICE_DIGEST_MISMATCH");
 
-  const settlementToken = getAddress(await read<string>(rpc, "settlementToken", [], blockTag));
-  const underwriter = getAddress(await read<string>(rpc, "underwriter", [], blockTag));
-  const paused = await read<boolean>(rpc, "paused", [], blockTag);
-  const usedNonce = await read<boolean>(rpc, "usedDecisionNonces", [underwriter, BigInt(nonce)], blockTag);
-  const [status, supplier, payer, , faceValue, , , dueDate, documentHash, invoiceDigest] = await read<readonly [number, `0x${string}`, `0x${string}`, `0x${string}`, bigint, bigint, bigint, bigint, Hex, Hex, Hex]>(rpc, "invoices", [request.invoiceId], blockTag);
-  const documentHashRegistered = await read<boolean>(rpc, "usedDocumentHashes", [request.documentHash], blockTag);
-  const invoiceDigestRegistered = await read<boolean>(rpc, "usedInvoiceDigests", [invoiceDigest], blockTag);
+  const settlementToken = getAddress(await read<string>(rpc, deployment, "settlementToken", [], blockTag));
+  const underwriter = getAddress(await read<string>(rpc, deployment, "underwriter", [], blockTag));
+  const paused = await read<boolean>(rpc, deployment, "paused", [], blockTag);
+  const usedNonce = await read<boolean>(rpc, deployment, "usedDecisionNonces", [underwriter, BigInt(nonce)], blockTag);
+  const [status, supplier, payer, , faceValue, , , dueDate, documentHash, invoiceDigest] = await read<readonly [number, `0x${string}`, `0x${string}`, `0x${string}`, bigint, bigint, bigint, bigint, Hex, Hex, Hex]>(rpc, deployment, "invoices", [request.invoiceId], blockTag);
+  const documentHashRegistered = await read<boolean>(rpc, deployment, "usedDocumentHashes", [request.documentHash], blockTag);
+  const invoiceDigestRegistered = await read<boolean>(rpc, deployment, "usedInvoiceDigests", [invoiceDigest], blockTag);
   if (Number(status) !== 1 || paused || usedNonce || !documentHashRegistered || !invoiceDigestRegistered) throw new Error("CONNECTED_RPC_INVOICE_NOT_AUTHORIZABLE");
   const finalPinned = object(await rpc.request("eth_getBlockByNumber", [blockTag, false]), "FINAL_PINNED_BLOCK");
   if (hash(finalPinned.hash, "FINAL_PINNED_HASH") !== verificationBlockHash || quantity(finalPinned.number, "FINAL_PINNED_NUMBER") !== verificationBlock) throw new Error("CONNECTED_RPC_PINNED_REORG");
@@ -128,9 +129,9 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
   if (hash(finalReceiptBlock.hash, "FINAL_RECEIPT_HASH") !== receiptBlockHash || quantity(finalReceiptBlock.number, "FINAL_RECEIPT_NUMBER") !== receiptBlock) throw new Error("CONNECTED_RPC_RECEIPT_REORG");
 
   return {
-    chainId: 1952,
-    receivables: CONNECTED_TESTNET.receivables,
-    settlementToken: settlementToken as typeof CONNECTED_TESTNET.settlementToken,
+    chainId: deployment.chainId,
+    receivables: deployment.receivables,
+    settlementToken,
     blockNumber: verificationBlock.toString(),
     blockHash: verificationBlockHash,
     blockTimestamp,
@@ -153,7 +154,7 @@ async function inspectProvider(rpc: ReadOnlyJsonRpc, request: ConnectedUnderwrit
 }
 
 export class TwoProviderConnectedInvoiceObserver implements ConnectedInvoiceObserver {
-  constructor(readonly providers: readonly [ReadOnlyJsonRpc, ReadOnlyJsonRpc]) {
+  constructor(readonly providers: readonly [ReadOnlyJsonRpc, ReadOnlyJsonRpc], readonly deployment: ConnectedDeployment = CONNECTED_TESTNET) {
     if (providers[0].label === providers[1].label) throw new Error("CONNECTED_RPC_PROVIDERS_MUST_BE_DISTINCT");
   }
   async inspect(request: ConnectedUnderwritingRequest, decisionNonce: string): Promise<RegisteredInvoiceObservation> {
@@ -163,8 +164,8 @@ export class TwoProviderConnectedInvoiceObserver implements ConnectedInvoiceObse
     ]);
     const verificationBlock = firstHead < secondHead ? firstHead : secondHead;
     const [first, second] = await Promise.all([
-      inspectProvider(this.providers[0], request, decisionNonce, verificationBlock),
-      inspectProvider(this.providers[1], request, decisionNonce, verificationBlock)
+      inspectProvider(this.providers[0], request, decisionNonce, verificationBlock, this.deployment),
+      inspectProvider(this.providers[1], request, decisionNonce, verificationBlock, this.deployment)
     ]);
     if (JSON.stringify(first) !== JSON.stringify(second)) throw new Error("CONNECTED_RPC_PROVIDER_DIVERGENCE");
     return first;

@@ -1,5 +1,12 @@
 import { TwoProviderConnectedInvoiceObserver, type ReadOnlyJsonRpc } from "../agent/src/confirmed-connected-observer.js";
-import { ConnectedUnderwritingService, connectedUnderwritingRequestSchema } from "../agent/src/connected-underwriting.js";
+import {
+  CONNECTED_MAINNET,
+  CONNECTED_TESTNET,
+  ConnectedUnderwritingService,
+  connectedUnderwritingRequestSchema,
+  mainnetUnderwritingRequestSchema,
+  type ConnectedDeployment
+} from "../agent/src/connected-underwriting.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../agent/src/d1-connected-decision-store.js";
 import { StrictBankrUnderwritingModel } from "../agent/src/live-model.js";
 
@@ -10,9 +17,13 @@ interface Environment {
   readonly BANKR_API_KEY: string;
 }
 
-const officialProviders = [
+const officialTestnetProviders = [
   { label: "official-xlayer-testnet", endpoint: "https://testrpc.xlayer.tech/terigon" },
   { label: "official-okx-testnet", endpoint: "https://xlayertestrpc.okx.com/terigon" }
+] as const;
+const officialMainnetProviders = [
+  { label: "official-xlayer-mainnet", endpoint: "https://rpc.xlayer.tech" },
+  { label: "official-okx-mainnet", endpoint: "https://xlayerrpc.okx.com" }
 ] as const;
 const MAX_REQUEST_BYTES = 16 * 1_024;
 const RPC_TIMEOUT_MS = 12_000;
@@ -82,7 +93,7 @@ const json = (body: unknown, status = 200): Response => new Response(JSON.string
   }
 });
 
-const underwritingResponse = async (request: Request, config: Environment): Promise<Response> => {
+const underwritingResponse = async (request: Request, config: Environment, deployment: ConnectedDeployment): Promise<Response> => {
   if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
   const url = new URL(request.url);
   if (request.headers.get("origin") !== url.origin || request.headers.get("sec-fetch-site") !== "same-origin") {
@@ -101,15 +112,17 @@ const underwritingResponse = async (request: Request, config: Environment): Prom
     return json({ error: error instanceof Error ? error.message : "INVALID_REQUEST" }, 400);
   }
   try {
-    connectedUnderwritingRequestSchema.parse(body);
+    (deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema : mainnetUnderwritingRequestSchema).parse(body);
     const model = new StrictBankrUnderwritingModel({ apiKey: config.BANKR_API_KEY });
-    const observer = new TwoProviderConnectedInvoiceObserver(officialProviders.map(
+    const providerDefinitions = deployment === CONNECTED_TESTNET ? officialTestnetProviders : officialMainnetProviders;
+    const observer = new TwoProviderConnectedInvoiceObserver(providerDefinitions.map(
       ({ label, endpoint }) => new OfficialReadOnlyRpc(label, endpoint)
-    ) as unknown as readonly [OfficialReadOnlyRpc, OfficialReadOnlyRpc]);
+    ) as unknown as readonly [OfficialReadOnlyRpc, OfficialReadOnlyRpc], deployment);
     const service = new ConnectedUnderwritingService({
       observer,
       store: new D1ConnectedDecisionStore(config.DB),
-      modelFactory: () => model
+      modelFactory: () => model,
+      deployment
     });
     return json(await service.authorize(body));
   } catch (error) {
@@ -122,7 +135,8 @@ const underwritingResponse = async (request: Request, config: Environment): Prom
 export default {
   async fetch(request: Request, environment: Environment): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === "/api/connected-underwriting") return underwritingResponse(request, environment);
+    if (url.pathname === "/api/connected-underwriting") return underwritingResponse(request, environment, CONNECTED_TESTNET);
+    if (url.pathname === "/api/mainnet-underwriting") return underwritingResponse(request, environment, CONNECTED_MAINNET);
     if (url.pathname === "/") url.pathname = "/index.html";
     else if (url.pathname.endsWith("/")) url.pathname += "index.html";
     else if (!url.pathname.split("/").at(-1)?.includes(".")) url.pathname += "/index.html";

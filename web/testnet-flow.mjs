@@ -7,7 +7,7 @@ import {
   recoverTypedDataAddress,
   stringToHex
 } from "viem";
-import { OPENBELL_TESTNET_TARGET, validateUnsignedDealPackage } from "./deal-package.mjs";
+import { OPENBELL_MAINNET, OPENBELL_TESTNET_TARGET, validateUnsignedDealPackage } from "./deal-package.mjs";
 
 export const OPENBELL_TESTNET = Object.freeze({
   label: "XLAYER TESTNET FIXTURE — NO REAL VALUE",
@@ -17,6 +17,29 @@ export const OPENBELL_TESTNET = Object.freeze({
   settlementToken: "0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703",
   explorerTransactionBase: "https://www.okx.com/web3/explorer/xlayer-test/tx/"
 });
+
+export const OPENBELL_MAINNET_CONNECTED = Object.freeze({
+  label: "XLAYER MAINNET — REAL USDG",
+  chainId: 196,
+  chainHex: "0xc4",
+  receivables: OPENBELL_MAINNET.verifyingContract,
+  settlementToken: OPENBELL_MAINNET.settlementToken,
+  explorerTransactionBase: "https://www.okx.com/web3/explorer/xlayer/tx/"
+});
+
+const deployments = Object.freeze([OPENBELL_TESTNET, OPENBELL_MAINNET_CONNECTED]);
+const deploymentForTarget = (target) => deployments.find((deployment) =>
+  String(deployment.chainId) === String(target?.chainId)
+  && deployment.receivables.toLowerCase() === String(target?.verifyingContract).toLowerCase()
+  && deployment.settlementToken.toLowerCase() === String(target?.settlementToken).toLowerCase()
+);
+const deploymentForEnvelope = (candidate) => deployments.find((deployment) =>
+  candidate?.label === deployment.label && typeof candidate?.chainId === "string" && candidate.chainId === String(deployment.chainId)
+);
+const sessionSchema = (deployment) => deployment === OPENBELL_TESTNET
+  ? "openbell-testnet-invoice-session-v1" : "openbell-mainnet-invoice-session-v1";
+const actionSchema = (deployment) => deployment === OPENBELL_TESTNET
+  ? "openbell-testnet-browser-action-v1" : "openbell-mainnet-browser-action-v1";
 
 export const FIXTURE_CLAIM_AMOUNT = 1_000_000_000n;
 
@@ -214,6 +237,14 @@ export const testnetDomain = Object.freeze({
   verifyingContract: OPENBELL_TESTNET.receivables
 });
 
+export const mainnetDomain = Object.freeze({
+  name: "OpenBell Receivables",
+  version: "1",
+  chainId: OPENBELL_MAINNET_CONNECTED.chainId,
+  verifyingContract: OPENBELL_MAINNET_CONNECTED.receivables
+});
+const domainFor = (deployment) => deployment === OPENBELL_TESTNET ? testnetDomain : mainnetDomain;
+
 const normalizeTerms = (terms) => {
   allowedKeys(terms, ["invoiceId", "documentHash", "supplier", "payer", "faceValue", "issuedAt", "dueDate", "nonce"], "Invoice terms");
   const supplier = asAddress(terms.supplier, "Supplier");
@@ -260,15 +291,15 @@ const normalizeRejection = (rejection) => {
   };
 };
 
-export const invoiceTypedData = (terms) => ({
-  domain: testnetDomain,
+export const invoiceTypedData = (terms, deployment = OPENBELL_TESTNET) => ({
+  domain: domainFor(deployment),
   types: invoiceTypes,
   primaryType: "InvoiceTerms",
   message: normalizeTerms(terms)
 });
 
-export const walletInvoiceTypedData = (terms) => {
-  const typedData = invoiceTypedData(terms);
+export const walletInvoiceTypedData = (terms, deployment = OPENBELL_TESTNET) => {
+  const typedData = invoiceTypedData(terms, deployment);
   return {
     ...typedData,
     types: {
@@ -283,15 +314,15 @@ export const walletInvoiceTypedData = (terms) => {
   };
 };
 
-export const approvalTypedData = (approval) => ({
-  domain: testnetDomain,
+export const approvalTypedData = (approval, deployment = OPENBELL_TESTNET) => ({
+  domain: domainFor(deployment),
   types: approvalTypes,
   primaryType: "RiskApproval",
   message: normalizeApproval(approval)
 });
 
-export const rejectionTypedData = (rejection) => ({
-  domain: testnetDomain,
+export const rejectionTypedData = (rejection, deployment = OPENBELL_TESTNET) => ({
+  domain: domainFor(deployment),
   types: rejectionTypes,
   primaryType: "RiskRejection",
   message: normalizeRejection(rejection)
@@ -322,7 +353,8 @@ export function connectedDecisionTypedData(assessment) {
   if (!Number.isSafeInteger(decision.riskTimestamp) || !Number.isSafeInteger(decision.expiresAt) || decision.expiresAt <= decision.riskTimestamp) throw new Error("Decision timing is invalid.");
   if (assessment.modelEvidence?.decision?.verdict !== decision.verdict) throw new Error("Model evidence and bounded decision disagree.");
   allowedKeys(signingRequest, ["schemaVersion", "label", "chainId", "underwriter", "authorizedDigest", "nonce"], "Decision signing request");
-  if (signingRequest.schemaVersion !== "openbell-connected-decision-signing-v1" || signingRequest.label !== OPENBELL_TESTNET.label || signingRequest.chainId !== "1952") throw new Error("Unsupported decision signing request.");
+  const deployment = deploymentForEnvelope(signingRequest);
+  if (signingRequest.schemaVersion !== "openbell-connected-decision-signing-v1" || !deployment) throw new Error("Unsupported decision signing request.");
   const underwriter = asAddress(signingRequest.underwriter, "Underwriter");
   if (underwriter !== asAddress(observation?.underwriter, "Observed underwriter")) throw new Error("Decision underwriter changed.");
   const common = {
@@ -340,7 +372,7 @@ export function connectedDecisionTypedData(assessment) {
     advanceAmount: decision.advanceAmount,
     repaymentAmount: decision.repaymentAmount
   };
-  const typedData = decision.verdict === "REJECT" ? rejectionTypedData(message) : approvalTypedData(message);
+  const typedData = decision.verdict === "REJECT" ? rejectionTypedData(message, deployment) : approvalTypedData(message, deployment);
   if (hashTypedData(typedData).toLowerCase() !== asHash(signingRequest.authorizedDigest, "Authorized digest")) throw new Error("Decision digest changed.");
   return walletDecisionTypedData(typedData);
 }
@@ -349,7 +381,9 @@ export async function finalizeConnectedAssessment(assessment, underwriterSignatu
   const walletTypedData = connectedDecisionTypedData(assessment);
   const typedData = { ...walletTypedData, types: assessment.decision.verdict === "REJECT" ? rejectionTypes : approvalTypes };
   await assertSignature({ typedData, authorizedDigest: assessment.signingRequest.authorizedDigest, expectedSigner: assessment.signingRequest.underwriter, value: underwriterSignature });
-  const base = { schemaVersion: "openbell-testnet-browser-action-v1", label: OPENBELL_TESTNET.label, chainId: "1952" };
+  const deployment = deploymentForEnvelope(assessment.signingRequest);
+  if (!deployment) throw new Error("Unsupported decision deployment.");
+  const base = { schemaVersion: actionSchema(deployment), label: deployment.label, chainId: String(deployment.chainId) };
   const underwriter = asAddress(assessment.signingRequest.underwriter, "Underwriter");
   const message = walletTypedData.message;
   const actions = assessment.decision.verdict === "REJECT" ? [{
@@ -366,16 +400,18 @@ export async function finalizeConnectedAssessment(assessment, underwriterSignatu
 }
 
 export const connectedAssessmentTypedData = (request) => {
+  const deployment = deployments.find((candidate) => request.label === candidate.label);
+  if (!deployment) throw new Error("Unsupported connected assessment deployment.");
   const evidenceHash = keccak256(stringToHex(canonicalJson({
     registrationTransactionHash: request.registrationTransactionHash,
     issuedAt: request.issuedAt,
     dueDate: request.dueDate,
     payerHistory: request.payerHistory,
     redactedContext: request.redactedContext,
-    syntheticFixtureAcknowledged: request.syntheticFixtureAcknowledged
+    valueBoundaryAcknowledged: deployment === OPENBELL_TESTNET ? request.syntheticFixtureAcknowledged : request.realValueAcknowledged
   })));
   return {
-    domain: testnetDomain,
+    domain: domainFor(deployment),
     types: assessmentTypes,
     primaryType: "UnderwritingRequest",
     message: {
@@ -409,6 +445,8 @@ export const walletConnectedAssessmentTypedData = (request) => {
 
 export async function buildConnectedAssessmentRequest({ session: sessionCandidate, registrationTransactionHash, funder, payerHistory, redactedContext, supplierAuthorization = null }) {
   const session = await validateInvoiceSession(sessionCandidate);
+  const deployment = deploymentForTarget(session.dealPackage.target);
+  if (!deployment) throw new Error("Unsupported connected assessment deployment.");
   if (session.supplierSignature === null || session.payerSignature === null) throw new Error("Both invoice signatures are required before assessment.");
   const terms = normalizeTerms(session.dealPackage.invoiceTerms);
   const normalizedFunder = asAddress(funder, "Funder");
@@ -425,8 +463,8 @@ export async function buildConnectedAssessmentRequest({ session: sessionCandidat
   const context = String(redactedContext).trim();
   if (!context || context.length > 2_000) throw new Error("Redacted context must contain 1 to 2,000 characters.");
   const unsigned = {
-    schemaVersion: "openbell-connected-underwriting-v1",
-    label: OPENBELL_TESTNET.label,
+    schemaVersion: deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : "openbell-mainnet-underwriting-v1",
+    label: deployment.label,
     registrationTransactionHash: asHash(registrationTransactionHash, "Registration transaction hash"),
     invoiceId: terms.invoiceId,
     documentHash: terms.documentHash,
@@ -439,7 +477,7 @@ export async function buildConnectedAssessmentRequest({ session: sessionCandidat
     requestedAdvance: session.dealPackage.underwritingRequest.requestedAdvance,
     payerHistory: history,
     redactedContext: context,
-    syntheticFixtureAcknowledged: true
+    ...(deployment === OPENBELL_TESTNET ? { syntheticFixtureAcknowledged: true } : { realValueAcknowledged: true })
   };
   if (supplierAuthorization === null) return unsigned;
   await assertSignature({ typedData: connectedAssessmentTypedData(unsigned), authorizedDigest: hashTypedData(connectedAssessmentTypedData(unsigned)), expectedSigner: terms.supplier, value: supplierAuthorization });
@@ -458,14 +496,15 @@ export async function assertSignature({ typedData, authorizedDigest, expectedSig
 
 export async function validateInvoiceSession(candidate) {
   allowedKeys(candidate, ["schemaVersion", "label", "dealPackage", "authorizedDigest", "supplierSignature", "payerSignature"], "Invoice session");
-  if (candidate.schemaVersion !== "openbell-testnet-invoice-session-v1" || candidate.label !== OPENBELL_TESTNET.label) {
+  const deployment = deployments.find((item) => candidate.label === item.label && candidate.schemaVersion === sessionSchema(item));
+  if (!deployment) {
     throw new Error("Unsupported invoice-session schema or label.");
   }
   const dealPackage = await validateUnsignedDealPackage(candidate.dealPackage);
-  if (dealPackage.target.chainId !== OPENBELL_TESTNET_TARGET.chainId || dealPackage.target.verifyingContract !== OPENBELL_TESTNET_TARGET.verifyingContract) {
-    throw new Error("Invoice session does not target the frozen testnet deployment.");
+  if (deploymentForTarget(dealPackage.target) !== deployment) {
+    throw new Error("Invoice session does not target its labelled deployment.");
   }
-  const typedData = invoiceTypedData(dealPackage.invoiceTerms);
+  const typedData = invoiceTypedData(dealPackage.invoiceTerms, deployment);
   const digest = hashTypedData(typedData);
   if (digest.toLowerCase() !== asHash(candidate.authorizedDigest, "Authorized digest")) throw new Error("Invoice-session digest changed.");
   if (candidate.supplierSignature !== null) {
@@ -479,14 +518,13 @@ export async function validateInvoiceSession(candidate) {
 
 export async function createInvoiceSession(dealPackageCandidate) {
   const dealPackage = await validateUnsignedDealPackage(dealPackageCandidate);
-  if (dealPackage.target.chainId !== OPENBELL_TESTNET_TARGET.chainId || dealPackage.target.verifyingContract !== OPENBELL_TESTNET_TARGET.verifyingContract) {
-    throw new Error("Connected signing is available only for the labelled testnet fixture.");
-  }
+  const deployment = deploymentForTarget(dealPackage.target);
+  if (!deployment) throw new Error("Connected signing is unavailable for this deployment.");
   return validateInvoiceSession({
-    schemaVersion: "openbell-testnet-invoice-session-v1",
-    label: OPENBELL_TESTNET.label,
+    schemaVersion: sessionSchema(deployment),
+    label: deployment.label,
     dealPackage,
-    authorizedDigest: hashTypedData(invoiceTypedData(dealPackage.invoiceTerms)),
+    authorizedDigest: hashTypedData(invoiceTypedData(dealPackage.invoiceTerms, deployment)),
     supplierSignature: null,
     payerSignature: null
   });
@@ -506,11 +544,13 @@ export async function addInvoiceSessionSignature(sessionCandidate, signerCandida
 
 export async function registrationActionFromSession(sessionCandidate) {
   const session = await validateInvoiceSession(sessionCandidate);
+  const deployment = deploymentForTarget(session.dealPackage.target);
+  if (!deployment) throw new Error("Unsupported registration deployment.");
   if (session.supplierSignature === null || session.payerSignature === null) throw new Error("Both invoice signatures are required before registration.");
   return {
-    schemaVersion: "openbell-testnet-browser-action-v1",
-    label: OPENBELL_TESTNET.label,
-    chainId: String(OPENBELL_TESTNET.chainId),
+    schemaVersion: actionSchema(deployment),
+    label: deployment.label,
+    chainId: String(deployment.chainId),
     kind: "REGISTER_INVOICE",
     signer: session.dealPackage.invoiceTerms.supplier,
     authorizedDigest: session.authorizedDigest,
@@ -523,9 +563,11 @@ export async function registrationActionFromSession(sessionCandidate) {
 }
 
 const basePackage = (candidate) => {
-  if (candidate.schemaVersion !== "openbell-testnet-browser-action-v1") throw new Error("Unsupported action-package schema.");
-  if (candidate.label !== OPENBELL_TESTNET.label) throw new Error("Action package is not labelled as the no-value fixture.");
-  if (candidate.chainId !== String(OPENBELL_TESTNET.chainId)) throw new Error("Action package targets the wrong chain.");
+  const labelledDeployment = deployments.find((deployment) => candidate?.label === deployment.label);
+  if (!labelledDeployment || candidate.schemaVersion !== actionSchema(labelledDeployment)) throw new Error("Unsupported action-package schema or deployment label.");
+  if (typeof candidate.chainId !== "string" || candidate.chainId !== String(labelledDeployment.chainId)) throw new Error("Action package targets the wrong chain.");
+  const deployment = labelledDeployment;
+  return deployment;
 };
 
 export const fixtureClaimPackage = (signerCandidate) => {
@@ -546,7 +588,7 @@ export const createFixtureClaimAction = (signerCandidate) => validateBrowserActi
 
 export async function validateBrowserAction(candidate) {
   allowedKeys(candidate, ["schemaVersion", "label", "chainId", "kind", "signer", "authorizedDigest", "payload"], "Action package");
-  basePackage(candidate);
+  const deployment = basePackage(candidate);
   const signer = asAddress(candidate.signer, "Transaction signer");
   let to;
   let data;
@@ -556,9 +598,10 @@ export async function validateBrowserAction(candidate) {
   let expiresAt = null;
 
   if (candidate.kind === "CLAIM_FIXTURE_TOKENS") {
+    if (deployment !== OPENBELL_TESTNET) throw new Error("Fixture-token claims are forbidden on mainnet.");
     allowedKeys(candidate.payload, [], "Fixture claim payload");
     if (candidate.authorizedDigest !== null) throw new Error("Fixture claim cannot carry an EIP-712 digest.");
-    to = OPENBELL_TESTNET.settlementToken;
+    to = deployment.settlementToken;
     amount = FIXTURE_CLAIM_AMOUNT;
     invoiceId = null;
     data = encodeFunctionData({ abi: tokenAbi, functionName: "claimFixtureTokens" });
@@ -566,10 +609,10 @@ export async function validateBrowserAction(candidate) {
     allowedKeys(candidate.payload, ["terms", "supplierSignature", "payerSignature"], "Registration payload");
     const terms = normalizeTerms(candidate.payload.terms);
     if (signer !== terms.supplier) throw new Error("Only the supplier may register the invoice.");
-    const typedData = invoiceTypedData(candidate.payload.terms);
+    const typedData = invoiceTypedData(candidate.payload.terms, deployment);
     await assertSignature({ typedData, authorizedDigest: candidate.authorizedDigest, expectedSigner: terms.supplier, value: candidate.payload.supplierSignature });
     await assertSignature({ typedData, authorizedDigest: candidate.authorizedDigest, expectedSigner: terms.payer, value: candidate.payload.payerSignature });
-    to = OPENBELL_TESTNET.receivables;
+    to = deployment.receivables;
     invoiceId = terms.invoiceId;
     invoiceDigest = candidate.authorizedDigest.toLowerCase();
     data = encodeFunctionData({ abi: receivablesAbi, functionName: "registerInvoice", args: [terms, candidate.payload.supplierSignature, candidate.payload.payerSignature] });
@@ -577,8 +620,8 @@ export async function validateBrowserAction(candidate) {
     allowedKeys(candidate.payload, ["rejection", "underwriter", "underwriterSignature"], "Rejection payload");
     const rejection = normalizeRejection(candidate.payload.rejection);
     const underwriter = asAddress(candidate.payload.underwriter, "Underwriter");
-    await assertSignature({ typedData: rejectionTypedData(candidate.payload.rejection), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
-    to = OPENBELL_TESTNET.receivables;
+    await assertSignature({ typedData: rejectionTypedData(candidate.payload.rejection, deployment), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
+    to = deployment.receivables;
     invoiceId = rejection.invoiceId;
     invoiceDigest = rejection.invoiceDigest;
     expiresAt = rejection.expiresAt;
@@ -588,29 +631,29 @@ export async function validateBrowserAction(candidate) {
     const approval = normalizeApproval(candidate.payload.approval);
     if (signer !== approval.funder) throw new Error("Only the bound funder may approve funding.");
     const underwriter = asAddress(candidate.payload.underwriter, "Underwriter");
-    await assertSignature({ typedData: approvalTypedData(candidate.payload.approval), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
+    await assertSignature({ typedData: approvalTypedData(candidate.payload.approval, deployment), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
     invoiceId = approval.invoiceId;
     invoiceDigest = approval.invoiceDigest;
     amount = approval.advanceAmount;
     expiresAt = approval.expiresAt;
-    to = OPENBELL_TESTNET.settlementToken;
-    data = encodeFunctionData({ abi: tokenAbi, functionName: "approve", args: [OPENBELL_TESTNET.receivables, amount] });
+    to = deployment.settlementToken;
+    data = encodeFunctionData({ abi: tokenAbi, functionName: "approve", args: [deployment.receivables, amount] });
   } else if (candidate.kind === "APPROVE_SETTLEMENT") {
     allowedKeys(candidate.payload, ["invoiceId", "amount"], "Token approval payload");
     invoiceId = asHash(candidate.payload.invoiceId, "Invoice ID");
     amount = asUint(candidate.payload.amount, "Token approval amount");
     if (amount === 0n) throw new Error("Token approval amount must be nonzero.");
     if (candidate.authorizedDigest !== null) throw new Error("Settlement approval cannot carry an EIP-712 digest.");
-    to = OPENBELL_TESTNET.settlementToken;
-    data = encodeFunctionData({ abi: tokenAbi, functionName: "approve", args: [OPENBELL_TESTNET.receivables, amount] });
+    to = deployment.settlementToken;
+    data = encodeFunctionData({ abi: tokenAbi, functionName: "approve", args: [deployment.receivables, amount] });
   } else if (candidate.kind === "FUND_INVOICE") {
     allowedKeys(candidate.payload, ["approval", "underwriter", "underwriterSignature"], "Funding payload");
     const approval = normalizeApproval(candidate.payload.approval);
     if (signer !== approval.funder) throw new Error("Only the bound funder may execute funding.");
     const underwriter = asAddress(candidate.payload.underwriter, "Underwriter");
-    await assertSignature({ typedData: approvalTypedData(candidate.payload.approval), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
+    await assertSignature({ typedData: approvalTypedData(candidate.payload.approval, deployment), authorizedDigest: candidate.authorizedDigest, expectedSigner: underwriter, value: candidate.payload.underwriterSignature });
     amount = approval.advanceAmount;
-    to = OPENBELL_TESTNET.receivables;
+    to = deployment.receivables;
     invoiceId = approval.invoiceId;
     invoiceDigest = approval.invoiceDigest;
     expiresAt = approval.expiresAt;
@@ -621,7 +664,7 @@ export async function validateBrowserAction(candidate) {
     amount = asUint(candidate.payload.repaymentAmount, "Repayment amount");
     if (amount === 0n) throw new Error("Repayment amount must be nonzero.");
     if (candidate.authorizedDigest !== null) throw new Error("Settlement cannot carry an EIP-712 digest.");
-    to = OPENBELL_TESTNET.receivables;
+    to = deployment.receivables;
     data = encodeFunctionData({ abi: receivablesAbi, functionName: "settle", args: [invoiceId] });
   } else {
     throw new Error("Unsupported action kind.");
@@ -630,7 +673,7 @@ export async function validateBrowserAction(candidate) {
   return Object.freeze({
     kind: candidate.kind,
     signer,
-    chainId: OPENBELL_TESTNET.chainId,
+    chainId: deployment.chainId,
     to: getAddress(to),
     data,
     value: 0n,
@@ -706,7 +749,7 @@ export function assertActionAgainstInvoice(action, encodedResult, nowSeconds) {
 }
 
 export function assertWalletContext(action, { account, chainId }) {
-  if (Number(chainId) !== OPENBELL_TESTNET.chainId) throw new Error("Switch the wallet to X Layer testnet (chain 1952).");
+  if (Number(chainId) !== action.chainId) throw new Error(`Switch the wallet to X Layer chain ${action.chainId}.`);
   if (asAddress(account, "Connected account") !== action.signer) throw new Error("Connected wallet does not match the required signer.");
   return true;
 }
