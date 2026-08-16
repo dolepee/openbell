@@ -19,6 +19,7 @@ export const BANKR_REJECTION_EXPLANATION = "The supplied synthetic evidence does
 export const BANKR_MAINNET_APPROVAL_EXPLANATION = "The supplied registered mainnet evidence supports approval within the returned structured limits." as const;
 export const BANKR_MAINNET_REJECTION_EXPLANATION = "The supplied registered mainnet evidence does not support approval." as const;
 export type BankrEvidenceBoundary = "synthetic" | "registered-mainnet";
+export const BANKR_MAINNET_POLICY_PROMPT = "An APPROVE verdict requires confidenceBps of at least 7000. If the evidence does not justify that confidence, return REJECT instead of a lower-confidence APPROVE. The deterministic envelope caps maximumAdvanceBps at 8000 and feeBps at 2000." as const;
 const BANKR_INPUT_USD_PER_MILLION = 2;
 const BANKR_OUTPUT_USD_PER_MILLION = 12;
 
@@ -88,12 +89,13 @@ export interface OfflineBankrRequest {
 export function buildStrictBankrRequest(input: InvoiceRiskInput, boundary: BankrEvidenceBoundary = "synthetic"): OfflineBankrRequest {
   const canonicalInput = invoiceRiskInputSchema.strict().parse(input);
   const evidenceDescription = boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
+  const policyInstruction = boundary === "registered-mainnet" ? ` ${BANKR_MAINNET_POLICY_PROMPT}` : "";
   const body = JSON.stringify({
     model: BANKR_UNDERWRITING_MODEL,
     messages: [
       {
         role: "system",
-        content: `Assess only the supplied ${evidenceDescription}. Return exactly one JSON object matching the response schema. Never invent evidence.`
+        content: `Assess only the supplied ${evidenceDescription}.${policyInstruction} Return exactly one JSON object matching the response schema. Never invent evidence.`
       },
       { role: "user", content: JSON.stringify(canonicalInput) }
     ],

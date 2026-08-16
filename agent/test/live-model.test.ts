@@ -3,6 +3,7 @@ import {
   BANKR_APPROVAL_EXPLANATION,
   BANKR_CHAT_COMPLETIONS_URL,
   BANKR_MAINNET_APPROVAL_EXPLANATION,
+  BANKR_MAINNET_POLICY_PROMPT,
   BANKR_MAX_OUTPUT_TOKENS,
   BANKR_MAX_RESPONSE_BYTES,
   BANKR_REASONING_EFFORT,
@@ -72,6 +73,8 @@ describe("StrictBankrUnderwritingModel", () => {
     const request = buildStrictBankrRequest(input, "registered-mainnet");
     const body = JSON.parse(request.body);
     expect(body.messages[0].content).toContain("registered mainnet invoice evidence");
+    expect(body.messages[0].content).toContain(BANKR_MAINNET_POLICY_PROMPT);
+    expect(body.messages[0].content).toContain("return REJECT instead of a lower-confidence APPROVE");
     expect(body.messages[0].content).not.toContain("synthetic");
     expect(body.response_format.json_schema.schema.properties.explanation.enum).toContain(BANKR_MAINNET_APPROVAL_EXPLANATION);
 
