@@ -1,5 +1,5 @@
 import type { Hex } from "viem";
-import { connectedDailyBudgetTableSql, connectedDecisionTableSql } from "../../db/schema.js";
+import { connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
 import type { ConnectedDecisionStore, StoredConnectedDecision } from "./connected-underwriting.js";
 
 interface D1RunResult { readonly success?: boolean; readonly meta?: { readonly changes?: number } }
@@ -39,6 +39,8 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (result.success === false) throw new Error("CONNECTED_STORE_SCHEMA_FAILED");
     const budgetResult = await this.database.prepare(connectedDailyBudgetTableSql).run();
     if (budgetResult.success === false) throw new Error("CONNECTED_STORE_BUDGET_SCHEMA_FAILED");
+    const refusalResult = await this.database.prepare(connectedPolicyRefusalTableSql).run();
+    if (refusalResult.success === false) throw new Error("CONNECTED_STORE_REFUSAL_SCHEMA_FAILED");
     this.#initialized = true;
   }
 
@@ -103,6 +105,22 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
       "UPDATE connected_underwriting_decisions SET status = 'FAILED', failure_code = ?, updated_at = ? WHERE invoice_id = ? AND request_hash = ? AND status IN ('CLAIMED', 'MODEL_IN_FLIGHT')"
     ).bind(failureCode, this.now(), invoiceId, requestHash).run();
     if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_FAIL_CONFLICT");
+  }
+
+  async recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void> {
+    await this.#initialize();
+    const result = await this.database.prepare(
+      "INSERT INTO connected_underwriting_policy_refusals (invoice_id, request_hash, result_json, created_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
+    ).bind(invoiceId, requestHash, resultJson, this.now(), invoiceId, requestHash).run();
+    if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
+  }
+
+  async loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<string | null> {
+    await this.#initialize();
+    const row = await this.database.prepare(
+      "SELECT result_json FROM connected_underwriting_policy_refusals WHERE invoice_id = ? AND request_hash = ?"
+    ).bind(invoiceId, requestHash).first<{ result_json: string }>();
+    return row?.result_json ?? null;
   }
 
   async reserveDailyModelCall(day: string, maximum: number): Promise<boolean> {

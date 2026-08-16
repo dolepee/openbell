@@ -4,6 +4,7 @@ import {
   CONNECTED_MAINNET,
   CONNECTED_TESTNET,
   ConnectedUnderwritingService,
+  ConnectedPolicyRefusal,
   connectedAssessmentTypedData,
   type ConnectedDecisionStore,
   type ConnectedDeployment,
@@ -52,6 +53,7 @@ const authorizedRequest = async (changes: Partial<Omit<ConnectedUnderwritingRequ
 
 class MemoryStore implements ConnectedDecisionStore {
   readonly rows = new Map<string, StoredConnectedDecision>();
+  readonly refusals = new Map<string, string>();
   async load(invoiceId: `0x${string}`): Promise<StoredConnectedDecision | null> { return this.rows.get(invoiceId) ?? null; }
   async claim(invoiceId: `0x${string}`, requestHash: `0x${string}`): Promise<{ claimed: boolean; row: StoredConnectedDecision }> {
     const existing = this.rows.get(invoiceId);
@@ -69,6 +71,11 @@ class MemoryStore implements ConnectedDecisionStore {
   async fail(invoiceId: `0x${string}`, requestHash: `0x${string}`, failureCode: string): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "FAILED", failureCode });
   }
+  async recordPolicyRefusal(invoiceId: `0x${string}`, _requestHash: `0x${string}`, resultJson: string): Promise<void> {
+    if (this.refusals.has(invoiceId)) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
+    this.refusals.set(invoiceId, resultJson);
+  }
+  async loadPolicyRefusal(invoiceId: `0x${string}`): Promise<string | null> { return this.refusals.get(invoiceId) ?? null; }
   async reserveDailyModelCall(): Promise<boolean> { return true; }
 }
 
@@ -235,6 +242,36 @@ test("genuine model rejection emits an unsigned underwriter signing request", as
   const result = await h.service.authorize(request);
   expect(result.decision.verdict).toBe("REJECT");
   expect(result.signingRequest.underwriter).toBe(underwriter.address);
+});
+
+test("low-confidence approval preserves model evidence but creates no signing authority", async () => {
+  const h = harness({ ...approval, confidenceBps: 6_999 });
+  let refusal: ConnectedPolicyRefusal | undefined;
+  try {
+    await h.service.authorize(request);
+  } catch (error) {
+    if (error instanceof ConnectedPolicyRefusal) refusal = error;
+    else throw error;
+  }
+  expect(refusal?.evidence).toMatchObject({
+    outcome: "POLICY_REFUSAL",
+    executionAuthority: false,
+    refusal: { code: "LOW_CONFIDENCE" },
+    modelEvidence: { decision: { verdict: "APPROVE", confidenceBps: 6_999 } }
+  });
+  expect(Object.keys(refusal?.evidence ?? {})).not.toContain("signingRequest");
+  expect(h.store.rows.get(request.invoiceId)).toEqual(expect.objectContaining({ status: "FAILED", failureCode: "LOW_CONFIDENCE" }));
+  expect(h.store.refusals.has(request.invoiceId)).toBe(true);
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
+  let replay: ConnectedPolicyRefusal | undefined;
+  try {
+    await h.service.authorize(request);
+  } catch (error) {
+    if (error instanceof ConnectedPolicyRefusal) replay = error;
+    else throw error;
+  }
+  expect(replay?.evidence).toEqual(refusal?.evidence);
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
 test.each([

@@ -2,6 +2,7 @@ import { TwoProviderConnectedInvoiceObserver, type ReadOnlyJsonRpc } from "../ag
 import {
   CONNECTED_MAINNET,
   CONNECTED_TESTNET,
+  ConnectedPolicyRefusal,
   ConnectedUnderwritingService,
   connectedUnderwritingRequestSchema,
   mainnetUnderwritingRequestSchema,
@@ -129,6 +130,9 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
     });
     return json(await service.authorize(body));
   } catch (error) {
+    if (error instanceof ConnectedPolicyRefusal) {
+      return json({ error: error.message, policyRefusal: error.evidence }, 422);
+    }
     const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "CONNECTED_UNDERWRITING_FAILED";
     const status = code.includes("IN_PROGRESS") ? 409 : code.includes("BUDGET") ? 429 : 422;
     return json({ error: code }, status);

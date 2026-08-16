@@ -9,7 +9,7 @@ import {
   type Hex
 } from "viem";
 import { z } from "zod";
-import { underwriteInvoice } from "./underwriter.js";
+import { UnderwritingRefusal, underwriteInvoice } from "./underwriter.js";
 import {
   BANKR_APPROVAL_EXPLANATION,
   BANKR_MAINNET_APPROVAL_EXPLANATION,
@@ -151,6 +151,8 @@ export interface ConnectedDecisionStore {
   beginModel(invoiceId: Hex, requestHash: Hex): Promise<void>;
   complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
   fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void>;
+  recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
+  loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<string | null>;
   reserveDailyModelCall(day: string, maximum: number): Promise<boolean>;
 }
 
@@ -364,6 +366,62 @@ function buildUnsignedAssessmentResult(decision: BoundedDecision, observation: R
   };
 }
 
+const policyRefusalEvidenceSchema = z.object({
+  schemaVersion: z.literal("openbell-connected-policy-refusal-v1"),
+  outcome: z.literal("POLICY_REFUSAL"),
+  executionAuthority: z.literal(false),
+  refusal: z.object({ code: z.enum(["INVALID_EVIDENCE", "DUPLICATE_INVOICE", "INVALID_TENOR", "MODEL_REJECTED", "LOW_CONFIDENCE"]), message: z.string().min(1) }).strict(),
+  modelEvidence: modelEvidenceSchema,
+  observation: registeredObservationSchema
+}).strict();
+export type ConnectedPolicyRefusalEvidence = z.infer<typeof policyRefusalEvidenceSchema>;
+
+export class ConnectedPolicyRefusal extends Error {
+  constructor(readonly evidence: ConnectedPolicyRefusalEvidence) {
+    super("CONNECTED_POLICY_REFUSAL");
+    this.name = "ConnectedPolicyRefusal";
+  }
+}
+
+const buildPolicyRefusalEvidence = (
+  refusal: UnderwritingRefusal,
+  modelEvidence: z.infer<typeof modelEvidenceSchema>,
+  observation: RegisteredInvoiceObservation
+): ConnectedPolicyRefusalEvidence => policyRefusalEvidenceSchema.parse({
+  schemaVersion: "openbell-connected-policy-refusal-v1",
+  outcome: "POLICY_REFUSAL",
+  executionAuthority: false,
+  refusal: { code: refusal.code, message: refusal.message },
+  modelEvidence,
+  observation
+});
+
+const validateStoredPolicyRefusal = async (
+  candidate: unknown,
+  request: ConnectedUnderwritingRequest,
+  deployment: ConnectedDeployment
+): Promise<ConnectedPolicyRefusalEvidence> => {
+  const refusal = policyRefusalEvidenceSchema.parse(candidate);
+  const observation = refusal.observation as RegisteredInvoiceObservation;
+  assertObservation(request, observation, deployment);
+  const input = riskInputFrom(request, observation);
+  committedModelId(input, refusal.modelEvidence, deployment);
+  try {
+    await underwriteInvoice({
+      input,
+      model: { modelId: committedModelId(input, refusal.modelEvidence, deployment), decide: async () => refusal.modelEvidence.decision },
+      policy: policyFor(deployment),
+      now: observation.blockTimestamp
+    });
+  } catch (error) {
+    if (error instanceof UnderwritingRefusal && error.code === refusal.refusal.code && error.message === refusal.refusal.message) {
+      return refusal;
+    }
+    throw new Error("CONNECTED_POLICY_REFUSAL_CORRUPT");
+  }
+  throw new Error("CONNECTED_POLICY_REFUSAL_CREATED_EXECUTION_AUTHORITY");
+};
+
 export class ConnectedUnderwritingService {
   constructor(readonly dependencies: {
     observer: ConnectedInvoiceObserver;
@@ -409,7 +467,14 @@ export class ConnectedUnderwritingService {
         if (canonicalJson(rebuilt) !== canonicalJson(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         return rebuilt;
       }
-      if (row.status === "FAILED") throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
+      if (row.status === "FAILED") {
+        const refusalJson = await this.dependencies.store.loadPolicyRefusal(request.invoiceId, requestHash);
+        if (refusalJson !== null) {
+          const refusal = await validateStoredPolicyRefusal(JSON.parse(refusalJson), request, deployment);
+          throw new ConnectedPolicyRefusal(refusal);
+        }
+        throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
+      }
       throw new Error("CONNECTED_DECISION_IN_PROGRESS_OR_RECONCILIATION_REQUIRED");
     };
     const claim = await this.dependencies.store.claim(request.invoiceId, requestHash, requestJson);
@@ -436,18 +501,28 @@ export class ConnectedUnderwritingService {
         throw new Error("CONNECTED_OBSERVATION_REORG_OR_REGRESSION");
       }
       const postModelInput = riskInputFrom(request, postModelObservation);
-      const decision = await underwriteInvoice({
-        input: postModelInput,
-        model: { modelId: committedModelId(postModelInput, modelEvidence, deployment), decide: async () => modelDecision },
-        policy: policyFor(deployment),
-        now: postModelObservation.blockTimestamp
-      });
+      let decision: BoundedDecision;
+      try {
+        decision = await underwriteInvoice({
+          input: postModelInput,
+          model: { modelId: committedModelId(postModelInput, modelEvidence, deployment), decide: async () => modelDecision },
+          policy: policyFor(deployment),
+          now: postModelObservation.blockTimestamp
+        });
+      } catch (error) {
+        if (!(error instanceof UnderwritingRefusal)) throw error;
+        const refusal = buildPolicyRefusalEvidence(error, modelEvidence, postModelObservation);
+        await this.dependencies.store.recordPolicyRefusal(request.invoiceId, requestHash, JSON.stringify(refusal));
+        await this.dependencies.store.fail(request.invoiceId, requestHash, error.code);
+        throw new ConnectedPolicyRefusal(refusal);
+      }
       const { digest } = typedDecision(decision, nonce, deployment);
       const result = buildUnsignedAssessmentResult(decision, postModelObservation, nonce, digest, modelEvidence, deployment);
       const resultJson = JSON.stringify(result);
       await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson);
       return result;
     } catch (error) {
+      if (error instanceof ConnectedPolicyRefusal) throw error;
       await this.dependencies.store.fail(request.invoiceId, requestHash, failureCode(error));
       throw error;
     }

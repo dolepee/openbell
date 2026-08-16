@@ -230,6 +230,56 @@ const asSignature = (value, label) => {
   return value;
 };
 
+const riskReasons = new Set([
+  "DUAL_SIGNATURES_VERIFIED", "DOCUMENT_HASH_VERIFIED", "CLEAN_DUPLICATE_CHECK", "LIMITED_PAYER_HISTORY",
+  "STRONG_ON_TIME_HISTORY", "LATE_PAYMENT_HISTORY", "PRIOR_DEFAULT", "HIGH_COUNTERPARTY_CONCENTRATION",
+  "LONG_TENOR", "STALE_SETTLEMENT_HISTORY", "INCONSISTENT_EVIDENCE", "MODEL_UNCERTAINTY"
+]);
+const refusalCodes = new Set(["INVALID_EVIDENCE", "DUPLICATE_INVOICE", "INVALID_TENOR", "MODEL_REJECTED", "LOW_CONFIDENCE"]);
+
+export function validateConnectedPolicyRefusal(candidate) {
+  allowedKeys(candidate, ["schemaVersion", "outcome", "executionAuthority", "refusal", "modelEvidence", "observation"], "Policy refusal");
+  if (candidate.schemaVersion !== "openbell-connected-policy-refusal-v1" || candidate.outcome !== "POLICY_REFUSAL" || candidate.executionAuthority !== false) {
+    throw new Error("Policy refusal must explicitly carry no execution authority.");
+  }
+  allowedKeys(candidate.refusal, ["code", "message"], "Policy refusal reason");
+  if (!refusalCodes.has(candidate.refusal.code) || typeof candidate.refusal.message !== "string" || !candidate.refusal.message.trim()) {
+    throw new Error("Policy refusal reason is invalid.");
+  }
+  const evidence = candidate.modelEvidence;
+  allowedKeys(evidence, ["provider", "providerResponseId", "requestedModel", "returnedModel", "requestHash", "responseHash", "decision"], "Policy refusal model evidence");
+  if (evidence.provider !== "bankr-chat-completions" || evidence.requestedModel !== "gpt-5.6-terra" || evidence.returnedModel !== "gpt-5.6-terra" || typeof evidence.providerResponseId !== "string" || !evidence.providerResponseId) {
+    throw new Error("Policy refusal model receipt is invalid.");
+  }
+  asHash(evidence.requestHash, "Model request hash");
+  asHash(evidence.responseHash, "Model response hash");
+  allowedKeys(evidence.decision, ["verdict", "maximumAdvanceBps", "feeBps", "confidenceBps", "reasons", "explanation"], "Policy refusal model decision");
+  if (!["APPROVE", "REJECT"].includes(evidence.decision.verdict)
+    || ![evidence.decision.maximumAdvanceBps, evidence.decision.feeBps, evidence.decision.confidenceBps].every((value) => Number.isInteger(value) && value >= 0 && value <= 10_000)
+    || !Array.isArray(evidence.decision.reasons) || evidence.decision.reasons.length < 1 || evidence.decision.reasons.length > 8
+    || evidence.decision.reasons.some((reason) => !riskReasons.has(reason))
+    || typeof evidence.decision.explanation !== "string" || !evidence.decision.explanation.trim() || evidence.decision.explanation.length > 600) {
+    throw new Error("Policy refusal model decision is invalid.");
+  }
+  const observation = candidate.observation;
+  allowedKeys(observation, ["chainId", "receivables", "settlementToken", "blockNumber", "blockHash", "blockTimestamp", "registrationTransactionHash", "status", "invoiceId", "invoiceDigest", "documentHash", "supplier", "payer", "faceValue", "issuedAt", "dueDate", "underwriter", "paused", "decisionNonceUnused", "documentHashRegistered", "invoiceDigestRegistered"], "Policy refusal observation");
+  const deployment = deployments.find((item) => item.chainId === observation.chainId
+    && item.receivables.toLowerCase() === String(observation.receivables).toLowerCase()
+    && item.settlementToken.toLowerCase() === String(observation.settlementToken).toLowerCase());
+  if (!deployment || observation.status !== "REGISTERED" || observation.paused !== false || observation.decisionNonceUnused !== true
+    || observation.documentHashRegistered !== true || observation.invoiceDigestRegistered !== true
+    || !Number.isSafeInteger(observation.blockTimestamp) || observation.blockTimestamp < 0
+    || !Number.isSafeInteger(observation.issuedAt) || observation.issuedAt < 0
+    || !Number.isSafeInteger(observation.dueDate) || observation.dueDate <= 0) {
+    throw new Error("Policy refusal chain observation is invalid.");
+  }
+  asUint(observation.blockNumber, "Observed block number");
+  asUint(observation.faceValue, "Observed face value");
+  ["blockHash", "registrationTransactionHash", "invoiceId", "invoiceDigest", "documentHash"].forEach((key) => asHash(observation[key], `Observed ${key}`));
+  ["receivables", "settlementToken", "supplier", "payer", "underwriter"].forEach((key) => asAddress(observation[key], `Observed ${key}`));
+  return candidate;
+}
+
 export const testnetDomain = Object.freeze({
   name: "OpenBell Receivables",
   version: "1",

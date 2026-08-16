@@ -18,6 +18,7 @@ import {
   walletConnectedAssessmentTypedData,
   registrationActionFromSession,
   validateBrowserAction,
+  validateConnectedPolicyRefusal,
   validateInvoiceSession
 } from "../testnet-flow.mjs";
 
@@ -101,6 +102,7 @@ let action;
 let invoiceSession;
 let registrationTransactionHash;
 let pendingAssessment;
+let pendingPolicyRefusal;
 
 const compact = (value) => `${value.slice(0, 10)}…${value.slice(-6)}`;
 const setText = (selector, value) => {
@@ -156,7 +158,7 @@ const refreshSessionState = () => {
 const refreshDecisionState = () => {
   const expected = pendingAssessment?.signingRequest?.underwriter?.toLowerCase();
   signDecisionButton.disabled = !expected || account?.toLowerCase() !== expected || chainId !== ACTIVE_DEPLOYMENT.chainId;
-  downloadAssessmentButton.disabled = !pendingAssessment;
+  downloadAssessmentButton.disabled = !pendingAssessment && !pendingPolicyRefusal;
 };
 const renderWallet = () => {
   const connected = Boolean(account);
@@ -383,6 +385,11 @@ assessmentForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   assessmentError.textContent = "";
   assessmentResult.hidden = true;
+  pendingAssessment = undefined;
+  pendingPolicyRefusal = undefined;
+  signDecisionButton.hidden = false;
+  downloadAssessmentButton.textContent = "Download unsigned assessment";
+  refreshDecisionState();
   const button = document.querySelector("#request-assessment");
   try {
     if (!invoiceSession || !registrationTransactionHash) throw new Error("Confirm the registration transaction first.");
@@ -418,6 +425,19 @@ assessmentForm?.addEventListener("submit", async (event) => {
       body: JSON.stringify(authorized)
     });
     const result = await response.json();
+    if (response.status === 422 && result?.error === "CONNECTED_POLICY_REFUSAL") {
+      pendingPolicyRefusal = validateConnectedPolicyRefusal(result.policyRefusal);
+      setText("#assessment-verdict", "Policy refused · no execution authority.");
+      setText("#assessment-economics", `${pendingPolicyRefusal.refusal.code} · ${pendingPolicyRefusal.refusal.message}`);
+      setText("#assessment-provider", `${pendingPolicyRefusal.modelEvidence.requestedModel} · response ${compact(pendingPolicyRefusal.modelEvidence.providerResponseId)} · exact refusal evidence sealed`);
+      document.querySelector("#assessment-actions").replaceChildren();
+      signDecisionButton.hidden = true;
+      downloadAssessmentButton.textContent = "Download refusal evidence";
+      refreshDecisionState();
+      assessmentResult.hidden = false;
+      assessmentResult.focus();
+      return;
+    }
     if (!response.ok) throw new Error(result?.error ?? `Underwriting returned HTTP ${response.status}.`);
     if (!result?.decision || !result?.modelEvidence || !result?.signingRequest) throw new Error("Underwriting response is incomplete.");
     if (result.modelEvidence.decision?.verdict !== result.decision.verdict) throw new Error("Model evidence and bounded decision disagree.");
@@ -441,7 +461,8 @@ assessmentForm?.addEventListener("submit", async (event) => {
 });
 
 downloadAssessmentButton?.addEventListener("click", () => {
-  if (pendingAssessment) downloadJson("openbell-unsigned-assessment.json", pendingAssessment);
+  if (pendingPolicyRefusal) downloadJson("openbell-policy-refusal.json", pendingPolicyRefusal);
+  else if (pendingAssessment) downloadJson("openbell-unsigned-assessment.json", pendingAssessment);
 });
 
 signDecisionButton?.addEventListener("click", async () => {

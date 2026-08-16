@@ -23,7 +23,8 @@ import {
   registrationActionFromSession,
   walletInvoiceTypedData,
   walletConnectedAssessmentTypedData,
-  validateBrowserAction
+  validateBrowserAction,
+  validateConnectedPolicyRefusal
 } from "./testnet-flow.mjs";
 import { OPENBELL_TESTNET_TARGET, buildUnsignedDealPackage } from "./deal-package.mjs";
 
@@ -61,6 +62,52 @@ const assessment = {
   signingRequest: { schemaVersion: "openbell-connected-decision-signing-v1", label: OPENBELL_TESTNET.label, chainId: "1952", underwriter: underwriter.address, authorizedDigest: "", nonce: approval.nonce }
 };
 delete assessment.decision.nonce;
+
+const policyRefusal = {
+  schemaVersion: "openbell-connected-policy-refusal-v1",
+  outcome: "POLICY_REFUSAL",
+  executionAuthority: false,
+  refusal: { code: "LOW_CONFIDENCE", message: "The model confidence is below the policy floor." },
+  modelEvidence: {
+    provider: "bankr-chat-completions",
+    providerResponseId: "response-test-1",
+    requestedModel: "gpt-5.6-terra",
+    returnedModel: "gpt-5.6-terra",
+    requestHash: `0x${"12".repeat(32)}`,
+    responseHash: `0x${"13".repeat(32)}`,
+    decision: { verdict: "APPROVE", maximumAdvanceBps: 7000, feeBps: 100, confidenceBps: 6500, reasons: ["MODEL_UNCERTAINTY"], explanation: "The evidence supports only a low-confidence approval." }
+  },
+  observation: {
+    chainId: 1952,
+    receivables: OPENBELL_TESTNET.receivables,
+    settlementToken: OPENBELL_TESTNET.settlementToken,
+    blockNumber: "12345",
+    blockHash: `0x${"14".repeat(32)}`,
+    blockTimestamp: 1786550200,
+    registrationTransactionHash: `0x${"15".repeat(32)}`,
+    status: "REGISTERED",
+    invoiceId: terms.invoiceId,
+    invoiceDigest: approval.invoiceDigest,
+    documentHash: terms.documentHash,
+    supplier: supplier.address,
+    payer: payer.address,
+    faceValue: terms.faceValue,
+    issuedAt: Number(terms.issuedAt),
+    dueDate: Number(terms.dueDate),
+    underwriter: underwriter.address,
+    paused: false,
+    decisionNonceUnused: true,
+    documentHashRegistered: true,
+    invoiceDigestRegistered: true
+  }
+};
+
+test("policy refusals preserve evidence without exposing execution authority", () => {
+  assert.equal(validateConnectedPolicyRefusal(policyRefusal), policyRefusal);
+  assert.equal("signingRequest" in policyRefusal, false);
+  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, executionAuthority: true }), /no execution authority/);
+  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, signingRequest: {} }), /unsupported or missing fields/);
+});
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({
   schemaVersion: "openbell-testnet-browser-action-v1",

@@ -1,7 +1,7 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { connectedDailyBudgetTableSql, connectedDecisionTableSql } from "../../db/schema.js";
+import { connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../src/d1-connected-decision-store.js";
 
 class StatementAdapter {
@@ -24,6 +24,7 @@ const requestHash = `0x${"bb".repeat(32)}` as const;
 
 test("Sites D1 migration is byte-derived from the runtime schema", () => {
   expect(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8")).toBe(`${connectedDecisionTableSql};\n\n${connectedDailyBudgetTableSql};\n`);
+  expect(readFileSync("drizzle/0001_connected_policy_refusals.sql", "utf8")).toBe(`${connectedPolicyRefusalTableSql};\n`);
 });
 
 test("D1 store atomically claims once and returns the exact completed envelope", async () => {
@@ -48,6 +49,17 @@ test("D1 store seals failure and refuses later state replacement", async () => {
   const replay = await store.claim(invoiceId, requestHash, "{}");
   expect(replay.row).toEqual({ requestHash, status: "FAILED", failureCode: "LIVE_MODEL_TIMEOUT" });
   await expect(store.complete(invoiceId, requestHash, "{}")).rejects.toThrow("CONNECTED_STORE_COMPLETE_CONFLICT");
+});
+
+test("D1 store preserves one policy-refusal artifact without reopening execution", async () => {
+  const store = new D1ConnectedDecisionStore(database(), () => 210);
+  await store.claim(invoiceId, requestHash, "{}");
+  await store.beginModel(invoiceId, requestHash);
+  await store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":1}");
+  await store.fail(invoiceId, requestHash, "LOW_CONFIDENCE");
+  expect(await store.loadPolicyRefusal(invoiceId, requestHash)).toBe("{\"refusal\":1}");
+  await expect(store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":2}")).rejects.toThrow("CONNECTED_STORE_REFUSAL_CONFLICT");
+  expect((await store.claim(invoiceId, requestHash, "{}")).row).toEqual({ requestHash, status: "FAILED", failureCode: "LOW_CONFIDENCE" });
 });
 
 test("a stale pre-model claim is recoverable without duplicating a model call", async () => {
