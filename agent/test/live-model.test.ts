@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BANKR_APPROVAL_EXPLANATION,
   BANKR_CHAT_COMPLETIONS_URL,
+  BANKR_MAINNET_APPROVAL_EXPLANATION,
   BANKR_MAX_OUTPUT_TOKENS,
   BANKR_MAX_RESPONSE_BYTES,
   BANKR_REASONING_EFFORT,
@@ -65,6 +66,22 @@ describe("StrictBankrUnderwritingModel", () => {
     expect(request.requestHash).toMatch(/^0x[0-9a-f]{64}$/);
     expect(BANKR_REASONING_EFFORT).toBe("low");
     expect(BANKR_MAX_OUTPUT_TOKENS).toBe(1200);
+  });
+
+  it("uses a truthful registered-mainnet boundary without changing the historical testnet request", async () => {
+    const request = buildStrictBankrRequest(input, "registered-mainnet");
+    const body = JSON.parse(request.body);
+    expect(body.messages[0].content).toContain("registered mainnet invoice evidence");
+    expect(body.messages[0].content).not.toContain("synthetic");
+    expect(body.response_format.json_schema.schema.properties.explanation.enum).toContain(BANKR_MAINNET_APPROVAL_EXPLANATION);
+
+    const mainnetDecision = { ...decision, explanation: BANKR_MAINNET_APPROVAL_EXPLANATION };
+    const model = new StrictBankrUnderwritingModel({
+      apiKey: "test-only",
+      evidenceBoundary: "registered-mainnet",
+      fetch: (async () => jsonResponse(envelope({ choices: [{ index: 0, finish_reason: "stop", message: message(JSON.stringify(mainnetDecision)) }] }))) as typeof fetch
+    });
+    await expect(model.decide(input)).resolves.toEqual(mainnetDecision);
   });
 
   it("refuses missing credentials without making a request", () => {

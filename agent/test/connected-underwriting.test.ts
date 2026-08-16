@@ -13,7 +13,11 @@ import {
 } from "../src/connected-underwriting.js";
 import type { InvoiceRiskInput, ModelDecision, UnderwritingModel } from "../src/schema.js";
 import { buildStrictBankrRequest } from "../src/live-model.js";
-import { BANKR_APPROVAL_EXPLANATION, BANKR_REJECTION_EXPLANATION } from "../src/live-model.js";
+import {
+  BANKR_APPROVAL_EXPLANATION,
+  BANKR_MAINNET_APPROVAL_EXPLANATION,
+  BANKR_REJECTION_EXPLANATION
+} from "../src/live-model.js";
 
 const supplier = privateKeyToAccount(`0x${"11".repeat(32)}`);
 const payer = privateKeyToAccount(`0x${"22".repeat(32)}`);
@@ -115,7 +119,7 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
         providerResponseId: "bankr-test-response",
         requestedModel: "gpt-5.6-terra",
         returnedModel: "gpt-5.6-terra",
-        requestHash: buildStrictBankrRequest(capturedInput!).requestHash,
+        requestHash: buildStrictBankrRequest(capturedInput!, deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic").requestHash,
         responseHash: `0x${"cd".repeat(32)}`,
         decision
       };
@@ -161,7 +165,7 @@ test("mainnet requests bind the genuine-value acknowledgement, chain-196 domain 
     issuedAt: mainnetRequest.issuedAt,
     dueDate: mainnetRequest.dueDate
   });
-  const h = harness(approval, mainnetObservation, mainnetObservation, CONNECTED_MAINNET);
+  const h = harness({ ...approval, explanation: BANKR_MAINNET_APPROVAL_EXPLANATION }, mainnetObservation, mainnetObservation, CONNECTED_MAINNET);
   const result = await h.service.authorize(mainnetRequest);
   expect(result.signingRequest).toMatchObject({ label: CONNECTED_MAINNET.label, chainId: "196" });
   expect(result.observation).toMatchObject({ chainId: 196, receivables: CONNECTED_MAINNET.receivables, settlementToken: CONNECTED_MAINNET.settlementToken });

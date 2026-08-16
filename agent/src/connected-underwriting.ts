@@ -10,7 +10,13 @@ import {
 } from "viem";
 import { z } from "zod";
 import { underwriteInvoice } from "./underwriter.js";
-import { BANKR_APPROVAL_EXPLANATION, BANKR_REJECTION_EXPLANATION, buildStrictBankrRequest } from "./live-model.js";
+import {
+  BANKR_APPROVAL_EXPLANATION,
+  BANKR_MAINNET_APPROVAL_EXPLANATION,
+  BANKR_MAINNET_REJECTION_EXPLANATION,
+  BANKR_REJECTION_EXPLANATION,
+  buildStrictBankrRequest
+} from "./live-model.js";
 import { boundedDecisionSchema, modelDecisionSchema, type BoundedDecision, type InvoiceRiskInput, type UnderwritingModel } from "./schema.js";
 
 export const CONNECTED_TESTNET = Object.freeze({
@@ -206,17 +212,19 @@ const unsupportedZeroHistoryReasons = new Set([
   "STALE_SETTLEMENT_HISTORY"
 ]);
 
-function assertModelReasonsSupported(input: InvoiceRiskInput, decision: z.infer<typeof modelDecisionSchema>): void {
+function assertModelReasonsSupported(input: InvoiceRiskInput, decision: z.infer<typeof modelDecisionSchema>, deployment: ConnectedDeployment): void {
   const hasVerifiedHistory = Object.values(input.payerHistory).some((value) => value !== 0);
   if (!hasVerifiedHistory && decision.reasons.some((reason) => unsupportedZeroHistoryReasons.has(reason))) {
     throw new Error("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
   }
-  const expectedExplanation = decision.verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
+  const expectedExplanation = deployment === CONNECTED_MAINNET
+    ? decision.verdict === "APPROVE" ? BANKR_MAINNET_APPROVAL_EXPLANATION : BANKR_MAINNET_REJECTION_EXPLANATION
+    : decision.verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
   if (decision.explanation !== expectedExplanation) throw new Error("CONNECTED_MODEL_EXPLANATION_UNSUPPORTED");
 }
 
-function committedModelId(input: InvoiceRiskInput, evidence: z.infer<typeof modelEvidenceSchema>): string {
-  const expectedRequestHash = buildStrictBankrRequest(input).requestHash;
+function committedModelId(input: InvoiceRiskInput, evidence: z.infer<typeof modelEvidenceSchema>, deployment: ConnectedDeployment): string {
+  const expectedRequestHash = buildStrictBankrRequest(input, deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic").requestHash;
   if (evidence.requestHash !== expectedRequestHash) throw new Error("CONNECTED_MODEL_REQUEST_HASH_MISMATCH");
   const receiptCommitment = keccak256(encodeAbiParameters(
     parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
@@ -387,7 +395,7 @@ export class ConnectedUnderwritingService {
         const storedInput = riskInputFrom(request, storedObservation);
         const reconstructedDecision = await underwriteInvoice({
           input: storedInput,
-          model: { modelId: committedModelId(storedInput, modelEvidence), decide: async () => modelEvidence.decision },
+          model: { modelId: committedModelId(storedInput, modelEvidence, deployment), decide: async () => modelEvidence.decision },
           policy: policyFor(deployment),
           now: storedObservation.blockTimestamp
         });
@@ -419,7 +427,7 @@ export class ConnectedUnderwritingService {
       const modelDecision = modelDecisionSchema.strict().parse(await model.decide(input));
       const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
       if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
-      assertModelReasonsSupported(input, modelDecision);
+      assertModelReasonsSupported(input, modelDecision, deployment);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
       assertObservation(request, postModelObservation, deployment);
       const beforeBlock = BigInt(observation.blockNumber);
@@ -430,7 +438,7 @@ export class ConnectedUnderwritingService {
       const postModelInput = riskInputFrom(request, postModelObservation);
       const decision = await underwriteInvoice({
         input: postModelInput,
-        model: { modelId: committedModelId(postModelInput, modelEvidence), decide: async () => modelDecision },
+        model: { modelId: committedModelId(postModelInput, modelEvidence, deployment), decide: async () => modelDecision },
         policy: policyFor(deployment),
         now: postModelObservation.blockTimestamp
       });

@@ -16,10 +16,20 @@ export const BANKR_MAX_RESPONSE_BYTES = 64 * 1_024;
 export const BANKR_CHAT_COMPLETIONS_URL = "https://llm.bankr.bot/v1/chat/completions" as const;
 export const BANKR_APPROVAL_EXPLANATION = "The supplied synthetic evidence supports approval within the returned structured limits." as const;
 export const BANKR_REJECTION_EXPLANATION = "The supplied synthetic evidence does not support approval." as const;
+export const BANKR_MAINNET_APPROVAL_EXPLANATION = "The supplied registered mainnet evidence supports approval within the returned structured limits." as const;
+export const BANKR_MAINNET_REJECTION_EXPLANATION = "The supplied registered mainnet evidence does not support approval." as const;
+export type BankrEvidenceBoundary = "synthetic" | "registered-mainnet";
 const BANKR_INPUT_USD_PER_MILLION = 2;
 const BANKR_OUTPUT_USD_PER_MILLION = 12;
 
-export const decisionJsonSchema = {
+const explanationFor = (boundary: BankrEvidenceBoundary, verdict: "APPROVE" | "REJECT") => {
+  if (boundary === "registered-mainnet") {
+    return verdict === "APPROVE" ? BANKR_MAINNET_APPROVAL_EXPLANATION : BANKR_MAINNET_REJECTION_EXPLANATION;
+  }
+  return verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
+};
+
+const schemaFor = (boundary: BankrEvidenceBoundary) => ({
   type: "object",
   additionalProperties: false,
   required: ["verdict", "maximumAdvanceBps", "feeBps", "confidenceBps", "reasons", "explanation"],
@@ -42,9 +52,11 @@ export const decisionJsonSchema = {
         ]
       }
     },
-    explanation: { type: "string", enum: [BANKR_APPROVAL_EXPLANATION, BANKR_REJECTION_EXPLANATION] }
+    explanation: { type: "string", enum: [explanationFor(boundary, "APPROVE"), explanationFor(boundary, "REJECT")] }
   }
-} as const;
+} as const);
+
+export const decisionJsonSchema = schemaFor("synthetic");
 
 const assistantMessageSchema = z.object({
   role: z.literal("assistant"),
@@ -73,14 +85,15 @@ export interface OfflineBankrRequest {
   readonly conservativeMaximumCostUsd: string;
 }
 
-export function buildStrictBankrRequest(input: InvoiceRiskInput): OfflineBankrRequest {
+export function buildStrictBankrRequest(input: InvoiceRiskInput, boundary: BankrEvidenceBoundary = "synthetic"): OfflineBankrRequest {
   const canonicalInput = invoiceRiskInputSchema.strict().parse(input);
+  const evidenceDescription = boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
   const body = JSON.stringify({
     model: BANKR_UNDERWRITING_MODEL,
     messages: [
       {
         role: "system",
-        content: "Assess only the supplied synthetic invoice evidence. Return exactly one JSON object matching the response schema. Never invent evidence."
+        content: `Assess only the supplied ${evidenceDescription}. Return exactly one JSON object matching the response schema. Never invent evidence.`
       },
       { role: "user", content: JSON.stringify(canonicalInput) }
     ],
@@ -92,7 +105,7 @@ export function buildStrictBankrRequest(input: InvoiceRiskInput): OfflineBankrRe
       json_schema: {
         name: "openbell_underwriting_decision",
         strict: true,
-        schema: decisionJsonSchema
+        schema: schemaFor(boundary)
       }
     }
   });
@@ -155,7 +168,7 @@ export class StrictBankrUnderwritingModel implements UnderwritingModel {
   #attempted = false;
   #lastReceipt: LiveModelReceipt | undefined;
 
-  constructor(readonly options: { apiKey: string; fetch?: typeof fetch }) {
+  constructor(readonly options: { apiKey: string; fetch?: typeof fetch; evidenceBoundary?: BankrEvidenceBoundary }) {
     if (!options.apiKey.trim()) throw new Error("BANKR_API_KEY_REQUIRED");
   }
 
@@ -166,7 +179,8 @@ export class StrictBankrUnderwritingModel implements UnderwritingModel {
   async decide(input: InvoiceRiskInput): Promise<ModelDecision> {
     if (this.#attempted) throw new Error("LIVE_MODEL_SINGLE_ATTEMPT_ONLY");
     this.#attempted = true;
-    const request = buildStrictBankrRequest(input);
+    const boundary = this.options.evidenceBoundary ?? "synthetic";
+    const request = buildStrictBankrRequest(input, boundary);
     const controller = new AbortController();
     let timedOut = false;
     const timer = setTimeout(() => {
@@ -185,7 +199,7 @@ export class StrictBankrUnderwritingModel implements UnderwritingModel {
       const envelope = chatCompletionEnvelopeSchema.parse(JSON.parse(raw));
       if (envelope.model !== BANKR_UNDERWRITING_MODEL) throw new Error("LIVE_MODEL_RETURNED_MODEL_MISMATCH");
       const decision = modelDecisionSchema.strict().parse(JSON.parse(envelope.choices[0]!.message.content));
-      const expectedExplanation = decision.verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
+      const expectedExplanation = explanationFor(boundary, decision.verdict);
       if (decision.explanation !== expectedExplanation) throw new Error("LIVE_MODEL_EXPLANATION_VERDICT_MISMATCH");
       this.#lastReceipt = {
         provider: "bankr-chat-completions",

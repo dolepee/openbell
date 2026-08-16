@@ -113,7 +113,10 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
   }
   try {
     (deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema : mainnetUnderwritingRequestSchema).parse(body);
-    const model = new StrictBankrUnderwritingModel({ apiKey: config.BANKR_API_KEY });
+    const model = new StrictBankrUnderwritingModel({
+      apiKey: config.BANKR_API_KEY,
+      evidenceBoundary: deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic"
+    });
     const providerDefinitions = deployment === CONNECTED_TESTNET ? officialTestnetProviders : officialMainnetProviders;
     const observer = new TwoProviderConnectedInvoiceObserver(providerDefinitions.map(
       ({ label, endpoint }) => new OfficialReadOnlyRpc(label, endpoint)
