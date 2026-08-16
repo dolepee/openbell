@@ -88,6 +88,11 @@ test("multi-page launch surface separates product, deal preparation, verified ca
   assert.match(mainnet, /<title>Live USDG desk — OpenBell<\/title>/);
   assert.match(mainnet, /canonical USDG on X Layer mainnet/);
   assert.match(mainnet, /rel="canonical" href="https:\/\/openbell\.dolepee\.com\/mainnet\/"/);
+  assert.match(mainnet, /XLAYER MAINNET/);
+  assert.match(mainnet, /REAL USDG/);
+  assert.match(mainnet, /CHAIN 196/);
+  assert.match(mainnet, /AI proposes\.<br \/>X Layer limits\./);
+  assert.doesNotMatch(mainnet, /TESTNET FIXTURE|NO REAL VALUE|CHAIN 1952|fixture tUSDG|synthetic X Layer testnet/i);
   assert.match(workspace, /Bankr-mediated GPT-5\.6 Terra · first response/);
   assert.match(workspace, /data-invoice="approved"/);
   assert.match(workspace, /data-invoice="rejected"/);

@@ -21,36 +21,36 @@
   </head>
   <body data-page="operate" data-network="mainnet" class="operate-page">
     <a class="skip-link" href="#main">Skip to the connected desk</a>
-    <div class="status-bar" role="note"><span><i class="status-dot"></i> XLAYER TESTNET FIXTURE</span><span>NO REAL VALUE</span><span>EXACT ACTIONS ONLY</span></div>
+    <div class="status-bar" role="note"><span><i class="status-dot"></i> XLAYER MAINNET</span><span>REAL USDG</span><span>EXACT ACTIONS ONLY</span></div>
     <header class="topbar">
       <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
       <div class="nav-right">
-        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/">Deal studio</a><a href="/operate/" aria-current="page">Connected desk</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav>
-        <a class="header-cta" href="/proof/#testnet">Verify lifecycle <span aria-hidden="true">↗</span></a>
+        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/">Deal studio</a><a href="/mainnet/" aria-current="page">Live USDG desk</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav>
+        <a class="header-cta" href="/proof/#mainnet">Verify deployment <span aria-hidden="true">↗</span></a>
       </div>
     </header>
 
     <main id="main" class="operate-shell">
       <header class="operate-hero">
-        <div><p class="overline">OPENBELL · CONNECTED EXECUTION</p><h1>One exact action.<br />One required signer.</h1></div>
-        <p>This desk reconstructs each action from structured OpenBell fields, verifies every EIP-712 signer, simulates with transaction value zero, and only then asks the matching wallet to continue.</p>
+        <div><p class="overline">OPENBELL · LIVE USDG EXECUTION</p><h1>AI proposes.<br />X Layer limits.</h1></div>
+        <p>Prepare a real receivable, bind supplier and payer signatures, and move only the smallest amount permitted by the supplier request, AI decision, and immutable 80% contract ceiling.</p>
       </header>
 
       <section class="operate-readiness" aria-labelledby="readiness-title">
         <div class="readiness-copy">
-          <p class="overline">BEFORE YOU START</p>
-          <h2 id="readiness-title">Three accounts. One guided testnet journey.</h2>
-          <p>One person may control all three accounts, but the supplier, payer, and funder addresses must be distinct. OpenBell's configured underwriter remains separate and signs only after the genuine assessment.</p>
+          <p class="overline">BEFORE REAL VALUE MOVES</p>
+          <h2 id="readiness-title">Three independent roles. One genuine receivable.</h2>
+          <p>The supplier, payer, and funder use distinct X Layer mainnet addresses. The payer acknowledges the invoice; the funder provides canonical USDG only after a bounded decision is signed.</p>
         </div>
         <ol>
-          <li><span>01</span><div><strong>Create three wallet accounts</strong><small>Supplier, payer, and funder must use different addresses.</small></div></li>
-          <li><span>02</span><div><strong>Claim testnet OKB for each</strong><small>Each signing account needs gas on X Layer testnet.</small></div></li>
-          <li><span>03</span><div><strong>Prepare a synthetic deal</strong><small>Use the Deal Studio, then pass the downloaded JSON between roles.</small></div></li>
-          <li><span>04</span><div><strong>Pause for underwriting</strong><small>The supplier requests one genuine assessment; OpenBell separately signs the exact result.</small></div></li>
+          <li><span>01</span><div><strong>Prepare the genuine invoice</strong><small>Commit the source document locally; OpenBell never uploads it.</small></div></li>
+          <li><span>02</span><div><strong>Supplier and payer sign</strong><small>Both wallets authorize the same numeric chain-196 EIP-712 terms.</small></div></li>
+          <li><span>03</span><div><strong>Run bounded underwriting</strong><small>AI may tighten or refuse the request; it cannot exceed the contract ceiling.</small></div></li>
+          <li><span>04</span><div><strong>Fund and settle in USDG</strong><small>Every transaction is simulated, role-bound, and confirmed on X Layer.</small></div></li>
         </ol>
         <div class="readiness-actions">
-          <a class="button button-primary" href="/studio/">Prepare testnet deal</a>
-          <a class="button button-secondary" href="https://web3.okx.com/en/xlayer/faucet" target="_blank" rel="noreferrer">Open official faucet ↗</a>
+          <a class="button button-primary" href="/studio/?target=mainnet">Prepare mainnet deal</a>
+          <a class="button button-secondary" href="/proof/#mainnet">Inspect deployment proof ↗</a>
         </div>
       </section>
 
@@ -58,10 +58,10 @@
         <form class="session-load" id="session-form" novalidate>
           <p class="overline">DUAL-SIGNATURE HANDOFF</p>
           <h2 id="session-title">Supplier signs. Payer countersigns.</h2>
-          <p>Load an unsigned testnet deal from the Studio, or continue a session received from the other party. The document stays local; each wallet signs the same numeric-chain EIP-712 digest.</p>
+          <p>Load a mainnet deal from the Studio, or continue the exact session received from the other party. The document stays local; each wallet signs the same chain-196 digest.</p>
           <label for="session-file">Unsigned deal or invoice-session JSON</label>
           <input id="session-file" name="sessionFile" type="file" accept="application/json,.json" required aria-describedby="session-help session-error" aria-invalid="false" />
-          <small id="session-help">Only the frozen chain-1952 fixture contract is accepted.</small>
+          <small id="session-help">Only the verified chain-196 OpenBell contract and canonical USDG are accepted.</small>
           <button class="button button-secondary" type="submit"><span>Load signing session</span><span aria-hidden="true">→</span></button>
           <p class="form-error" id="session-error" role="alert" aria-live="assertive"></p>
         </form>
@@ -73,19 +73,13 @@
         </article>
       </section>
 
-      <section class="operate-grid" aria-label="Connected testnet workflow">
+      <section class="operate-grid" aria-label="Connected X Layer mainnet workflow">
         <article class="operate-card">
-          <header><span>01 / WALLET</span><b>CHAIN 1952</b></header>
-          <h2>Bring the correct role.</h2>
+          <header><span>01 / WALLET</span><b>CHAIN 196</b></header>
+          <h2>Bring the exact role wallet.</h2>
           <p id="wallet-state" role="status" aria-live="polite">Checking for a compatible browser wallet…</p>
           <button class="button button-primary" id="connect-wallet" type="button" aria-pressed="false">Connect wallet</button>
-          <div class="fixture-claim-control">
-            <button class="button button-secondary" id="claim-fixture-tokens" type="button" disabled aria-busy="false" aria-describedby="fixture-claim-help fixture-claim-error">Review fixture tUSDG claim</button>
-            <small id="fixture-claim-help">Funder and payer each claim 1,000 no-value fixture tUSDG from the fixed token contract. The exact zero-value call opens in the review panel before simulation.</small>
-            <p id="fixture-claim-state" role="status" aria-live="polite">No fixture-token claim reviewed.</p>
-            <p class="form-error" id="fixture-claim-error" role="alert" aria-live="assertive"></p>
-          </div>
-          <small>Supplier registers or rejects. Funder approves and funds. Payer approves and settles. The connected address must match the package.</small>
+          <small>Supplier registers or rejects. Funder approves and funds with USDG. Payer approves and settles. No wallet can act for another role.</small>
         </article>
 
         <form class="operate-card" id="action-form" novalidate>
@@ -105,7 +99,7 @@
             <div><dt>Required signer</dt><dd><code id="action-signer"></code></dd></div>
             <div><dt>Contract</dt><dd><code id="action-target"></code></dd></div>
             <div><dt>Native value</dt><dd id="action-value"></dd></div>
-            <div><dt>Fixture amount</dt><dd id="action-amount"></dd></div>
+            <div><dt>USDG amount</dt><dd id="action-amount"></dd></div>
             <div><dt>Rebuilt calldata</dt><dd><code id="action-calldata"></code></dd></div>
           </dl>
           <button class="button button-primary" id="execute-action" type="button" disabled aria-busy="false"><span>Simulate and continue</span><span aria-hidden="true">→</span></button>
@@ -115,7 +109,7 @@
 
       <section class="operate-receipt" id="receipt-panel" hidden tabindex="-1" aria-live="polite">
         <div><p class="overline">CONFIRMED ACTION</p><h2>The wallet action landed.</h2></div>
-        <p>This is a single-provider wallet receipt, not final two-provider lifecycle verification. Open the transaction now; the evidence verifier remains the source of canonical finality claims.</p>
+        <p>The transaction landed on X Layer mainnet. Open the receipt and verify the exact contract, signer, and canonical USDG amount.</p>
         <a class="button button-secondary" id="receipt-link" href="#" target="_blank" rel="noreferrer">Open receipt</a>
       </section>
 
@@ -126,7 +120,7 @@
           <p>The supplier authorizes one paid assessment. Two official RPCs independently verify the registered, dual-signed invoice before GPT-5.6 Terra is called. The genuine first response is final.</p>
           <label>Funder address<input id="assessment-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
           <div class="assessment-history-note"><strong>Fresh payer · zero imported history</strong><p>The connected path does not accept supplier-declared performance. Historical claims remain zero until OpenBell can independently derive them from confirmed receipts.</p></div>
-          <label>Redacted assessment context<textarea id="assessment-context" maxlength="2000" required>Authorized synthetic X Layer testnet fixture evidence. No real value.</textarea></label>
+          <label>Redacted assessment context<textarea id="assessment-context" maxlength="2000" required>Authorized evidence for a genuine receivable. No confidential document content is included.</textarea></label>
           <div class="form-consent"><input id="assessment-consent" type="checkbox" required /><label for="assessment-consent">I understand this makes exactly one genuine model request; failures and results are not retried or substituted.</label></div>
           <button class="button button-primary" id="request-assessment" type="submit">Authorize one assessment</button>
           <p class="form-error" id="assessment-error" role="alert" aria-live="assertive"></p>
@@ -141,11 +135,11 @@
       </section>
 
       <section class="operate-boundary" aria-labelledby="operate-boundary-title">
-        <div><p class="overline">CURRENT PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Connected, bounded, still a fixture.</h2></div>
-        <p>The desk can prepare, dual-sign, register, request one genuine assessment, and execute exact no-value testnet actions. It does not verify legal invoice validity, promise financing, custody funds, or authorize any mainnet lifecycle.</p>
+        <div><p class="overline">LIVE PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Real settlement, bounded authority.</h2></div>
+        <p>OpenBell verifies signatures, observes confirmed registration through two official RPCs, obtains one genuine model response, and reconstructs exact USDG actions. It does not verify legal invoice validity, guarantee financing, or let the model custody funds.</p>
       </section>
     </main>
 
-    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded receivables credit on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/">Deal studio</a><a href="/operate/">Connected desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav></footer>
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded receivables credit on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/">Deal studio</a><a href="/mainnet/">Live USDG desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav></footer>
   </body>
 </html>
