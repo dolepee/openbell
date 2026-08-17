@@ -326,6 +326,14 @@ test("supplier-declared payer history is rejected before chain, model, signer or
   expect(h.store.rows.size).toBe(0);
 });
 
+test("zero requested advance is rejected before chain, model, signer or DB access", async () => {
+  const h = harness(approval);
+  const zeroAdvance = await authorizedRequest({ requestedAdvance: "0" });
+  await expect(h.service.authorize(zeroAdvance)).rejects.toThrow();
+  expect(h.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
+  expect(h.store.rows.size).toBe(0);
+});
+
 test("changed retry conflicts before a second observer, model, or signature call", async () => {
   const h = harness(approval);
   await h.service.authorize(request);

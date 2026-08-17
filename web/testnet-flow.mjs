@@ -235,12 +235,9 @@ const riskReasons = new Set([
   "STRONG_ON_TIME_HISTORY", "LATE_PAYMENT_HISTORY", "PRIOR_DEFAULT", "HIGH_COUNTERPARTY_CONCENTRATION",
   "LONG_TENOR", "STALE_SETTLEMENT_HISTORY", "INCONSISTENT_EVIDENCE", "MODEL_UNCERTAINTY"
 ]);
-const refusalCodes = new Set(["INVALID_EVIDENCE", "DUPLICATE_INVOICE", "INVALID_TENOR", "MODEL_REJECTED", "LOW_CONFIDENCE"]);
+const refusalCodes = new Set(["MODEL_REJECTED", "LOW_CONFIDENCE"]);
 const refusalMessages = Object.freeze({
-  INVALID_EVIDENCE: "Both signatures and the document hash must verify.",
-  DUPLICATE_INVOICE: "The invoice already appears in the duplicate index.",
-  INVALID_TENOR: "The invoice tenor is outside the protocol envelope.",
-  MODEL_REJECTED: new Set(["The bounded advance is zero.", "The repayment would exceed the invoice face value."]),
+  MODEL_REJECTED: "The bounded advance is zero.",
   LOW_CONFIDENCE: "The model confidence is below the policy floor."
 });
 const CONNECTED_MIN_CONFIDENCE_BPS = 7_000;
@@ -276,7 +273,9 @@ export function validateConnectedPolicyRefusal(candidate) {
   const lowConfidenceMatches = candidate.refusal.code !== "LOW_CONFIDENCE"
     || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS);
   const boundedRejectionMatches = candidate.refusal.code !== "MODEL_REJECTED"
-    || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps >= CONNECTED_MIN_CONFIDENCE_BPS);
+    || (evidence.decision.verdict === "APPROVE"
+      && evidence.decision.confidenceBps >= CONNECTED_MIN_CONFIDENCE_BPS
+      && evidence.decision.maximumAdvanceBps === 0);
   if (!messageMatches || !lowConfidenceMatches || !boundedRejectionMatches) {
     throw new Error("Policy refusal contradicts the model decision or connected policy.");
   }

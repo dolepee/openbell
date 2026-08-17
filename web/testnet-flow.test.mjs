@@ -119,6 +119,21 @@ test("policy refusals preserve evidence without exposing execution authority", (
     ...policyRefusal,
     refusal: { ...policyRefusal.refusal, message: "A different refusal explanation." }
   }), /contradicts the model decision/);
+  for (const [code, message] of [
+    ["INVALID_EVIDENCE", "Both signatures and the document hash must verify."],
+    ["DUPLICATE_INVOICE", "The invoice already appears in the duplicate index."],
+    ["INVALID_TENOR", "The invoice tenor is outside the protocol envelope."]
+  ]) {
+    assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, refusal: { code, message } }), /reason is invalid/);
+  }
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    refusal: { code: "MODEL_REJECTED", message: "The bounded advance is zero." },
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 8_000, maximumAdvanceBps: 1 }
+    }
+  }), /contradicts the model decision/);
 });
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({

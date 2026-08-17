@@ -50,6 +50,7 @@ export type ConnectedDeployment = typeof CONNECTED_TESTNET | typeof CONNECTED_MA
 const address = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((value) => getAddress(value));
 const bytes32 = z.string().regex(/^0x[a-fA-F0-9]{64}$/).transform((value) => value.toLowerCase() as Hex);
 const uintString = z.string().regex(/^(0|[1-9][0-9]*)$/);
+const positiveUintString = z.string().regex(/^[1-9][0-9]*$/);
 const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const signature = z.string().regex(/^0x[a-fA-F0-9]{130}$/).superRefine((value, context) => {
   const s = BigInt(`0x${value.slice(66, 130)}`);
@@ -79,7 +80,7 @@ const requestFields = {
   faceValue: uintString,
   issuedAt: z.number().int().nonnegative(),
   dueDate: z.number().int().positive(),
-  requestedAdvance: uintString,
+  requestedAdvance: positiveUintString,
   payerHistory: historySchema,
   redactedContext: z.string().trim().min(1).max(2_000),
   supplierAuthorization: signature
@@ -371,7 +372,7 @@ const policyRefusalEvidenceSchema = z.object({
   schemaVersion: z.literal("openbell-connected-policy-refusal-v1"),
   outcome: z.literal("POLICY_REFUSAL"),
   executionAuthority: z.literal(false),
-  refusal: z.object({ code: z.enum(["INVALID_EVIDENCE", "DUPLICATE_INVOICE", "INVALID_TENOR", "MODEL_REJECTED", "LOW_CONFIDENCE"]), message: z.string().min(1) }).strict(),
+  refusal: z.object({ code: z.enum(["MODEL_REJECTED", "LOW_CONFIDENCE"]), message: z.string().min(1) }).strict(),
   modelEvidence: modelEvidenceSchema,
   observation: registeredObservationSchema
 }).strict();
