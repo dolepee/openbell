@@ -199,17 +199,26 @@ test("funding candidate endpoint rechecks expiry after current state verificatio
     invoice: { invoiceId: `0x${"10".repeat(32)}` }
   };
   let rpcCalls = 0;
-  vi.stubGlobal("fetch", vi.fn(async () => {
+  let resolveSecondRpc!: (response: Response) => void;
+  const secondRpc = new Promise<Response>((resolve) => {
+    resolveSecondRpc = resolve;
+  });
+  vi.stubGlobal("fetch", vi.fn(() => {
     rpcCalls += 1;
-    if (rpcCalls === 2) vi.setSystemTime(requestStartedAt + 2_000);
-    return jsonRpcResponse(invoiceState(1));
+    return rpcCalls === 1
+      ? Promise.resolve(jsonRpcResponse(invoiceState(1)))
+      : secondRpc;
   }));
   const candidateEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
     DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_800_000_001 }) }) }
   } as never;
-  const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  const responsePromise = worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  for (let attempt = 0; attempt < 10 && rpcCalls < 2; attempt += 1) await Promise.resolve();
   expect(rpcCalls).toBe(2);
+  vi.setSystemTime(requestStartedAt + 2_000);
+  resolveSecondRpc(jsonRpcResponse(invoiceState(1)));
+  const response = await responsePromise;
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ error: "NO_OPEN_FUNDING_CANDIDATE" });
 });
