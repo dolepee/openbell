@@ -1,9 +1,11 @@
 import {
   decodeFunctionResult,
+  encodeAbiParameters,
   encodeFunctionData,
   getAddress,
   hashTypedData,
   keccak256,
+  parseAbiParameters,
   recoverTypedDataAddress,
   stringToHex
 } from "viem";
@@ -235,6 +237,10 @@ const riskReasons = new Set([
   "STRONG_ON_TIME_HISTORY", "LATE_PAYMENT_HISTORY", "PRIOR_DEFAULT", "HIGH_COUNTERPARTY_CONCENTRATION",
   "LONG_TENOR", "STALE_SETTLEMENT_HISTORY", "INCONSISTENT_EVIDENCE", "MODEL_UNCERTAINTY"
 ]);
+const unsupportedZeroHistoryReasons = new Set([
+  "STRONG_ON_TIME_HISTORY", "LATE_PAYMENT_HISTORY", "PRIOR_DEFAULT",
+  "HIGH_COUNTERPARTY_CONCENTRATION", "STALE_SETTLEMENT_HISTORY"
+]);
 const refusalCodes = new Set(["MODEL_REJECTED", "LOW_CONFIDENCE"]);
 const refusalMessages = Object.freeze({
   MODEL_REJECTED: "The bounded advance is zero.",
@@ -242,6 +248,8 @@ const refusalMessages = Object.freeze({
 });
 const CONNECTED_MIN_CONFIDENCE_BPS = 7_000;
 const CONNECTED_MAX_ADVANCE_BPS = 8_000n;
+const CONNECTED_MAX_FEE_BPS = 2_000n;
+const CONNECTED_MAX_DECISION_LIFETIME_SECONDS = 1_800;
 const BANKR_MAINNET_POLICY_PROMPT = "An APPROVE verdict requires confidenceBps of at least 7000. If the evidence does not justify that confidence, return REJECT instead of a lower-confidence APPROVE. The deterministic envelope caps maximumAdvanceBps at 8000 and feeBps at 2000.";
 const bankrExplanationFor = (boundary, verdict) => boundary === "registered-mainnet"
   ? verdict === "APPROVE" ? "The supplied registered mainnet evidence supports approval within the returned structured limits." : "The supplied registered mainnet evidence does not support approval."
@@ -284,41 +292,26 @@ export function buildBrowserBankrRequestHash(input, boundary) {
   return keccak256(stringToHex(body));
 }
 
-export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
-  allowedKeys(candidate, ["schemaVersion", "outcome", "executionAuthority", "refusal", "modelEvidence", "observation"], "Policy refusal");
-  if (candidate.schemaVersion !== "openbell-connected-policy-refusal-v1" || candidate.outcome !== "POLICY_REFUSAL" || candidate.executionAuthority !== false) {
-    throw new Error("Policy refusal must explicitly carry no execution authority.");
-  }
-  allowedKeys(candidate.refusal, ["code", "message"], "Policy refusal reason");
-  if (!refusalCodes.has(candidate.refusal.code) || typeof candidate.refusal.message !== "string" || !candidate.refusal.message.trim()) {
-    throw new Error("Policy refusal reason is invalid.");
-  }
-  const evidence = candidate.modelEvidence;
-  allowedKeys(evidence, ["provider", "providerResponseId", "requestedModel", "returnedModel", "requestHash", "responseHash", "decision"], "Policy refusal model evidence");
+const validateConnectedModelEvidence = (evidence, boundary) => {
+  allowedKeys(evidence, ["provider", "providerResponseId", "requestedModel", "returnedModel", "requestHash", "responseHash", "decision"], "Connected model evidence");
   if (evidence.provider !== "bankr-chat-completions" || evidence.requestedModel !== "gpt-5.6-terra" || evidence.returnedModel !== "gpt-5.6-terra" || typeof evidence.providerResponseId !== "string" || !evidence.providerResponseId) {
-    throw new Error("Policy refusal model receipt is invalid.");
+    throw new Error("Connected model receipt is invalid.");
   }
   asHash(evidence.requestHash, "Model request hash");
   asHash(evidence.responseHash, "Model response hash");
-  allowedKeys(evidence.decision, ["verdict", "maximumAdvanceBps", "feeBps", "confidenceBps", "reasons", "explanation"], "Policy refusal model decision");
+  allowedKeys(evidence.decision, ["verdict", "maximumAdvanceBps", "feeBps", "confidenceBps", "reasons", "explanation"], "Connected model decision");
   if (!["APPROVE", "REJECT"].includes(evidence.decision.verdict)
     || ![evidence.decision.maximumAdvanceBps, evidence.decision.feeBps, evidence.decision.confidenceBps].every((value) => Number.isInteger(value) && value >= 0 && value <= 10_000)
     || !Array.isArray(evidence.decision.reasons) || evidence.decision.reasons.length < 1 || evidence.decision.reasons.length > 8
     || evidence.decision.reasons.some((reason) => !riskReasons.has(reason))
-    || typeof evidence.decision.explanation !== "string" || !evidence.decision.explanation.trim() || evidence.decision.explanation.length > 600) {
-    throw new Error("Policy refusal model decision is invalid.");
+    || evidence.decision.explanation !== bankrExplanationFor(boundary, evidence.decision.verdict)) {
+    throw new Error("Connected model decision is invalid.");
   }
-  const expectedMessage = refusalMessages[candidate.refusal.code];
-  const messageMatches = expectedMessage instanceof Set
-    ? expectedMessage.has(candidate.refusal.message)
-    : candidate.refusal.message === expectedMessage;
-  const lowConfidenceMatches = candidate.refusal.code !== "LOW_CONFIDENCE"
-    || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS);
-  if (!messageMatches || !lowConfidenceMatches) {
-    throw new Error("Policy refusal contradicts the model decision or connected policy.");
-  }
-  const observation = candidate.observation;
-  allowedKeys(observation, ["chainId", "receivables", "settlementToken", "blockNumber", "blockHash", "blockTimestamp", "registrationTransactionHash", "status", "invoiceId", "invoiceDigest", "documentHash", "supplier", "payer", "faceValue", "issuedAt", "dueDate", "underwriter", "paused", "decisionNonceUnused", "documentHashRegistered", "invoiceDigestRegistered"], "Policy refusal observation");
+  return evidence;
+};
+
+const validateConnectedObservation = (observation) => {
+  allowedKeys(observation, ["chainId", "receivables", "settlementToken", "blockNumber", "blockHash", "blockTimestamp", "registrationTransactionHash", "status", "invoiceId", "invoiceDigest", "documentHash", "supplier", "payer", "faceValue", "issuedAt", "dueDate", "underwriter", "paused", "decisionNonceUnused", "documentHashRegistered", "invoiceDigestRegistered"], "Connected observation");
   const deployment = deployments.find((item) => item.chainId === observation.chainId
     && item.receivables.toLowerCase() === String(observation.receivables).toLowerCase()
     && item.settlementToken.toLowerCase() === String(observation.settlementToken).toLowerCase());
@@ -327,14 +320,40 @@ export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
     || !Number.isSafeInteger(observation.blockTimestamp) || observation.blockTimestamp < 0
     || !Number.isSafeInteger(observation.issuedAt) || observation.issuedAt < 0
     || !Number.isSafeInteger(observation.dueDate) || observation.dueDate <= 0) {
-    throw new Error("Policy refusal chain observation is invalid.");
+    throw new Error("Connected chain observation is invalid.");
   }
   asUint(observation.blockNumber, "Observed block number");
   asUint(observation.faceValue, "Observed face value");
   ["blockHash", "registrationTransactionHash", "invoiceId", "invoiceDigest", "documentHash"].forEach((key) => asHash(observation[key], `Observed ${key}`));
   ["receivables", "settlementToken", "supplier", "payer", "underwriter"].forEach((key) => asAddress(observation[key], `Observed ${key}`));
+  return deployment;
+};
+
+const connectedModelInput = (observation, expectedRequest) => ({
+  invoiceId: observation.invoiceId,
+  invoiceDigest: observation.invoiceDigest,
+  supplier: observation.supplier,
+  payer: observation.payer,
+  funder: expectedRequest.funder,
+  faceValue: observation.faceValue,
+  issuedAt: observation.issuedAt,
+  dueDate: observation.dueDate,
+  requestedAdvance: expectedRequest.requestedAdvance,
+  evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
+  payerHistory: expectedRequest.payerHistory,
+  redactedContext: expectedRequest.redactedContext
+});
+
+const assertConnectedModelReasonsSupported = (modelInput, evidence) => {
+  const hasVerifiedHistory = Object.values(modelInput.payerHistory).some((value) => value !== 0);
+  if (!hasVerifiedHistory && evidence.decision.reasons.some((reason) => unsupportedZeroHistoryReasons.has(reason))) {
+    throw new Error("Connected model reason is unsupported by the submitted evidence.");
+  }
+};
+
+const bindConnectedResponseToRequest = (observation, expectedRequest, deployment) => {
   if (!expectedRequest || typeof expectedRequest !== "object" || Array.isArray(expectedRequest)) {
-    throw new Error("Policy refusal requires the exact submitted assessment request.");
+    throw new Error("Connected response requires the exact submitted assessment request.");
   }
   const expectedSchema = deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : "openbell-mainnet-underwriting-v1";
   const requestMatches = expectedRequest.schemaVersion === expectedSchema
@@ -347,25 +366,35 @@ export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
     && observation.faceValue === expectedRequest.faceValue
     && observation.issuedAt === expectedRequest.issuedAt
     && observation.dueDate === expectedRequest.dueDate;
-  if (!requestMatches) throw new Error("Policy refusal does not match the submitted assessment request.");
-  const modelInput = {
-    invoiceId: observation.invoiceId,
-    invoiceDigest: observation.invoiceDigest,
-    supplier: observation.supplier,
-    payer: observation.payer,
-    funder: expectedRequest.funder,
-    faceValue: observation.faceValue,
-    issuedAt: observation.issuedAt,
-    dueDate: observation.dueDate,
-    requestedAdvance: expectedRequest.requestedAdvance,
-    evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
-    payerHistory: expectedRequest.payerHistory,
-    redactedContext: expectedRequest.redactedContext
-  };
-  const boundary = deployment === OPENBELL_TESTNET ? "synthetic" : "registered-mainnet";
-  if (evidence.decision.explanation !== bankrExplanationFor(boundary, evidence.decision.verdict)) {
-    throw new Error("Policy refusal model explanation does not match the connected evidence boundary.");
+  if (!requestMatches) throw new Error("Connected response does not match the submitted assessment request.");
+  return connectedModelInput(observation, expectedRequest);
+};
+
+export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
+  allowedKeys(candidate, ["schemaVersion", "outcome", "executionAuthority", "refusal", "modelEvidence", "observation"], "Policy refusal");
+  if (candidate.schemaVersion !== "openbell-connected-policy-refusal-v1" || candidate.outcome !== "POLICY_REFUSAL" || candidate.executionAuthority !== false) {
+    throw new Error("Policy refusal must explicitly carry no execution authority.");
   }
+  allowedKeys(candidate.refusal, ["code", "message"], "Policy refusal reason");
+  if (!refusalCodes.has(candidate.refusal.code) || typeof candidate.refusal.message !== "string" || !candidate.refusal.message.trim()) {
+    throw new Error("Policy refusal reason is invalid.");
+  }
+  const boundary = candidate.observation?.chainId === OPENBELL_MAINNET_CONNECTED.chainId ? "registered-mainnet" : "synthetic";
+  const evidence = validateConnectedModelEvidence(candidate.modelEvidence, boundary);
+  const expectedMessage = refusalMessages[candidate.refusal.code];
+  const messageMatches = expectedMessage instanceof Set
+    ? expectedMessage.has(candidate.refusal.message)
+    : candidate.refusal.message === expectedMessage;
+  const lowConfidenceMatches = candidate.refusal.code !== "LOW_CONFIDENCE"
+    || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS);
+  if (!messageMatches || !lowConfidenceMatches) {
+    throw new Error("Policy refusal contradicts the model decision or connected policy.");
+  }
+  const observation = candidate.observation;
+  const deployment = validateConnectedObservation(observation);
+  const modelInput = bindConnectedResponseToRequest(observation, expectedRequest, deployment);
+  if ((deployment === OPENBELL_MAINNET_CONNECTED ? "registered-mainnet" : "synthetic") !== boundary) throw new Error("Policy refusal evidence boundary changed.");
+  assertConnectedModelReasonsSupported(modelInput, evidence);
   if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) {
     throw new Error("Policy refusal model request hash does not match the submitted assessment request.");
   }
@@ -489,6 +518,67 @@ const walletDecisionTypedData = (typedData) => ({
     ...typedData.types
   }
 });
+
+export function validateConnectedAssessment(assessment, expectedRequest) {
+  allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest"], "Connected assessment");
+  const deployment = validateConnectedObservation(assessment.observation);
+  const boundary = deployment === OPENBELL_MAINNET_CONNECTED ? "registered-mainnet" : "synthetic";
+  const evidence = validateConnectedModelEvidence(assessment.modelEvidence, boundary);
+  const modelInput = bindConnectedResponseToRequest(assessment.observation, expectedRequest, deployment);
+  assertConnectedModelReasonsSupported(modelInput, evidence);
+  if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) throw new Error("Connected assessment model request hash changed.");
+
+  const receiptCommitment = keccak256(encodeAbiParameters(
+    parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
+    [evidence.provider, evidence.providerResponseId, evidence.requestedModel, evidence.returnedModel, evidence.requestHash, evidence.responseHash]
+  ));
+  const modelId = `bankr:${evidence.requestedModel}:receipt:${receiptCommitment}`;
+  const modelHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("string modelId, string verdict, uint16 maximumAdvanceBps, uint16 feeBps, uint16 confidenceBps, string[] reasons, string explanation"),
+    [modelId, evidence.decision.verdict, evidence.decision.maximumAdvanceBps, evidence.decision.feeBps, evidence.decision.confidenceBps, evidence.decision.reasons, evidence.decision.explanation]
+  ));
+  const riskReasonsHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("string[] reasons, string explanation"),
+    [evidence.decision.reasons, evidence.decision.explanation]
+  ));
+  const common = {
+    invoiceId: assessment.observation.invoiceId,
+    invoiceDigest: assessment.observation.invoiceDigest,
+    riskTimestamp: assessment.observation.blockTimestamp,
+    expiresAt: Math.min(assessment.observation.blockTimestamp + CONNECTED_MAX_DECISION_LIFETIME_SECONDS, assessment.observation.dueDate),
+    riskReasonsHash,
+    modelHash,
+    reasons: evidence.decision.reasons,
+    explanation: evidence.decision.explanation,
+    modelId
+  };
+  let expectedDecision;
+  if (evidence.decision.verdict === "REJECT") {
+    expectedDecision = { verdict: "REJECT", ...common };
+  } else {
+    if (evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS) throw new Error("Connected assessment should have been a policy refusal.");
+    const boundedAdvanceBps = BigInt(Math.min(evidence.decision.maximumAdvanceBps, Number(CONNECTED_MAX_ADVANCE_BPS)));
+    const maximumAdvance = (BigInt(assessment.observation.faceValue) * boundedAdvanceBps) / 10_000n;
+    const requestedAdvance = asUint(expectedRequest.requestedAdvance, "Requested advance");
+    const advanceAmount = requestedAdvance < maximumAdvance ? requestedAdvance : maximumAdvance;
+    if (advanceAmount === 0n) throw new Error("Connected assessment should have been a policy refusal.");
+    const boundedFeeBps = BigInt(Math.min(evidence.decision.feeBps, Number(CONNECTED_MAX_FEE_BPS)));
+    const repaymentAmount = advanceAmount + (advanceAmount * boundedFeeBps) / 10_000n;
+    if (repaymentAmount > BigInt(assessment.observation.faceValue)) throw new Error("Connected assessment should have been a policy refusal.");
+    expectedDecision = {
+      verdict: "APPROVE",
+      ...common,
+      funder: expectedRequest.funder,
+      advanceAmount: advanceAmount.toString(),
+      repaymentAmount: repaymentAmount.toString()
+    };
+  }
+  if (canonicalJson(assessment.decision) !== canonicalJson(expectedDecision)) throw new Error("Connected assessment decision is not the bounded result of its model evidence.");
+  const expectedNonce = BigInt(keccak256(stringToHex(canonicalJson(expectedRequest)))).toString();
+  if (assessment.signingRequest?.nonce !== expectedNonce) throw new Error("Connected assessment nonce does not bind the submitted request.");
+  connectedDecisionTypedData(assessment);
+  return assessment;
+}
 
 export function connectedDecisionTypedData(assessment) {
   allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest"], "Connected assessment");
