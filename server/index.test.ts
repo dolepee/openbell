@@ -1,4 +1,5 @@
-import { expect, test } from "vitest";
+import { encodeAbiParameters, parseAbiParameters } from "viem";
+import { afterEach, expect, test, vi } from "vitest";
 import { connectedRequestHashOf, mainnetUnderwritingRequestSchema } from "../agent/src/connected-underwriting.js";
 import worker from "./index.js";
 
@@ -7,6 +8,15 @@ const environment = {
   DB: { prepare: () => { throw new Error("DB_MUST_NOT_BE_TOUCHED"); } }
 } as never;
 const api = "https://openbell.dolepee.com/api/connected-underwriting";
+const jsonRpcResponse = (result: string) => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }), {
+  headers: { "content-type": "application/json" }
+});
+const invoiceState = (status: number) => encodeAbiParameters(
+  parseAbiParameters("uint8, address, address, address, uint128, uint128, uint128, uint64, bytes32, bytes32, bytes32"),
+  [status, `0x${"11".repeat(20)}`, `0x${"22".repeat(20)}`, `0x${"33".repeat(20)}`, 100_000n, 0n, 0n, 1_800_000_000n, `0x${"44".repeat(32)}`, `0x${"55".repeat(32)}`, `0x${"00".repeat(32)}`]
+);
+
+afterEach(() => vi.unstubAllGlobals());
 
 test("connected endpoint rejects non-POST requests before dependencies", async () => {
   const response = await worker.fetch(new Request(api), environment);
@@ -140,11 +150,14 @@ test("assessment artifact status rejects malformed and cross-origin probes witho
 });
 
 test("funding candidate endpoint returns only the current open D1 candidate", async () => {
+  const invoiceId = `0x${"10".repeat(32)}`;
   const candidate = {
     schemaVersion: "openbell-mainnet-funding-candidate-v1",
     status: "OPEN",
-    title: "One bounded supplier advance"
+    title: "One bounded supplier advance",
+    invoice: { invoiceId }
   };
+  vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(1))));
   const candidateEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
     DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
@@ -153,6 +166,23 @@ test("funding candidate endpoint returns only the current open D1 candidate", as
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(await response.json()).toEqual(candidate);
+});
+
+test("funding candidate endpoint hides a row after its invoice leaves REGISTERED state", async () => {
+  const candidate = {
+    schemaVersion: "openbell-mainnet-funding-candidate-v1",
+    status: "OPEN",
+    title: "One bounded supplier advance",
+    invoice: { invoiceId: `0x${"10".repeat(32)}` }
+  };
+  vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(2))));
+  const candidateEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
+  } as never;
+  const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: "NO_OPEN_FUNDING_CANDIDATE" });
 });
 
 test("funding candidate endpoint fails closed for missing, malformed, and non-GET candidates", async () => {
