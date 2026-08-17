@@ -81,7 +81,8 @@ in transaction `0xa9068a...030a`. The chain proves the distinct wallet, exact tr
 - Deterministic observation verification: [`evidence/openbell-xlayer-mainnet-observation-verification.json`](evidence/openbell-xlayer-mainnet-observation-verification.json), derived by `node scripts/verify-mainnet-observations.mjs`
 - Mainnet lifecycle observations: [`evidence/openbell-xlayer-mainnet-lifecycle-observations.json`](evidence/openbell-xlayer-mainnet-lifecycle-observations.json), SHA-256 `8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd`
 - Mainnet lifecycle verification: [`evidence/openbell-xlayer-mainnet-lifecycle-verification.json`](evidence/openbell-xlayer-mainnet-lifecycle-verification.json), derived by `node scripts/verify-mainnet-lifecycle.mjs`
-- Independent cold-funder evidence: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json)
+- Independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `f6f45a45015ee00c75b9159c837d49de994b2a498329142b0026821354045969`
+- Deterministic cold-funder verification: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json), derived by `node scripts/verify-cold-funder.mjs`
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
 getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
