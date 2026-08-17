@@ -165,7 +165,7 @@ test("public network evidence is exact, no-value, and signature-free", async () 
 });
 
 test("interactive controls use native accessible elements", async () => {
-  const [html, studio, operate, proof, script, dealModule, testnetModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./operate/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./testnet-flow.mjs"), read("./styles.css")]);
+  const [html, studio, operate, mainnet, proof, script, dealModule, testnetModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./operate/index.html"), read("./mainnet/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./testnet-flow.mjs"), read("./styles.css")]);
   assert.match(html, /<button[^>]+data-invoice="approved"[^>]+aria-pressed="true"/);
   assert.match(html, /<button[^>]+id="execution-next"/);
   assert.match(html, /aria-live="polite"/);
@@ -190,6 +190,9 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(operate, /id="escalation-assessment-file"[^>]+type="file"/);
   assert.match(operate, /id="escalation-consent"[^>]+required/);
   assert.match(operate, /will not retry or relabel the rejected model response/);
+  assert.match(mainnet, /id="escalation-workspace" hidden/);
+  assert.match(mainnet, /ACCOUNTABLE ESCALATION · NO MODEL RETRY/);
+  assert.match(mainnet, /will not retry or relabel the rejected model response/);
   assert.match(testnetModule, /chainId: 1952/);
   assert.match(testnetModule, /chainId: 196/);
   assert.match(testnetModule, /Fixture-token claims are forbidden on mainnet/);

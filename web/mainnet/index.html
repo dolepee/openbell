@@ -134,6 +134,27 @@
         </article>
       </section>
 
+      <section class="assessment-workspace" id="escalation-workspace" hidden aria-labelledby="escalation-title">
+        <form class="assessment-form" id="escalation-form" novalidate>
+          <p class="overline">ACCOUNTABLE ESCALATION · NO MODEL RETRY</p>
+          <h2 id="escalation-title">Review a genuine rejection.</h2>
+          <p>Import the authoritative first response. A human underwriter may approve only stricter terms: at most 25% of face value and 50% of the original request. The signed approval commits the rejected artifact.</p>
+          <label>Rejected assessment JSON<input id="escalation-assessment-file" type="file" accept="application/json,.json" required aria-describedby="escalation-help escalation-error" /></label>
+          <label>Funder address<input id="escalation-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
+          <label>Human-reviewed advance<input id="escalation-advance" required inputmode="decimal" value="0.025" aria-describedby="escalation-help escalation-error" /></label>
+          <p id="escalation-help">The current underwriter signs one EIP-712 approval. This step creates no transaction or token allowance.</p>
+          <div class="form-consent"><input id="escalation-consent" type="checkbox" required /><label for="escalation-consent">I reviewed the source invoice, accept responsibility for this stricter exception, and will not retry or relabel the rejected model response.</label></div>
+          <button class="button button-primary" id="sign-escalation" type="submit">Sign stricter human escalation</button>
+          <p class="form-error" id="escalation-error" role="alert" aria-live="assertive"></p>
+        </form>
+        <article class="assessment-result" id="escalation-result" hidden tabindex="-1">
+          <p class="overline">REJECTION-BOUND AUTHORITY</p><h2>Human review signed.</h2>
+          <p id="escalation-economics"></p>
+          <p>The four exact actions below preserve role separation: the funder approves and funds; the payer approves and settles.</p>
+          <div id="escalation-actions" class="assessment-actions"></div>
+        </article>
+      </section>
+
       <section class="operate-boundary" aria-labelledby="operate-boundary-title">
         <div><p class="overline">LIVE PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Real settlement, bounded authority.</h2></div>
         <p>OpenBell verifies signatures, observes confirmed registration through two official RPCs, obtains one genuine model response, and reconstructs exact USDG actions. It does not verify legal invoice validity, guarantee financing, or let the model custody funds.</p>
