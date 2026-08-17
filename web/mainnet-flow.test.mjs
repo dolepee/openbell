@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hashTypedData } from "viem";
+import { encodeAbiParameters, hashTypedData, keccak256, parseAbiParameters, stringToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { OPENBELL_MAINNET, buildUnsignedDealPackage } from "./deal-package.mjs";
 import {
@@ -8,8 +8,12 @@ import {
   addInvoiceSessionSignature,
   approvalTypedData,
   assertWalletContext,
+  buildHumanEscalation,
   createInvoiceSession,
+  finalizeHumanEscalation,
+  humanEscalationTypedData,
   invoiceTypedData,
+  rejectionTypedData,
   registrationActionFromSession,
   validateBrowserAction,
   walletInvoiceTypedData
@@ -31,6 +35,118 @@ const preparedMainnetDeal = () => buildUnsignedDealPackage({
   createdAtMs: Date.parse("2026-08-16T12:00:00.000Z"),
   target: OPENBELL_MAINNET
 });
+
+const canonicalJson = (value) => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  return JSON.stringify(value);
+};
+const artifactHashOf = (value) => keccak256(stringToHex(canonicalJson(value)));
+
+const rejectedMainnetFixture = async () => {
+  const deal = await preparedMainnetDeal();
+  const invoiceData = invoiceTypedData(deal.invoiceTerms, OPENBELL_MAINNET_CONNECTED);
+  let session = await createInvoiceSession(deal);
+  session = await addInvoiceSessionSignature(session, supplier.address, await supplier.signTypedData(invoiceData));
+  session = await addInvoiceSessionSignature(session, payer.address, await payer.signTypedData(invoiceData));
+  const modelDecision = {
+    verdict: "REJECT",
+    maximumAdvanceBps: 0,
+    feeBps: 0,
+    confidenceBps: 6500,
+    reasons: ["DUAL_SIGNATURES_VERIFIED", "DOCUMENT_HASH_VERIFIED", "CLEAN_DUPLICATE_CHECK", "LIMITED_PAYER_HISTORY", "MODEL_UNCERTAINTY"],
+    explanation: "The supplied registered mainnet evidence does not support approval."
+  };
+  const rawResponse = JSON.stringify({
+    id: "mainnet-rejection-fixture",
+    object: "chat.completion",
+    model: "gpt-5.6-terra",
+    choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(modelDecision) } }]
+  });
+  const evidence = {
+    provider: "bankr-chat-completions",
+    providerResponseId: "mainnet-rejection-fixture",
+    requestedModel: "gpt-5.6-terra",
+    returnedModel: "gpt-5.6-terra",
+    requestHash: `0x${"12".repeat(32)}`,
+    responseHash: keccak256(stringToHex(rawResponse)),
+    rawResponse,
+    decision: modelDecision
+  };
+  const receiptCommitment = keccak256(encodeAbiParameters(
+    parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
+    [evidence.provider, evidence.providerResponseId, evidence.requestedModel, evidence.returnedModel, evidence.requestHash, evidence.responseHash]
+  ));
+  const modelId = `bankr:gpt-5.6-terra:receipt:${receiptCommitment}`;
+  const modelHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("string modelId, string verdict, uint16 maximumAdvanceBps, uint16 feeBps, uint16 confidenceBps, string[] reasons, string explanation"),
+    [modelId, modelDecision.verdict, modelDecision.maximumAdvanceBps, modelDecision.feeBps, modelDecision.confidenceBps, modelDecision.reasons, modelDecision.explanation]
+  ));
+  const riskReasonsHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("string[] reasons, string explanation"),
+    [modelDecision.reasons, modelDecision.explanation]
+  ));
+  const riskTimestamp = Number(deal.invoiceTerms.issuedAt) + 120;
+  const nonce = BigInt(evidence.requestHash).toString();
+  const rejection = {
+    invoiceId: deal.invoiceTerms.invoiceId,
+    invoiceDigest: session.authorizedDigest,
+    riskTimestamp: String(riskTimestamp),
+    expiresAt: String(riskTimestamp + 1800),
+    riskReasonsHash,
+    modelHash,
+    nonce
+  };
+  const decision = {
+    verdict: "REJECT",
+    invoiceId: rejection.invoiceId,
+    invoiceDigest: rejection.invoiceDigest,
+    riskTimestamp,
+    expiresAt: riskTimestamp + 1800,
+    riskReasonsHash,
+    modelHash,
+    reasons: modelDecision.reasons,
+    explanation: modelDecision.explanation,
+    modelId
+  };
+  const observation = {
+    chainId: 196,
+    receivables: OPENBELL_MAINNET_CONNECTED.receivables,
+    settlementToken: OPENBELL_MAINNET_CONNECTED.settlementToken,
+    blockNumber: "68000000",
+    blockHash: `0x${"13".repeat(32)}`,
+    blockTimestamp: riskTimestamp,
+    registrationTransactionHash: `0x${"14".repeat(32)}`,
+    status: "REGISTERED",
+    invoiceId: deal.invoiceTerms.invoiceId,
+    invoiceDigest: session.authorizedDigest,
+    documentHash: deal.invoiceTerms.documentHash,
+    supplier: supplier.address,
+    payer: payer.address,
+    faceValue: deal.invoiceTerms.faceValue,
+    issuedAt: Number(deal.invoiceTerms.issuedAt),
+    dueDate: Number(deal.invoiceTerms.dueDate),
+    underwriter: underwriter.address,
+    paused: false,
+    decisionNonceUnused: true,
+    documentHashRegistered: true,
+    invoiceDigestRegistered: true
+  };
+  const core = {
+    decision,
+    modelEvidence: evidence,
+    observation,
+    signingRequest: {
+      schemaVersion: "openbell-connected-decision-signing-v1",
+      label: OPENBELL_MAINNET_CONNECTED.label,
+      chainId: "196",
+      underwriter: underwriter.address,
+      authorizedDigest: hashTypedData(rejectionTypedData(rejection, OPENBELL_MAINNET_CONNECTED)),
+      nonce
+    }
+  };
+  return { assessment: { ...core, artifactHash: artifactHashOf(core) }, session };
+};
 
 const mainnetEnvelope = (kind, signer, authorizedDigest, payload) => ({
   schemaVersion: "openbell-mainnet-browser-action-v1",
@@ -96,4 +212,43 @@ test("mainnet envelopes cannot invoke the testnet fixture faucet or drift to ano
     ...mainnetEnvelope("APPROVE_SETTLEMENT", payer.address, null, { invoiceId: `0x${"aa".repeat(32)}`, amount: "1" }),
     label: "XLAYER TESTNET FIXTURE — NO REAL VALUE"
   }), /schema or deployment label/);
+});
+
+test("human escalation preserves a genuine rejection and enforces the tighter economic envelope", async () => {
+  const { assessment, session } = await rejectedMainnetFixture();
+  const escalation = await buildHumanEscalation({
+    assessment,
+    session,
+    funder: funder.address,
+    advanceAmount: "25000000",
+    riskTimestamp: "1786900000"
+  });
+  assert.equal(escalation.rejectedVerdict, "REJECT");
+  assert.equal(escalation.rejectedArtifactHash, assessment.artifactHash);
+  assert.equal(escalation.faceValue, "100000000");
+  assert.equal(escalation.requestedAdvance, "85000000");
+  assert.equal(escalation.approval.advanceAmount, "25000000");
+  assert.equal(escalation.approval.repaymentAmount, "25250000");
+  assert.equal(escalation.approval.modelHash, assessment.artifactHash);
+
+  const signature = await underwriter.signTypedData(humanEscalationTypedData(escalation));
+  const actions = await finalizeHumanEscalation(escalation, signature);
+  assert.deepEqual(actions.map(({ kind }) => kind), ["APPROVE_FUNDING", "FUND_INVOICE", "APPROVE_SETTLEMENT", "SETTLE_INVOICE"]);
+  assert.equal(actions[0].signer, funder.address);
+  assert.equal(actions[2].signer, payer.address);
+});
+
+test("human escalation rejects over-cap, altered economics, party collapse and invalid signatures", async () => {
+  const { assessment, session } = await rejectedMainnetFixture();
+  await assert.rejects(buildHumanEscalation({ assessment, session, funder: funder.address, advanceAmount: "25000001", riskTimestamp: "1786900000" }), /stricter human-review cap/);
+  await assert.rejects(buildHumanEscalation({ assessment, session, funder: payer.address, advanceAmount: "1", riskTimestamp: "1786900000" }), /distinct/);
+  const escalation = await buildHumanEscalation({ assessment, session, funder: funder.address, advanceAmount: "25000000", riskTimestamp: "1786900000" });
+  const changedRepayment = { ...escalation, approval: { ...escalation.approval, repaymentAmount: "25250001" } };
+  assert.throws(() => humanEscalationTypedData(changedRepayment), /fixed policy fee/);
+  const changedCommitment = { ...escalation, approval: { ...escalation.approval, modelHash: `0x${"99".repeat(32)}` } };
+  assert.throws(() => humanEscalationTypedData(changedCommitment), /rejected assessment/);
+  const changedParty = { ...escalation, underwriter: payer.address };
+  assert.throws(() => humanEscalationTypedData(changedParty), /parties must be distinct/);
+  const wrongSignature = await payer.signTypedData(humanEscalationTypedData(escalation));
+  await assert.rejects(finalizeHumanEscalation(escalation, wrongSignature), /wrong signer/);
 });

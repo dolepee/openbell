@@ -261,6 +261,10 @@ const CONNECTED_MIN_CONFIDENCE_BPS = 7_000;
 const CONNECTED_MAX_ADVANCE_BPS = 8_000n;
 const CONNECTED_MAX_FEE_BPS = 2_000n;
 const CONNECTED_MAX_DECISION_LIFETIME_SECONDS = 1_800;
+const ESCALATION_MAX_FACE_BPS = 2_500n;
+const ESCALATION_MAX_REQUEST_BPS = 5_000n;
+const ESCALATION_FEE_BPS = 100n;
+const ESCALATION_POLICY = "HUMAN_REVIEW_AFTER_MODEL_REJECTION_V1";
 const BANKR_MAINNET_POLICY_PROMPT = "An APPROVE verdict requires confidenceBps of at least 7000. If the evidence does not justify that confidence, return REJECT instead of a lower-confidence APPROVE. The deterministic envelope caps maximumAdvanceBps at 8000 and feeBps at 2000.";
 const bankrExplanationFor = (boundary, verdict) => boundary === "registered-mainnet"
   ? verdict === "APPROVE" ? "The supplied registered mainnet evidence supports approval within the returned structured limits." : "The supplied registered mainnet evidence does not support approval."
@@ -544,17 +548,7 @@ const walletDecisionTypedData = (typedData) => ({
   }
 });
 
-export function validateConnectedAssessment(assessment, expectedRequest) {
-  allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest", "artifactHash"], "Connected assessment");
-  const { artifactHash, ...assessmentCore } = assessment;
-  if (asHash(artifactHash, "Connected assessment artifact hash") !== connectedBrowserArtifactHashOf(assessmentCore)) throw new Error("Connected assessment artifact commitment does not match its evidence.");
-  const deployment = validateConnectedObservation(assessmentCore.observation);
-  const boundary = deployment === OPENBELL_MAINNET_CONNECTED ? "registered-mainnet" : "synthetic";
-  const evidence = validateConnectedModelEvidence(assessmentCore.modelEvidence, boundary);
-  const modelInput = bindConnectedResponseToRequest(assessmentCore.observation, expectedRequest, deployment);
-  assertConnectedModelReasonsSupported(modelInput, evidence);
-  if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) throw new Error("Connected assessment model request hash changed.");
-
+const connectedEvidenceCommitments = (evidence) => {
   const receiptCommitment = keccak256(encodeAbiParameters(
     parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
     [evidence.provider, evidence.providerResponseId, evidence.requestedModel, evidence.returnedModel, evidence.requestHash, evidence.responseHash]
@@ -568,6 +562,21 @@ export function validateConnectedAssessment(assessment, expectedRequest) {
     parseAbiParameters("string[] reasons, string explanation"),
     [evidence.decision.reasons, evidence.decision.explanation]
   ));
+  return Object.freeze({ receiptCommitment, modelId, modelHash, riskReasonsHash });
+};
+
+export function validateConnectedAssessment(assessment, expectedRequest) {
+  allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest", "artifactHash"], "Connected assessment");
+  const { artifactHash, ...assessmentCore } = assessment;
+  if (asHash(artifactHash, "Connected assessment artifact hash") !== connectedBrowserArtifactHashOf(assessmentCore)) throw new Error("Connected assessment artifact commitment does not match its evidence.");
+  const deployment = validateConnectedObservation(assessmentCore.observation);
+  const boundary = deployment === OPENBELL_MAINNET_CONNECTED ? "registered-mainnet" : "synthetic";
+  const evidence = validateConnectedModelEvidence(assessmentCore.modelEvidence, boundary);
+  const modelInput = bindConnectedResponseToRequest(assessmentCore.observation, expectedRequest, deployment);
+  assertConnectedModelReasonsSupported(modelInput, evidence);
+  if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) throw new Error("Connected assessment model request hash changed.");
+
+  const { modelId, modelHash, riskReasonsHash } = connectedEvidenceCommitments(evidence);
   const common = {
     invoiceId: assessmentCore.observation.invoiceId,
     invoiceDigest: assessmentCore.observation.invoiceDigest,
@@ -606,6 +615,154 @@ export function validateConnectedAssessment(assessment, expectedRequest) {
   if (deploymentForEnvelope(assessmentCore.signingRequest) !== deployment) throw new Error("Connected assessment signing deployment does not match its observation.");
   connectedDecisionTypedData(assessmentCore);
   return assessment;
+}
+
+export async function buildHumanEscalation({ assessment, session: sessionCandidate, funder, advanceAmount, riskTimestamp }) {
+  allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest", "artifactHash"], "Connected assessment");
+  const { artifactHash, ...assessmentCore } = assessment;
+  if (asHash(artifactHash, "Connected assessment artifact hash") !== connectedBrowserArtifactHashOf(assessmentCore)) throw new Error("Connected assessment artifact commitment does not match its evidence.");
+  const deployment = validateConnectedObservation(assessmentCore.observation);
+  if (deployment !== OPENBELL_MAINNET_CONNECTED) throw new Error("Human escalation is available only for registered mainnet evidence.");
+  const evidence = validateConnectedModelEvidence(assessmentCore.modelEvidence, "registered-mainnet");
+  if (evidence.decision.verdict !== "REJECT" || assessmentCore.decision.verdict !== "REJECT") throw new Error("Human escalation requires an authoritative model rejection.");
+  const { modelId, modelHash, riskReasonsHash } = connectedEvidenceCommitments(evidence);
+  if (assessmentCore.decision.modelId !== modelId || assessmentCore.decision.modelHash !== modelHash || assessmentCore.decision.riskReasonsHash !== riskReasonsHash) {
+    throw new Error("Rejected assessment does not match its model receipt.");
+  }
+  connectedDecisionTypedData(assessment);
+
+  const session = await validateInvoiceSession(sessionCandidate);
+  const terms = session.dealPackage.invoiceTerms;
+  const observation = assessmentCore.observation;
+  if (session.dealPackage.target.chainId !== String(deployment.chainId)
+    || terms.invoiceId.toLowerCase() !== observation.invoiceId.toLowerCase()
+    || session.authorizedDigest.toLowerCase() !== observation.invoiceDigest.toLowerCase()
+    || terms.documentHash.toLowerCase() !== observation.documentHash.toLowerCase()
+    || terms.supplier.toLowerCase() !== observation.supplier.toLowerCase()
+    || terms.payer.toLowerCase() !== observation.payer.toLowerCase()
+    || terms.faceValue !== observation.faceValue) {
+    throw new Error("Rejected assessment does not match the signed invoice session.");
+  }
+
+  const normalizedFunder = asAddress(funder, "Escalation funder");
+  if (normalizedFunder === asAddress(terms.supplier, "Supplier") || normalizedFunder === asAddress(terms.payer, "Payer")) throw new Error("Funder must be distinct from supplier and payer.");
+  const requested = asUint(session.dealPackage.underwritingRequest.requestedAdvance, "Requested advance");
+  const faceValue = asUint(terms.faceValue, "Face value");
+  const requestedCap = requested * ESCALATION_MAX_REQUEST_BPS / 10_000n;
+  const faceCap = faceValue * ESCALATION_MAX_FACE_BPS / 10_000n;
+  const escalationCap = requestedCap < faceCap ? requestedCap : faceCap;
+  const boundedAdvance = asUint(advanceAmount, "Escalation advance");
+  if (boundedAdvance === 0n || boundedAdvance > escalationCap) throw new Error("Escalation advance exceeds the stricter human-review cap.");
+  const repaymentAmount = boundedAdvance + boundedAdvance * ESCALATION_FEE_BPS / 10_000n;
+  const timestamp = asUint(riskTimestamp, "Escalation review time");
+  const dueDate = asUint(terms.dueDate, "Invoice due time");
+  const expiresAt = timestamp + BigInt(CONNECTED_MAX_DECISION_LIFETIME_SECONDS) < dueDate
+    ? timestamp + BigInt(CONNECTED_MAX_DECISION_LIFETIME_SECONDS) : dueDate;
+  if (expiresAt <= timestamp) throw new Error("Invoice expires before the escalation can be signed.");
+
+  const escalationReasonsHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("bytes32 rejectedArtifactHash,string policy,uint16 maxFaceBps,uint16 maxRequestBps,uint16 feeBps,uint128 advanceAmount,uint128 repaymentAmount"),
+    [artifactHash, ESCALATION_POLICY, Number(ESCALATION_MAX_FACE_BPS), Number(ESCALATION_MAX_REQUEST_BPS), Number(ESCALATION_FEE_BPS), boundedAdvance, repaymentAmount]
+  ));
+  const nonce = BigInt(keccak256(encodeAbiParameters(
+    parseAbiParameters("bytes32 rejectedArtifactHash,address funder,uint128 advanceAmount,uint128 repaymentAmount,uint64 riskTimestamp"),
+    [artifactHash, normalizedFunder, boundedAdvance, repaymentAmount, timestamp]
+  ))).toString();
+  const approval = {
+    invoiceId: terms.invoiceId,
+    invoiceDigest: session.authorizedDigest,
+    funder: normalizedFunder,
+    advanceAmount: boundedAdvance.toString(),
+    repaymentAmount: repaymentAmount.toString(),
+    riskTimestamp: timestamp.toString(),
+    expiresAt: expiresAt.toString(),
+    riskReasonsHash: escalationReasonsHash,
+    modelHash: artifactHash,
+    nonce
+  };
+  const authorizedDigest = hashTypedData(approvalTypedData(approval, deployment));
+  return Object.freeze({
+    schemaVersion: "openbell-human-escalation-v1",
+    policy: ESCALATION_POLICY,
+    rejectedArtifactHash: artifactHash,
+    rejectedModelHash: modelHash,
+    rejectedVerdict: "REJECT",
+    faceValue: faceValue.toString(),
+    requestedAdvance: requested.toString(),
+    dueDate: dueDate.toString(),
+    maxFaceBps: ESCALATION_MAX_FACE_BPS.toString(),
+    maxRequestBps: ESCALATION_MAX_REQUEST_BPS.toString(),
+    feeBps: ESCALATION_FEE_BPS.toString(),
+    underwriter: observation.underwriter,
+    supplier: observation.supplier,
+    payer: observation.payer,
+    authorizedDigest,
+    approval
+  });
+}
+
+export function humanEscalationTypedData(escalation) {
+  allowedKeys(escalation, ["schemaVersion", "policy", "rejectedArtifactHash", "rejectedModelHash", "rejectedVerdict", "faceValue", "requestedAdvance", "dueDate", "maxFaceBps", "maxRequestBps", "feeBps", "underwriter", "supplier", "payer", "authorizedDigest", "approval"], "Human escalation");
+  if (escalation.schemaVersion !== "openbell-human-escalation-v1" || escalation.policy !== ESCALATION_POLICY || escalation.rejectedVerdict !== "REJECT"
+    || escalation.maxFaceBps !== ESCALATION_MAX_FACE_BPS.toString() || escalation.maxRequestBps !== ESCALATION_MAX_REQUEST_BPS.toString()
+    || escalation.feeBps !== ESCALATION_FEE_BPS.toString()) {
+    throw new Error("Human escalation policy changed.");
+  }
+  const rejectedArtifactHash = asHash(escalation.rejectedArtifactHash, "Rejected assessment artifact hash");
+  asHash(escalation.rejectedModelHash, "Rejected model hash");
+  const underwriter = asAddress(escalation.underwriter, "Escalation underwriter");
+  const supplier = asAddress(escalation.supplier, "Escalation supplier");
+  const payer = asAddress(escalation.payer, "Escalation payer");
+  const funder = asAddress(escalation.approval?.funder, "Escalation funder");
+  if (new Set([underwriter, supplier, payer, funder]).size !== 4) throw new Error("Escalation parties must be distinct.");
+
+  const faceValue = asUint(escalation.faceValue, "Escalation face value");
+  const requestedAdvance = asUint(escalation.requestedAdvance, "Escalation requested advance");
+  const dueDate = asUint(escalation.dueDate, "Escalation due time");
+  const advanceAmount = asUint(escalation.approval.advanceAmount, "Escalation advance");
+  const repaymentAmount = asUint(escalation.approval.repaymentAmount, "Escalation repayment");
+  const riskTimestamp = asUint(escalation.approval.riskTimestamp, "Escalation review time");
+  const expiresAt = asUint(escalation.approval.expiresAt, "Escalation expiry");
+  const requestedCap = requestedAdvance * ESCALATION_MAX_REQUEST_BPS / 10_000n;
+  const faceCap = faceValue * ESCALATION_MAX_FACE_BPS / 10_000n;
+  const escalationCap = requestedCap < faceCap ? requestedCap : faceCap;
+  if (advanceAmount === 0n || advanceAmount > escalationCap) throw new Error("Escalation advance exceeds the stricter human-review cap.");
+  const expectedRepayment = advanceAmount + advanceAmount * ESCALATION_FEE_BPS / 10_000n;
+  if (repaymentAmount !== expectedRepayment || repaymentAmount > faceValue) throw new Error("Escalation repayment does not match the fixed policy fee.");
+  const expectedExpiry = riskTimestamp + BigInt(CONNECTED_MAX_DECISION_LIFETIME_SECONDS) < dueDate
+    ? riskTimestamp + BigInt(CONNECTED_MAX_DECISION_LIFETIME_SECONDS) : dueDate;
+  if (expiresAt !== expectedExpiry || expiresAt <= riskTimestamp) throw new Error("Escalation expiry does not match the bounded review window.");
+
+  const expectedReasonsHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("bytes32 rejectedArtifactHash,string policy,uint16 maxFaceBps,uint16 maxRequestBps,uint16 feeBps,uint128 advanceAmount,uint128 repaymentAmount"),
+    [rejectedArtifactHash, ESCALATION_POLICY, Number(ESCALATION_MAX_FACE_BPS), Number(ESCALATION_MAX_REQUEST_BPS), Number(ESCALATION_FEE_BPS), advanceAmount, repaymentAmount]
+  ));
+  if (asHash(escalation.approval.riskReasonsHash, "Escalation reasons hash") !== expectedReasonsHash) throw new Error("Escalation policy commitment changed.");
+  if (asHash(escalation.approval.modelHash, "Escalation model hash") !== rejectedArtifactHash) throw new Error("Escalation no longer binds the rejected assessment.");
+  const expectedNonce = BigInt(keccak256(encodeAbiParameters(
+    parseAbiParameters("bytes32 rejectedArtifactHash,address funder,uint128 advanceAmount,uint128 repaymentAmount,uint64 riskTimestamp"),
+    [rejectedArtifactHash, funder, advanceAmount, repaymentAmount, riskTimestamp]
+  ))).toString();
+  if (escalation.approval.nonce !== expectedNonce) throw new Error("Escalation nonce does not bind the policy inputs.");
+
+  const typedData = approvalTypedData(escalation.approval, OPENBELL_MAINNET_CONNECTED);
+  if (hashTypedData(typedData).toLowerCase() !== asHash(escalation.authorizedDigest, "Escalation digest")) throw new Error("Human escalation digest changed.");
+  return walletDecisionTypedData(typedData);
+}
+
+export async function finalizeHumanEscalation(escalation, underwriterSignature) {
+  const typedData = humanEscalationTypedData(escalation);
+  await assertSignature({ typedData: { ...typedData, types: approvalTypes }, authorizedDigest: escalation.authorizedDigest, expectedSigner: escalation.underwriter, value: underwriterSignature });
+  const base = { schemaVersion: actionSchema(OPENBELL_MAINNET_CONNECTED), label: OPENBELL_MAINNET_CONNECTED.label, chainId: String(OPENBELL_MAINNET_CONNECTED.chainId) };
+  const payload = { approval: escalation.approval, underwriter: escalation.underwriter, underwriterSignature };
+  const actions = [
+    { ...base, kind: "APPROVE_FUNDING", signer: escalation.approval.funder, authorizedDigest: escalation.authorizedDigest, payload },
+    { ...base, kind: "FUND_INVOICE", signer: escalation.approval.funder, authorizedDigest: escalation.authorizedDigest, payload },
+    { ...base, kind: "APPROVE_SETTLEMENT", signer: escalation.payer, authorizedDigest: null, payload: { invoiceId: escalation.approval.invoiceId, amount: escalation.approval.repaymentAmount } },
+    { ...base, kind: "SETTLE_INVOICE", signer: escalation.payer, authorizedDigest: null, payload: { invoiceId: escalation.approval.invoiceId, repaymentAmount: escalation.approval.repaymentAmount } }
+  ];
+  await Promise.all(actions.map(validateBrowserAction));
+  return actions;
 }
 
 export function connectedDecisionTypedData(assessment) {

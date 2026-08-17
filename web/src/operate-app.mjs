@@ -1,4 +1,5 @@
 import { formatUnits } from "viem";
+import { decimalToBaseUnits } from "../deal-package.mjs";
 import {
   OPENBELL_MAINNET_CONNECTED,
   OPENBELL_TESTNET,
@@ -16,6 +17,9 @@ import {
   createFixtureClaimAction,
   createInvoiceSession,
   finalizeConnectedAssessment,
+  finalizeHumanEscalation,
+  buildHumanEscalation,
+  humanEscalationTypedData,
   walletInvoiceTypedData,
   walletConnectedAssessmentTypedData,
   registrationActionFromSession,
@@ -68,6 +72,8 @@ const configureMainnetSurface = () => {
   if (assessmentContext) assessmentContext.value = "Authorized evidence for a genuine receivable. No confidential document content is included.";
   const boundary = document.querySelector(".operate-boundary");
   if (boundary) boundary.innerHTML = '<div><p class="overline">LIVE PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Real settlement, bounded authority.</h2></div><p>OpenBell verifies signatures, observes confirmed registration through two official RPCs, obtains one genuine model response, and reconstructs exact USDG actions. It does not verify legal invoice validity, guarantee financing, or let the model custody funds.</p>';
+  const escalationWorkspace = document.querySelector("#escalation-workspace");
+  if (escalationWorkspace) escalationWorkspace.hidden = false;
 };
 
 configureMainnetSurface();
@@ -98,6 +104,10 @@ const assessmentError = document.querySelector("#assessment-error");
 const assessmentResult = document.querySelector("#assessment-result");
 const signDecisionButton = document.querySelector("#sign-decision");
 const downloadAssessmentButton = document.querySelector("#download-assessment");
+const escalationForm = document.querySelector("#escalation-form");
+const escalationFile = document.querySelector("#escalation-assessment-file");
+const escalationError = document.querySelector("#escalation-error");
+const escalationResult = document.querySelector("#escalation-result");
 
 let account;
 let chainId;
@@ -540,6 +550,64 @@ signDecisionButton?.addEventListener("click", async () => {
   } finally {
     signDecisionButton.textContent = "Approve decision as underwriter";
     refreshDecisionState();
+  }
+});
+
+escalationForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  escalationError.textContent = "";
+  escalationResult.hidden = true;
+  const button = document.querySelector("#sign-escalation");
+  try {
+    if (!isMainnet) throw new Error("Human escalation is available only on X Layer mainnet.");
+    if (!invoiceSession) throw new Error("Load the fully signed invoice session in the handoff section first.");
+    const file = escalationFile.files?.[0];
+    if (!file) throw new Error("Select the authoritative rejected assessment JSON.");
+    if (file.size > 128 * 1024) throw new Error("Rejected assessment exceeds the 128 KiB browser limit.");
+    if (!document.querySelector("#escalation-consent").checked) throw new Error("Confirm the accountable human-review boundary.");
+    if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
+    const assessment = JSON.parse(await file.text());
+    const requestHash = `0x${BigInt(assessment?.signingRequest?.nonce).toString(16).padStart(64, "0")}`;
+    const artifactResponse = await fetch("/api/assessment-artifact-status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ invoiceId: assessment?.observation?.invoiceId, requestHash, artifactHash: assessment?.artifactHash })
+    });
+    const artifactStatus = await artifactResponse.json();
+    if (!artifactResponse.ok || artifactStatus?.verified !== true) throw new Error("The rejected assessment is not committed in OpenBell's decision store.");
+    const latestBlock = await rpc("eth_getBlockByNumber", ["latest", false]);
+    if (!latestBlock?.timestamp) throw new Error("Could not read the current X Layer block time.");
+    const escalation = await buildHumanEscalation({
+      assessment,
+      session: invoiceSession,
+      funder: document.querySelector("#escalation-funder").value.trim(),
+      advanceAmount: decimalToBaseUnits(document.querySelector("#escalation-advance").value).toString(),
+      riskTimestamp: BigInt(latestBlock.timestamp).toString()
+    });
+    if (account?.toLowerCase() !== escalation.underwriter.toLowerCase()) throw new Error("Connect the current underwriter wallet.");
+    button.disabled = true;
+    button.textContent = "Awaiting underwriter signature…";
+    const typedData = humanEscalationTypedData(escalation);
+    const signingJson = JSON.stringify(typedData, (_, value) => typeof value === "bigint" ? value.toString() : value);
+    const signature = await rpc("eth_signTypedData_v4", [account, signingJson]);
+    const actions = await finalizeHumanEscalation(escalation, signature);
+    setText("#escalation-economics", `${formatUnits(BigInt(escalation.approval.advanceAmount), 6)} USDG advance · ${formatUnits(BigInt(escalation.approval.repaymentAmount), 6)} due · original model verdict preserved as REJECT`);
+    const actionsNode = document.querySelector("#escalation-actions");
+    actionsNode.replaceChildren(...actions.map((item, index) => {
+      const download = document.createElement("button");
+      download.type = "button";
+      download.className = "button button-secondary";
+      download.textContent = `Download ${item.kind.replaceAll("_", " ").toLowerCase()}`;
+      download.addEventListener("click", () => downloadJson(`openbell-escalation-${index + 1}-${item.kind.toLowerCase()}.json`, item));
+      return download;
+    }));
+    escalationResult.hidden = false;
+    escalationResult.focus();
+  } catch (error) {
+    escalationError.textContent = error instanceof Error ? error.message : "Human escalation was not prepared.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign stricter human escalation";
   }
 });
 

@@ -149,11 +149,39 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
   }
 };
 
+const artifactStatusResponse = async (request: Request, config: Environment): Promise<Response> => {
+  if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
+  const url = new URL(request.url);
+  if (request.headers.get("origin") !== url.origin || request.headers.get("sec-fetch-site") !== "same-origin") return json({ error: "SAME_ORIGIN_REQUIRED" }, 403);
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return json({ error: "JSON_CONTENT_TYPE_REQUIRED" }, 415);
+  let body: unknown;
+  try {
+    const raw = await boundedText(new Response(request.body), 2_048, "REQUEST_TOO_LARGE");
+    body = JSON.parse(raw);
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "INVALID_REQUEST" }, 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "INVALID_ARTIFACT_QUERY" }, 400);
+  const candidate = body as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort().join(",");
+  if (keys !== "artifactHash,invoiceId,requestHash"
+    || !/^0x[0-9a-f]{64}$/.test(String(candidate.invoiceId))
+    || !/^0x[0-9a-f]{64}$/.test(String(candidate.requestHash))
+    || !/^0x[0-9a-f]{64}$/.test(String(candidate.artifactHash))) {
+    return json({ error: "INVALID_ARTIFACT_QUERY" }, 400);
+  }
+  const row = await config.DB.prepare(
+    "SELECT 1 AS verified FROM connected_underwriting_completed_artifacts WHERE invoice_id = ? AND request_hash = ? AND artifact_hash = ?"
+  ).bind(candidate.invoiceId, candidate.requestHash, candidate.artifactHash).first<{ verified: number }>();
+  return json({ verified: row?.verified === 1 });
+};
+
 export default {
   async fetch(request: Request, environment: Environment): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api/connected-underwriting") return underwritingResponse(request, environment, CONNECTED_TESTNET);
     if (url.pathname === "/api/mainnet-underwriting") return underwritingResponse(request, environment, CONNECTED_MAINNET);
+    if (url.pathname === "/api/assessment-artifact-status") return artifactStatusResponse(request, environment);
     if (url.pathname === "/") url.pathname = "/index.html";
     else if (url.pathname.endsWith("/")) url.pathname += "index.html";
     else if (!url.pathname.split("/").at(-1)?.includes(".")) url.pathname += "/index.html";

@@ -184,9 +184,17 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(operate, /Funder and payer each claim 1,000 no-value fixture tUSDG/);
   assert.match(operate, /id="action-file"[^>]+aria-describedby="action-help action-error"[^>]+aria-invalid="false"/);
   assert.match(operate, /id="execute-action"[^>]+disabled[^>]+aria-busy="false"/);
+  assert.match(operate, /id="escalation-workspace" hidden/);
+  assert.match(operate, /ACCOUNTABLE ESCALATION · NO MODEL RETRY/);
+  assert.match(operate, /at most 25% of face value and 50% of the original request/);
+  assert.match(operate, /id="escalation-assessment-file"[^>]+type="file"/);
+  assert.match(operate, /id="escalation-consent"[^>]+required/);
+  assert.match(operate, /will not retry or relabel the rejected model response/);
   assert.match(testnetModule, /chainId: 1952/);
   assert.match(testnetModule, /chainId: 196/);
   assert.match(testnetModule, /Fixture-token claims are forbidden on mainnet/);
+  assert.match(testnetModule, /HUMAN_REVIEW_AFTER_MODEL_REJECTION_V1/);
+  assert.match(testnetModule, /Escalation advance exceeds the stricter human-review cap/);
   assert.match(testnetModule, /recoverTypedDataAddress/);
   assert.match(studio, /<form id="review-form" class="review-import"/);
   assert.match(studio, /<input id="review-file"[^>]+type="file"[^>]+aria-describedby="review-help review-error"/);
