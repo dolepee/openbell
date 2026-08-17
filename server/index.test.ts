@@ -214,9 +214,15 @@ test("funding candidate endpoint rechecks expiry after current state verificatio
     DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_800_000_001 }) }) }
   } as never;
   const responsePromise = worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  let responseSettled = false;
+  void responsePromise.then(() => {
+    responseSettled = true;
+  });
   for (let attempt = 0; attempt < 10 && rpcCalls < 2; attempt += 1) await Promise.resolve();
   expect(rpcCalls).toBe(2);
   vi.setSystemTime(requestStartedAt + 2_000);
+  for (let attempt = 0; attempt < 10; attempt += 1) await Promise.resolve();
+  expect(responseSettled).toBe(false);
   resolveSecondRpc(jsonRpcResponse(invoiceState(1)));
   const response = await responsePromise;
   expect(response.status).toBe(404);
