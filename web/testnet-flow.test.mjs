@@ -76,7 +76,7 @@ const policyRefusal = {
     returnedModel: "gpt-5.6-terra",
     requestHash: `0x${"12".repeat(32)}`,
     responseHash: `0x${"13".repeat(32)}`,
-    decision: { verdict: "APPROVE", maximumAdvanceBps: 7000, feeBps: 100, confidenceBps: 6500, reasons: ["MODEL_UNCERTAINTY"], explanation: "The evidence supports only a low-confidence approval." }
+    decision: { verdict: "APPROVE", maximumAdvanceBps: 7000, feeBps: 100, confidenceBps: 6500, reasons: ["MODEL_UNCERTAINTY"], explanation: "The supplied synthetic evidence supports approval within the returned structured limits." }
   },
   observation: {
     chainId: 1952,
@@ -176,6 +176,13 @@ test("policy refusals preserve evidence without exposing execution authority", (
   ]) {
     assert.throws(() => validateConnectedPolicyRefusal(policyRefusal, changedRequest), /model request hash does not match/);
   }
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, explanation: "A noncanonical but nonempty explanation." }
+    }
+  }, policyRefusalRequest), /explanation does not match/);
   const roundedRefusal = {
     ...policyRefusal,
     refusal: { code: "MODEL_REJECTED", message: "The bounded advance is zero." },

@@ -363,6 +363,9 @@ export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
     redactedContext: expectedRequest.redactedContext
   };
   const boundary = deployment === OPENBELL_TESTNET ? "synthetic" : "registered-mainnet";
+  if (evidence.decision.explanation !== bankrExplanationFor(boundary, evidence.decision.verdict)) {
+    throw new Error("Policy refusal model explanation does not match the connected evidence boundary.");
+  }
   if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) {
     throw new Error("Policy refusal model request hash does not match the submitted assessment request.");
   }
