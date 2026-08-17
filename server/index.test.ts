@@ -53,13 +53,13 @@ test("site fallback remains delegated to the static asset binding", async () => 
   expect(await response.text()).toBe("asset");
 });
 
-test("receipt history endpoint exposes only the exact payer after two-provider chain and checkpoint agreement", async () => {
+test("receipt history endpoint exposes an old but canonical bounded checkpoint after two-provider agreement", async () => {
   const pinnedTimestamp = 1_787_000_000n;
   vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
     const body = JSON.parse(String(init?.body));
     const result = body.method === "eth_chainId" ? "0xc4"
       : body.params[0] === "latest"
-        ? { number: `0x${(BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock) + 20n).toString(16)}`, timestamp: `0x${(pinnedTimestamp + 60n).toString(16)}` }
+        ? { number: `0x${(BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock) + 20n).toString(16)}`, timestamp: `0x${(pinnedTimestamp + 10_000_000n).toString(16)}` }
         : { number: `0x${BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock).toString(16)}`, hash: MAINNET_RECEIPT_HISTORY_BASELINE.throughBlockHash, timestamp: `0x${pinnedTimestamp.toString(16)}` };
     return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }));
   }));

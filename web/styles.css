@@ -930,7 +930,8 @@ code { font-family: var(--mono); }
 .receipt-intelligence-lead > p { margin: 0; color: var(--acid); font: 750 10px var(--mono); letter-spacing: .12em; }
 .receipt-intelligence-lead h2 { margin: 25px 0 0; font-size: clamp(52px, 5vw, 82px); letter-spacing: 0; line-height: .9; }
 .receipt-intelligence-lead > span { display: block; max-width: 610px; margin-top: 34px; color: #a9c4b5; font-size: 16px; line-height: 1.7; }
-.receipt-intelligence-lead > a { display: inline-flex; gap: 26px; margin-top: 34px; padding-bottom: 9px; color: var(--acid); border-bottom: 1px solid currentColor; font-size: 12px; font-weight: 800; text-decoration: none; }
+.receipt-intelligence-links { display: flex; flex-wrap: wrap; gap: 14px 28px; margin-top: 34px; }
+.receipt-intelligence-links a { display: inline-flex; gap: 18px; padding-bottom: 9px; color: var(--acid); border-bottom: 1px solid currentColor; font-size: 12px; font-weight: 800; text-decoration: none; }
 .receipt-intelligence-data { border: 1px solid #527161; background: #10241b; box-shadow: 18px 18px 0 #081c14; }
 .receipt-intelligence-data > header { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid #3b5849; font: 750 9px var(--mono); letter-spacing: .08em; }
 .receipt-intelligence-data > header b { display: inline-flex; align-items: center; gap: 8px; color: var(--acid); }

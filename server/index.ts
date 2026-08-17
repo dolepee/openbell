@@ -13,6 +13,7 @@ import {
   type ConnectedDeployment
 } from "../agent/src/connected-underwriting.js";
 import { MAINNET_RECEIPT_HISTORY_BASELINE } from "../agent/src/mainnet-receipt-history-baseline.js";
+import { verifyMainnetReceiptHistoryEvidence } from "../agent/src/mainnet-receipt-history-evidence.js";
 import { parseReceiptBoundHistorySnapshot } from "../agent/src/receipt-bound-history.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../agent/src/d1-connected-decision-store.js";
 import { StrictBankrUnderwritingModel } from "../agent/src/live-model.js";
@@ -37,7 +38,6 @@ const officialMainnetProviders = [
 const MAX_REQUEST_BYTES = 16 * 1_024;
 const RPC_TIMEOUT_MS = 12_000;
 const RPC_MAX_RESPONSE_BYTES = 512 * 1_024;
-const RECEIPT_HISTORY_MAX_AGE_SECONDS = 48 * 60 * 60;
 const decisionStores = new WeakMap<D1DatabaseLike, D1ConnectedDecisionStore>();
 const decisionStoreFor = (database: D1DatabaseLike): D1ConnectedDecisionStore => {
   const existing = decisionStores.get(database);
@@ -169,6 +169,7 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
 };
 
 const verifyReceiptHistoryBaseline = async (): Promise<void> => {
+  await verifyMainnetReceiptHistoryEvidence();
   const providers = officialMainnetProviders.map(({ label, endpoint }) => new OfficialReadOnlyRpc(label, endpoint));
   const [chainIds, heads, pinnedBlocks] = await Promise.all([
     Promise.all(providers.map((rpc) => rpc.request("eth_chainId", []))),
@@ -181,11 +182,9 @@ const verifyReceiptHistoryBaseline = async (): Promise<void> => {
   if (pinnedRecords.some((block) => String(block.hash).toLowerCase() !== MAINNET_RECEIPT_HISTORY_BASELINE.throughBlockHash
     || BigInt(String(block.number)) !== BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock))) throw new Error("CONNECTED_RECEIPT_HISTORY_REORG");
   const headNumbers = headRecords.map((block) => BigInt(String(block.number)));
-  const headTimes = headRecords.map((block) => Number(BigInt(String(block.timestamp))));
   const pinnedTimes = pinnedRecords.map((block) => Number(BigInt(String(block.timestamp))));
   if (headNumbers.some((number) => number < BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock) + 12n)) throw new Error("CONNECTED_RECEIPT_HISTORY_NOT_CONFIRMED");
-  if (Math.max(...headTimes) - Math.min(...pinnedTimes) > RECEIPT_HISTORY_MAX_AGE_SECONDS) throw new Error("CONNECTED_RECEIPT_HISTORY_STALE");
-  if (Math.max(...headTimes) - Math.min(...headTimes) > 120 || Math.max(...pinnedTimes) !== Math.min(...pinnedTimes)) throw new Error("CONNECTED_RECEIPT_HISTORY_PROVIDER_DISAGREEMENT");
+  if (Math.max(...pinnedTimes) !== Math.min(...pinnedTimes)) throw new Error("CONNECTED_RECEIPT_HISTORY_PROVIDER_DISAGREEMENT");
 };
 
 const receiptHistoryResponse = async (request: Request): Promise<Response> => {

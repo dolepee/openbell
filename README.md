@@ -84,6 +84,8 @@ in transaction `0xa9068a...030a`. The chain proves the distinct wallet, exact tr
 - Sanitized independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `a68a8b7d2727ea4be5bd2dc43cd46fc4281816206866fc41322b11bcfe8bab17`
 - Deterministic cold-funder verification: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json), derived by `node scripts/verify-cold-funder.mjs`
 - Receipt-bound payer-history checkpoint: [`evidence/openbell-receipt-bound-history-baseline.json`](evidence/openbell-receipt-bound-history-baseline.json), derived independently across both official X Layer RPCs through block `68230450`
+- Sanitized receipt-history observations: [`evidence/openbell-receipt-bound-history-observations.json`](evidence/openbell-receipt-bound-history-observations.json), covering the complete `4,660`-chunk scan per provider, canonical event logs, pinned invoice state and block timestamps
+- Deterministic history verification: `npm run verify:receipt-history-evidence` recomputes every economic metric and the final history commitment from those observations; the production worker runs the same verifier before model budget can be consumed
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
 getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
@@ -96,7 +98,9 @@ described as a public manifest. The sanitized record above is the public, byte-r
 The mainnet underwriting path no longer accepts supplier-declared payment history. It derives one
 confirmed OpenBell history checkpoint, requires byte-identical observations from both official RPCs,
 binds the checkpoint commitment into the supplier's EIP-712 request, and rechecks the pinned block
-before any model budget is consumed. The model receives confirmed settlements, funded-state counts,
+before any model budget is consumed. The checkpoint is a permanent, explicitly bounded historical
+snapshot through block `68230450`; it does not claim to include later activity and does not expire merely
+because judging happens later. The model receives confirmed settlements, funded-state counts,
 and concentration only. OpenBell has no protocol default state, so overdue funding is never relabelled
 as a default and cannot support a `PRIOR_DEFAULT` reason.
 

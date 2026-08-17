@@ -33,7 +33,6 @@
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="/" aria-current="page">Overview</a>
           <a href="/studio/">Deal studio</a>
-          <a href="/proof/#mainnet">Receipts</a>
           <a href="#receipt-history">Receipt history</a>
         </nav>
         <a class="header-cta signal-nav-cta" data-funding-action href="/proof/#mainnet">Follow five receipts <span aria-hidden="true">↗</span></a>
@@ -96,7 +95,10 @@
           <p>RECEIPT-BOUND UNDERWRITING</p>
           <h2 id="receipt-intelligence-title">AI reads X Layer receipts.<br />Not supplier claims.</h2>
           <span>OpenBell derives payer history from confirmed contract events across both official X Layer RPCs. The supplier signs the exact checkpoint and commitment before one model request can begin.</span>
-          <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-baseline.json">Inspect the public checkpoint <span aria-hidden="true">↗</span></a>
+          <div class="receipt-intelligence-links">
+            <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-baseline.json">Inspect checkpoint <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-observations.json">Recompute evidence <span aria-hidden="true">↗</span></a>
+          </div>
         </div>
         <div class="receipt-intelligence-data" aria-label="Confirmed receipt history checkpoint">
           <header><span>CHAIN 196 / CONFIRMED CHECKPOINT</span><b><i></i> 2 RPCs AGREE</b></header>
