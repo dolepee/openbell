@@ -83,12 +83,22 @@ in transaction `0xa9068a...030a`. The chain proves the distinct wallet, exact tr
 - Mainnet lifecycle verification: [`evidence/openbell-xlayer-mainnet-lifecycle-verification.json`](evidence/openbell-xlayer-mainnet-lifecycle-verification.json), derived by `node scripts/verify-mainnet-lifecycle.mjs`
 - Sanitized independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `a68a8b7d2727ea4be5bd2dc43cd46fc4281816206866fc41322b11bcfe8bab17`
 - Deterministic cold-funder verification: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json), derived by `node scripts/verify-cold-funder.mjs`
+- Receipt-bound payer-history checkpoint: [`evidence/openbell-receipt-bound-history-baseline.json`](evidence/openbell-receipt-bound-history-baseline.json), derived independently across both official X Layer RPCs through block `68230450`
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
 getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
 source publication and an independent third-party audit remain separate, incomplete claims.
 The earlier `0xac31d5ee…f020` value is retained only as a sealed private-source manifest commitment; it is not
 described as a public manifest. The sanitized record above is the public, byte-reproducible preimage.
+
+### Receipt-bound underwriting
+
+The mainnet underwriting path no longer accepts supplier-declared payment history. It derives one
+confirmed OpenBell history checkpoint, requires byte-identical observations from both official RPCs,
+binds the checkpoint commitment into the supplier's EIP-712 request, and rechecks the pinned block
+before any model budget is consumed. The model receives confirmed settlements, funded-state counts,
+and concentration only. OpenBell has no protocol default state, so overdue funding is never relabelled
+as a default and cannot support a `PRIOR_DEFAULT` reason.
 
 ### Canonical-USDG mainnet lifecycle
 

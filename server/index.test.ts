@@ -1,6 +1,7 @@
 import { encodeAbiParameters, parseAbiParameters } from "viem";
 import { afterEach, expect, test, vi } from "vitest";
 import { connectedRequestHashOf, mainnetUnderwritingRequestSchema } from "../agent/src/connected-underwriting.js";
+import { MAINNET_RECEIPT_HISTORY_BASELINE } from "../agent/src/mainnet-receipt-history-baseline.js";
 import worker from "./index.js";
 
 const environment = {
@@ -50,6 +51,42 @@ test("connected endpoint rejects malformed payloads without model, RPC, signer o
 test("site fallback remains delegated to the static asset binding", async () => {
   const response = await worker.fetch(new Request("https://openbell.dolepee.com/proof/"), environment);
   expect(await response.text()).toBe("asset");
+});
+
+test("receipt history endpoint exposes only the exact payer after two-provider chain and checkpoint agreement", async () => {
+  const pinnedTimestamp = 1_787_000_000n;
+  vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    const result = body.method === "eth_chainId" ? "0xc4"
+      : body.params[0] === "latest"
+        ? { number: `0x${(BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock) + 20n).toString(16)}`, timestamp: `0x${(pinnedTimestamp + 60n).toString(16)}` }
+        : { number: `0x${BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock).toString(16)}`, hash: MAINNET_RECEIPT_HISTORY_BASELINE.throughBlockHash, timestamp: `0x${pinnedTimestamp.toString(16)}` };
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }));
+  }));
+  const endpoint = new URL("https://openbell.dolepee.com/api/mainnet-receipt-history");
+  endpoint.searchParams.set("payer", MAINNET_RECEIPT_HISTORY_BASELINE.payer);
+  const response = await worker.fetch(new Request(endpoint), environment);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ snapshot: MAINNET_RECEIPT_HISTORY_BASELINE, source: "two-official-rpc-confirmed-checkpoint", defaultsRepresented: false });
+  endpoint.searchParams.set("payer", "0x0000000000000000000000000000000000000001");
+  const other = await worker.fetch(new Request(endpoint), environment);
+  expect(other.status).toBe(404);
+});
+
+test("receipt history endpoint fails closed on provider disagreement", async () => {
+  let calls = 0;
+  vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
+    calls += 1;
+    const body = JSON.parse(String(init?.body));
+    const result = body.method === "eth_chainId" ? "0xc4"
+      : body.params[0] === "latest" ? { number: "0x411aa00", timestamp: "0x6a83d800" }
+        : { number: `0x${BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock).toString(16)}`, hash: calls % 2 ? MAINNET_RECEIPT_HISTORY_BASELINE.throughBlockHash : `0x${"ff".repeat(32)}`, timestamp: "0x6a83d7c0" };
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }));
+  }));
+  const endpoint = new URL("https://openbell.dolepee.com/api/mainnet-receipt-history");
+  endpoint.searchParams.set("payer", MAINNET_RECEIPT_HISTORY_BASELINE.payer);
+  const response = await worker.fetch(new Request(endpoint), environment);
+  expect(response.status).toBe(503);
 });
 
 test("assessment artifact status confirms only the exact decision-store commitment", async () => {

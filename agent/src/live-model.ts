@@ -18,12 +18,17 @@ export const BANKR_APPROVAL_EXPLANATION = "The supplied synthetic evidence suppo
 export const BANKR_REJECTION_EXPLANATION = "The supplied synthetic evidence does not support approval." as const;
 export const BANKR_MAINNET_APPROVAL_EXPLANATION = "The supplied registered mainnet evidence supports approval within the returned structured limits." as const;
 export const BANKR_MAINNET_REJECTION_EXPLANATION = "The supplied registered mainnet evidence does not support approval." as const;
-export type BankrEvidenceBoundary = "synthetic" | "registered-mainnet";
+export const BANKR_RECEIPT_BOUND_APPROVAL_EXPLANATION = "Confirmed OpenBell receipts on X Layer support approval within the returned structured limits." as const;
+export const BANKR_RECEIPT_BOUND_REJECTION_EXPLANATION = "Confirmed OpenBell receipts on X Layer do not support approval." as const;
+export type BankrEvidenceBoundary = "synthetic" | "registered-mainnet" | "receipt-bound-mainnet";
 export const BANKR_MAINNET_POLICY_PROMPT = "An APPROVE verdict requires confidenceBps of at least 7000. If the evidence does not justify that confidence, return REJECT instead of a lower-confidence APPROVE. The deterministic envelope caps maximumAdvanceBps at 8000 and feeBps at 2000." as const;
 const BANKR_INPUT_USD_PER_MILLION = 2;
 const BANKR_OUTPUT_USD_PER_MILLION = 12;
 
 const explanationFor = (boundary: BankrEvidenceBoundary, verdict: "APPROVE" | "REJECT") => {
+  if (boundary === "receipt-bound-mainnet") {
+    return verdict === "APPROVE" ? BANKR_RECEIPT_BOUND_APPROVAL_EXPLANATION : BANKR_RECEIPT_BOUND_REJECTION_EXPLANATION;
+  }
   if (boundary === "registered-mainnet") {
     return verdict === "APPROVE" ? BANKR_MAINNET_APPROVAL_EXPLANATION : BANKR_MAINNET_REJECTION_EXPLANATION;
   }
@@ -88,8 +93,10 @@ export interface OfflineBankrRequest {
 
 export function buildStrictBankrRequest(input: InvoiceRiskInput, boundary: BankrEvidenceBoundary = "synthetic"): OfflineBankrRequest {
   const canonicalInput = invoiceRiskInputSchema.strict().parse(input);
-  const evidenceDescription = boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
-  const policyInstruction = boundary === "registered-mainnet" ? ` ${BANKR_MAINNET_POLICY_PROMPT}` : "";
+  const evidenceDescription = boundary === "receipt-bound-mainnet"
+    ? "registered invoice evidence and confirmed OpenBell receipts on X Layer; overdue funded invoices are not protocol defaults"
+    : boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
+  const policyInstruction = boundary === "synthetic" ? "" : ` ${BANKR_MAINNET_POLICY_PROMPT}`;
   const body = JSON.stringify({
     model: BANKR_UNDERWRITING_MODEL,
     messages: [

@@ -14,6 +14,8 @@ import {
   BANKR_APPROVAL_EXPLANATION,
   BANKR_MAINNET_APPROVAL_EXPLANATION,
   BANKR_MAINNET_REJECTION_EXPLANATION,
+  BANKR_RECEIPT_BOUND_APPROVAL_EXPLANATION,
+  BANKR_RECEIPT_BOUND_REJECTION_EXPLANATION,
   BANKR_REJECTION_EXPLANATION,
   buildStrictBankrRequest
 } from "./live-model.js";
@@ -45,6 +47,8 @@ export const CONNECTED_MAINNET = Object.freeze({
   maxTenorSeconds: 90 * 24 * 60 * 60,
   minConfidenceBps: 7_000
 });
+export const RECEIPT_BOUND_MAINNET_SCHEMA = "openbell-mainnet-receipt-bound-underwriting-v1" as const;
+export const RECEIPT_BOUND_CONTEXT = "No offchain payer-performance claims were supplied. History is limited to confirmed OpenBell receipts on X Layer." as const;
 export type ConnectedDeployment = typeof CONNECTED_TESTNET | typeof CONNECTED_MAINNET;
 
 const address = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((value) => getAddress(value));
@@ -69,6 +73,13 @@ const historySchema = z.object({
     context.addIssue({ code: "custom", message: "Settlement-history components exceed completed settlements." });
   }
 });
+const receiptBoundHistorySchema = z.object({
+  schemaVersion: z.literal("openbell-receipt-bound-history-v1"), chainId: z.literal(196), receivables: address, payer: address,
+  fromBlock: uintString, throughBlock: uintString, throughBlockHash: bytes32,
+  completedSettlements: z.number().int().nonnegative(), onTimeSettlements: z.number().int().nonnegative(), lateSettlements: z.number().int().nonnegative(),
+  activeFunded: z.number().int().nonnegative(), overdueFunded: z.number().int().nonnegative(), counterpartyConcentrationBps: z.number().int().min(0).max(10_000),
+  daysSinceLastSettlement: z.number().int().nonnegative(), invoiceIds: z.array(bytes32), historyCommitment: bytes32
+}).strict();
 
 const requestFields = {
   registrationTransactionHash: bytes32,
@@ -102,14 +113,35 @@ export const mainnetUnderwritingRequestSchema = z.object({
   ...requestFields,
   realValueAcknowledged: z.literal(true)
 }).strict().superRefine(enforceZeroHistory);
+export const receiptBoundMainnetUnderwritingRequestSchema = z.object({
+  schemaVersion: z.literal(RECEIPT_BOUND_MAINNET_SCHEMA),
+  label: z.literal(CONNECTED_MAINNET.label),
+  ...requestFields,
+  receiptBoundHistory: receiptBoundHistorySchema,
+  realValueAcknowledged: z.literal(true)
+}).strict().superRefine((request, context) => {
+  const receipt = request.receiptBoundHistory;
+  if (request.redactedContext !== RECEIPT_BOUND_CONTEXT || receipt.payer !== request.payer || receipt.receivables !== CONNECTED_MAINNET.receivables) {
+    context.addIssue({ code: "custom", message: "CONNECTED_RECEIPT_HISTORY_REQUEST_MISMATCH" });
+  }
+  const expected = {
+    completedSettlements: receipt.completedSettlements, onTimeSettlements: receipt.onTimeSettlements,
+    lateSettlements: receipt.lateSettlements, defaults: 0, concentrationBps: receipt.counterpartyConcentrationBps,
+    daysSinceLastSettlement: receipt.daysSinceLastSettlement
+  };
+  if (canonicalJson(request.payerHistory) !== canonicalJson(expected)) context.addIssue({ code: "custom", message: "CONNECTED_RECEIPT_HISTORY_PROJECTION_MISMATCH" });
+});
 
 type TestnetUnderwritingRequest = z.infer<typeof connectedUnderwritingRequestSchema>;
 export type ConnectedUnderwritingRequest = Omit<TestnetUnderwritingRequest, "schemaVersion" | "label" | "syntheticFixtureAcknowledged"> & {
-  readonly schemaVersion: typeof CONNECTED_TESTNET.schemaVersion | typeof CONNECTED_MAINNET.schemaVersion;
+  readonly schemaVersion: typeof CONNECTED_TESTNET.schemaVersion | typeof CONNECTED_MAINNET.schemaVersion | typeof RECEIPT_BOUND_MAINNET_SCHEMA;
   readonly label: typeof CONNECTED_TESTNET.label | typeof CONNECTED_MAINNET.label;
   readonly syntheticFixtureAcknowledged?: true;
   readonly realValueAcknowledged?: true;
+  readonly receiptBoundHistory?: z.infer<typeof receiptBoundHistorySchema>;
 };
+
+export interface ReceiptBoundHistoryVerifier { verify(request: ConnectedUnderwritingRequest): Promise<void>; }
 
 export interface RegisteredInvoiceObservation {
   readonly chainId: number;
@@ -245,14 +277,18 @@ function assertModelReasonsSupported(input: InvoiceRiskInput, decision: z.infer<
   if (!hasVerifiedHistory && decision.reasons.some((reason) => unsupportedZeroHistoryReasons.has(reason))) {
     throw new Error("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
   }
-  const expectedExplanation = deployment === CONNECTED_MAINNET
+  if (input.payerHistory.defaults === 0 && decision.reasons.includes("PRIOR_DEFAULT")) throw new Error("CONNECTED_MODEL_REASON_UNSUPPORTED_BY_EVIDENCE");
+  const expectedExplanation = input.receiptBoundHistory
+    ? decision.verdict === "APPROVE" ? BANKR_RECEIPT_BOUND_APPROVAL_EXPLANATION : BANKR_RECEIPT_BOUND_REJECTION_EXPLANATION
+    : deployment === CONNECTED_MAINNET
     ? decision.verdict === "APPROVE" ? BANKR_MAINNET_APPROVAL_EXPLANATION : BANKR_MAINNET_REJECTION_EXPLANATION
     : decision.verdict === "APPROVE" ? BANKR_APPROVAL_EXPLANATION : BANKR_REJECTION_EXPLANATION;
   if (decision.explanation !== expectedExplanation) throw new Error("CONNECTED_MODEL_EXPLANATION_UNSUPPORTED");
 }
 
 function committedModelId(input: InvoiceRiskInput, evidence: z.infer<typeof modelEvidenceSchema>, deployment: ConnectedDeployment): string {
-  const expectedRequestHash = buildStrictBankrRequest(input, deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic").requestHash;
+  const boundary = input.receiptBoundHistory ? "receipt-bound-mainnet" : deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic";
+  const expectedRequestHash = buildStrictBankrRequest(input, boundary).requestHash;
   if (evidence.requestHash !== expectedRequestHash) throw new Error("CONNECTED_MODEL_REQUEST_HASH_MISMATCH");
   const receiptCommitment = keccak256(encodeAbiParameters(
     parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
@@ -298,7 +334,8 @@ export function connectedAssessmentTypedData(candidate: Omit<ConnectedUnderwriti
     dueDate: candidate.dueDate,
     payerHistory: candidate.payerHistory,
     redactedContext: candidate.redactedContext,
-    valueBoundaryAcknowledged
+    valueBoundaryAcknowledged,
+    ...(candidate.receiptBoundHistory ? { receiptBoundHistory: candidate.receiptBoundHistory } : {})
   })));
   return { domain: domainFor(deployment), types: assessmentTypes, primaryType: "UnderwritingRequest" as const, message: {
     invoiceId: candidate.invoiceId,
@@ -365,6 +402,7 @@ const riskInputFrom = (request: ConnectedUnderwritingRequest, observation: Regis
   requestedAdvance: request.requestedAdvance,
   evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
   payerHistory: request.payerHistory,
+  ...(request.receiptBoundHistory ? { receiptBoundHistory: request.receiptBoundHistory } : {}),
   redactedContext: request.redactedContext
 });
 const policyFor = (deployment: ConnectedDeployment) => ({
@@ -461,14 +499,21 @@ export class ConnectedUnderwritingService {
     store: ConnectedDecisionStore;
     modelFactory: () => UnderwritingModel;
     deployment?: ConnectedDeployment;
+    historyVerifier?: ReceiptBoundHistoryVerifier;
   }) {}
 
   async authorize(candidate: unknown): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> {
     const deployment = this.dependencies.deployment ?? CONNECTED_TESTNET;
-    const request = (deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema : mainnetUnderwritingRequestSchema).parse(candidate) as ConnectedUnderwritingRequest;
+    const schema = deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema
+      : (candidate as { schemaVersion?: unknown })?.schemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA ? receiptBoundMainnetUnderwritingRequestSchema : mainnetUnderwritingRequestSchema;
+    const request = schema.parse(candidate) as ConnectedUnderwritingRequest;
     const { supplierAuthorization: _supplierAuthorization, ...unsignedRequest } = request;
     const recoveredSupplier = await recoverTypedDataAddress({ ...connectedAssessmentTypedData(unsignedRequest, deployment), signature: request.supplierAuthorization });
     if (recoveredSupplier !== request.supplier) throw new Error("CONNECTED_ASSESSMENT_WRONG_SUPPLIER_SIGNATURE");
+    if (request.schemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA) {
+      if (!this.dependencies.historyVerifier) throw new Error("CONNECTED_RECEIPT_HISTORY_VERIFIER_REQUIRED");
+      await this.dependencies.historyVerifier.verify(request);
+    }
     const requestJson = canonicalJson(request);
     const requestHash = connectedRequestHashOf(request);
     const nonce = BigInt(requestHash).toString();

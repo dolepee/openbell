@@ -9,6 +9,8 @@ import {
   addInvoiceSessionSignature,
   approvalTypedData,
   assertWalletContext,
+  buildConnectedAssessmentRequest,
+  connectedAssessmentTypedData,
   buildHumanEscalation,
   createInvoiceSession,
   finalizeHumanEscalation,
@@ -35,6 +37,27 @@ const preparedMainnetDeal = (requestedAdvance = "85") => buildUnsignedDealPackag
   documentHash: `0x${"ab".repeat(32)}`,
   createdAtMs: Date.parse("2026-08-16T12:00:00.000Z"),
   target: OPENBELL_MAINNET
+});
+
+test("mainnet supplier authority binds the exact receipt checkpoint and neutral evidence boundary", async () => {
+  const deal = await preparedMainnetDeal("60");
+  let session = await createInvoiceSession(deal);
+  session = await addInvoiceSessionSignature(session, supplier.address, await supplier.signTypedData(invoiceTypedData(deal.invoiceTerms, OPENBELL_MAINNET_CONNECTED)));
+  session = await addInvoiceSessionSignature(session, payer.address, await payer.signTypedData(invoiceTypedData(deal.invoiceTerms, OPENBELL_MAINNET_CONNECTED)));
+  const receiptBoundHistory = {
+    schemaVersion: "openbell-receipt-bound-history-v1", chainId: 196, receivables: OPENBELL_MAINNET_CONNECTED.receivables, payer: payer.address,
+    fromBlock: "67764503", throughBlock: "68230450", throughBlockHash: `0x${"ab".repeat(32)}`,
+    completedSettlements: 1, onTimeSettlements: 1, lateSettlements: 0, activeFunded: 0, overdueFunded: 0,
+    counterpartyConcentrationBps: 7142, daysSinceLastSettlement: 0, invoiceIds: [`0x${"cd".repeat(32)}`], historyCommitment: `0x${"ef".repeat(32)}`
+  };
+  const payerHistory = { completedSettlements: 1, onTimeSettlements: 1, lateSettlements: 0, defaults: 0, concentrationBps: 7142, daysSinceLastSettlement: 0 };
+  const redactedContext = "No offchain payer-performance claims were supplied. History is limited to confirmed OpenBell receipts on X Layer.";
+  const unsigned = await buildConnectedAssessmentRequest({ session, registrationTransactionHash: `0x${"12".repeat(32)}`, funder: funder.address, payerHistory, receiptBoundHistory, redactedContext });
+  assert.equal(unsigned.schemaVersion, "openbell-mainnet-receipt-bound-underwriting-v1");
+  const signature = await supplier.signTypedData(connectedAssessmentTypedData(unsigned));
+  const authorized = await buildConnectedAssessmentRequest({ session, registrationTransactionHash: unsigned.registrationTransactionHash, funder: funder.address, payerHistory, receiptBoundHistory, redactedContext, supplierAuthorization: signature });
+  assert.equal(authorized.receiptBoundHistory.historyCommitment, receiptBoundHistory.historyCommitment);
+  await assert.rejects(() => buildConnectedAssessmentRequest({ session, registrationTransactionHash: unsigned.registrationTransactionHash, funder: funder.address, payerHistory, receiptBoundHistory: { ...receiptBoundHistory, throughBlock: "68230451" }, redactedContext, supplierAuthorization: signature }), /wrong signer|Signature recovered/);
 });
 
 const canonicalJson = (value) => {

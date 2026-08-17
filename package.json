@@ -20,6 +20,7 @@
     "deploy:fixture:testnet:dry-run": "forge script contracts/script/DeployFixtureTestnet.s.sol:DeployOpenBellFixtureTestnet --offline --chain 1952 --sender $OPENBELL_DEPLOYER",
     "pree2e:fixture": "forge build --offline --quiet",
     "e2e:fixture": "tsx agent/scripts/run-fixture.ts",
+    "spike:receipt-history": "tsx agent/scripts/derive-mainnet-receipt-history.ts",
     "web:export": "node web/scripts/export-fixture.mjs",
     "web:bundle": "node scripts/build-web-apps.mjs",
     "web:check": "npm run web:export && npm run web:bundle && node --test web/deal-package.test.mjs web/testnet-flow.test.mjs web/mainnet-flow.test.mjs web/site.test.mjs",

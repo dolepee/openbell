@@ -28,6 +28,24 @@ export const invoiceRiskInputSchema = z.object({
     concentrationBps: z.number().int().min(0).max(10_000),
     daysSinceLastSettlement: z.number().int().nonnegative()
   }),
+  receiptBoundHistory: z.object({
+    schemaVersion: z.literal("openbell-receipt-bound-history-v1"),
+    chainId: z.literal(196),
+    receivables: address,
+    payer: address,
+    fromBlock: uintString,
+    throughBlock: uintString,
+    throughBlockHash: bytes32,
+    completedSettlements: z.number().int().nonnegative(),
+    onTimeSettlements: z.number().int().nonnegative(),
+    lateSettlements: z.number().int().nonnegative(),
+    activeFunded: z.number().int().nonnegative(),
+    overdueFunded: z.number().int().nonnegative(),
+    counterpartyConcentrationBps: z.number().int().min(0).max(10_000),
+    daysSinceLastSettlement: z.number().int().nonnegative(),
+    invoiceIds: z.array(bytes32),
+    historyCommitment: bytes32
+  }).strict().optional(),
   redactedContext: z.string().trim().min(1).max(2_000)
 });
 
