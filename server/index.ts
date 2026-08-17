@@ -12,6 +12,8 @@ import {
 } from "../agent/src/connected-underwriting.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../agent/src/d1-connected-decision-store.js";
 import { StrictBankrUnderwritingModel } from "../agent/src/live-model.js";
+import { assertFundingCandidateAgainstInvoice, validateFundingCandidate } from "../web/funding-candidate.mjs";
+import { buildInvoiceStateCall, decodeInvoiceState } from "../web/testnet-flow.mjs";
 
 interface AssetBinding { fetch(request: Request): Promise<Response> }
 interface Environment {
@@ -196,12 +198,70 @@ const artifactStatusResponse = async (request: Request, config: Environment): Pr
   return json({ verified: true, requestedAdvance: parsed.data.requestedAdvance });
 };
 
+const fundingCandidateResponse = async (request: Request, config: Environment): Promise<Response> => {
+  if (request.method === "GET") {
+    const row = await config.DB.prepare(
+      `SELECT candidate_json
+       FROM mainnet_funding_candidates
+       WHERE status = 'OPEN' AND expires_at > unixepoch()
+       ORDER BY created_at DESC
+       LIMIT 1`
+    ).first<{ candidate_json: string }>();
+    if (!row) return json({ error: "NO_OPEN_FUNDING_CANDIDATE" }, 404);
+    try {
+      const candidate: unknown = JSON.parse(row.candidate_json);
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("INVALID_FUNDING_CANDIDATE");
+      const record = candidate as Record<string, unknown>;
+      if (record.schemaVersion !== "openbell-mainnet-funding-candidate-v1" || record.status !== "OPEN") throw new Error("INVALID_FUNDING_CANDIDATE");
+      return json(candidate);
+    } catch {
+      return json({ error: "CORRUPT_FUNDING_CANDIDATE" }, 500);
+    }
+  }
+  if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
+  const url = new URL(request.url);
+  if (request.headers.get("origin") !== url.origin || request.headers.get("sec-fetch-site") !== "same-origin") {
+    return json({ error: "SAME_ORIGIN_REQUIRED" }, 403);
+  }
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return json({ error: "JSON_CONTENT_TYPE_REQUIRED" }, 415);
+  try {
+    const raw = await boundedText(new Response(request.body), 32 * 1_024, "REQUEST_TOO_LARGE");
+    const candidate: unknown = JSON.parse(raw);
+    const validated = await validateFundingCandidate(candidate);
+    const call = { to: CONNECTED_MAINNET.receivables, data: buildInvoiceStateCall(validated.invoice.invoiceId) };
+    const states = await Promise.all(officialMainnetProviders.map(({ label, endpoint }) =>
+      new OfficialReadOnlyRpc(label, endpoint).request("eth_call", [call, "latest"])
+    ));
+    if (typeof states[0] !== "string" || typeof states[1] !== "string" || states[0].toLowerCase() !== states[1].toLowerCase()) {
+      throw new Error("FUNDING_CANDIDATE_PROVIDER_DISAGREEMENT");
+    }
+    const invoice = decodeInvoiceState(states[0] as `0x${string}`);
+    assertFundingCandidateAgainstInvoice(validated, invoice);
+    if (invoice.status !== 1) throw new Error("FUNDING_CANDIDATE_NOT_REGISTERED");
+    const now = Math.floor(Date.now() / 1_000);
+    const results = await config.DB.batch([
+      config.DB.prepare("UPDATE mainnet_funding_candidates SET status = 'CLOSED', updated_at = ? WHERE status = 'OPEN'").bind(now),
+      config.DB.prepare(
+        `INSERT INTO mainnet_funding_candidates (invoice_id, candidate_json, status, expires_at, created_at, updated_at)
+         VALUES (?, ?, 'OPEN', ?, ?, ?)
+         ON CONFLICT(invoice_id) DO UPDATE SET candidate_json = excluded.candidate_json, status = 'OPEN', expires_at = excluded.expires_at, updated_at = excluded.updated_at`
+      ).bind(validated.invoice.invoiceId, raw, Number(validated.authority.expiresAt), now, now)
+    ]);
+    if (results.length !== 2 || results.some((result) => result.success === false)) throw new Error("FUNDING_CANDIDATE_STORE_FAILED");
+    return json({ published: true, invoiceId: validated.invoice.invoiceId, expiresAt: validated.authority.expiresAt.toString() }, 201);
+  } catch (error) {
+    const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "INVALID_FUNDING_CANDIDATE";
+    return json({ error: code }, code === "REQUEST_TOO_LARGE" ? 413 : 422);
+  }
+};
+
 export default {
   async fetch(request: Request, environment: Environment): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api/connected-underwriting") return underwritingResponse(request, environment, CONNECTED_TESTNET);
     if (url.pathname === "/api/mainnet-underwriting") return underwritingResponse(request, environment, CONNECTED_MAINNET);
     if (url.pathname === "/api/assessment-artifact-status") return artifactStatusResponse(request, environment);
+    if (url.pathname === "/api/funding-candidate") return fundingCandidateResponse(request, environment);
     if (url.pathname === "/") url.pathname = "/index.html";
     else if (url.pathname.endsWith("/")) url.pathname += "index.html";
     else if (!url.pathname.split("/").at(-1)?.includes(".")) url.pathname += "/index.html";

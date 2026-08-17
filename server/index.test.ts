@@ -138,3 +138,50 @@ test("assessment artifact status rejects malformed and cross-origin probes witho
   expect(malformed.status).toBe(400);
   expect(await malformed.json()).toEqual({ error: "INVALID_ARTIFACT_QUERY" });
 });
+
+test("funding candidate endpoint returns only the current open D1 candidate", async () => {
+  const candidate = {
+    schemaVersion: "openbell-mainnet-funding-candidate-v1",
+    status: "OPEN",
+    title: "One bounded supplier advance"
+  };
+  const candidateEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
+  } as never;
+  const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  expect(await response.json()).toEqual(candidate);
+});
+
+test("funding candidate endpoint fails closed for missing, malformed, and non-GET candidates", async () => {
+  const missingEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ first: async () => null }) }
+  } as never;
+  const endpoint = "https://openbell.dolepee.com/api/funding-candidate";
+  const missing = await worker.fetch(new Request(endpoint), missingEnvironment);
+  expect(missing.status).toBe(404);
+  expect(await missing.json()).toEqual({ error: "NO_OPEN_FUNDING_CANDIDATE" });
+
+  const corruptEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify({ schemaVersion: "wrong", status: "OPEN" }) }) }) }
+  } as never;
+  const corrupt = await worker.fetch(new Request(endpoint), corruptEnvironment);
+  expect(corrupt.status).toBe(500);
+  expect(await corrupt.json()).toEqual({ error: "CORRUPT_FUNDING_CANDIDATE" });
+
+  const wrongMethod = await worker.fetch(new Request(endpoint, { method: "PUT" }), environment);
+  expect(wrongMethod.status).toBe(405);
+  expect(await wrongMethod.json()).toEqual({ error: "METHOD_NOT_ALLOWED" });
+
+  const crossOriginPost = await worker.fetch(new Request(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
+    body: "{}"
+  }), environment);
+  expect(crossOriginPost.status).toBe(403);
+  expect(await crossOriginPost.json()).toEqual({ error: "SAME_ORIGIN_REQUIRED" });
+});

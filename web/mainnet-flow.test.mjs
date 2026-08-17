@@ -3,6 +3,7 @@ import test from "node:test";
 import { encodeAbiParameters, hashTypedData, keccak256, parseAbiParameters, stringToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { OPENBELL_MAINNET, buildUnsignedDealPackage } from "./deal-package.mjs";
+import { assertFundingCandidateAgainstInvoice, validateFundingCandidate } from "./funding-candidate.mjs";
 import {
   OPENBELL_MAINNET_CONNECTED,
   addInvoiceSessionSignature,
@@ -237,6 +238,70 @@ test("human escalation preserves a genuine rejection and enforces the tighter ec
   assert.deepEqual(actions.map(({ kind }) => kind), ["APPROVE_FUNDING", "FUND_INVOICE", "APPROVE_SETTLEMENT", "SETTLE_INVOICE"]);
   assert.equal(actions[0].signer, funder.address);
   assert.equal(actions[2].signer, payer.address);
+});
+
+test("one-wallet funding candidate preserves the rejected artifact and exact two-action boundary", async () => {
+  const { assessment, session } = await rejectedMainnetFixture();
+  const escalation = await buildHumanEscalation({
+    assessment,
+    session,
+    assessedRequestedAdvance: "85000000",
+    funder: funder.address,
+    advanceAmount: "25000000",
+    riskTimestamp: "1786900000"
+  });
+  const actions = await finalizeHumanEscalation(escalation, await underwriter.signTypedData(humanEscalationTypedData(escalation)));
+  const terms = session.dealPackage.invoiceTerms;
+  const candidate = {
+    schemaVersion: "openbell-mainnet-funding-candidate-v1",
+    status: "OPEN",
+    title: "One bounded supplier advance",
+    summary: "Fund one dual-signed receivable after a preserved model rejection and a stricter disclosed human review.",
+    invoice: {
+      invoiceId: terms.invoiceId,
+      documentHash: terms.documentHash,
+      supplier: terms.supplier,
+      payer: terms.payer,
+      funder: funder.address,
+      faceValue: terms.faceValue,
+      requestedAdvance: "85000000",
+      approvedAdvance: escalation.approval.advanceAmount,
+      repaymentAmount: escalation.approval.repaymentAmount,
+      dueDate: terms.dueDate
+    },
+    authority: {
+      modelVerdict: "REJECT",
+      policy: "HUMAN_REVIEW_AFTER_MODEL_REJECTION_V1",
+      rejectedArtifactHash: assessment.artifactHash,
+      expiresAt: escalation.approval.expiresAt
+    },
+    actions: actions.slice(0, 2)
+  };
+  const validated = await validateFundingCandidate(candidate, 1_786_900_100);
+  assert.equal(validated.invoice.funder, funder.address);
+  assert.equal(validated.invoice.approvedAdvance, 25_000_000n);
+  assert.deepEqual([validated.approvalAction.kind, validated.fundingAction.kind], ["APPROVE_FUNDING", "FUND_INVOICE"]);
+  const registeredRecord = {
+    status: 1,
+    supplier: validated.invoice.supplier,
+    payer: validated.invoice.payer,
+    funder: "0x0000000000000000000000000000000000000000",
+    faceValue: validated.invoice.faceValue,
+    advanceAmount: 0n,
+    repaymentAmount: 0n,
+    dueDate: validated.invoice.dueDate,
+    documentHash: validated.invoice.documentHash,
+    invoiceDigest: validated.fundingAction.invoiceDigest,
+    decisionDigest: `0x${"00".repeat(32)}`
+  };
+  assert.equal(assertFundingCandidateAgainstInvoice(validated, registeredRecord), true);
+  assert.throws(() => assertFundingCandidateAgainstInvoice(validated, { ...registeredRecord, faceValue: registeredRecord.faceValue + 1n }), /differs from/);
+
+  await assert.rejects(validateFundingCandidate({ ...candidate, status: "CLOSED" }, 1_786_900_100), /No open/);
+  await assert.rejects(validateFundingCandidate({ ...candidate, authority: { ...candidate.authority, expiresAt: "1786900000" } }, 1_786_900_100), /expired/);
+  await assert.rejects(validateFundingCandidate({ ...candidate, invoice: { ...candidate.invoice, approvedAdvance: "25000001" } }, 1_786_900_100), /economics changed/);
+  await assert.rejects(validateFundingCandidate({ ...candidate, authority: { ...candidate.authority, rejectedArtifactHash: `0x${"99".repeat(32)}` } }, 1_786_900_100), /no longer binds/);
+  await assert.rejects(validateFundingCandidate({ ...candidate, actions: [...candidate.actions].reverse() }, 1_786_900_100), /order is invalid/);
 });
 
 test("human escalation rejects over-cap, altered economics, party collapse and invalid signatures", async () => {

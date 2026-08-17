@@ -14,3 +14,5 @@ export function buildHumanEscalation(input: {
 }): Promise<unknown>;
 export function humanEscalationTypedData(escalation: unknown): unknown;
 export function finalizeHumanEscalation(escalation: unknown, underwriterSignature: `0x${string}`): Promise<unknown[]>;
+export function buildInvoiceStateCall(invoiceId: string): `0x${string}`;
+export function decodeInvoiceState(encodedResult: `0x${string}`): { readonly status: number };

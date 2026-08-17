@@ -13,7 +13,7 @@ await rm(distRoot, { recursive: true, force: true });
 await mkdir(clientRoot, { recursive: true });
 await mkdir(serverRoot, { recursive: true });
 
-for (const path of ["index.html", "app.js", "deal-package.mjs", "styles.css", "data", "public", "studio", "operate", "mainnet", "workspace", "proof", "architecture"]) {
+for (const path of ["index.html", "app.js", "deal-package.mjs", "funding-candidate.mjs", "testnet-flow.mjs", "styles.css", "data", "public", "studio", "operate", "mainnet", "fund", "workspace", "proof", "architecture"]) {
   await cp(resolve(webRoot, path), resolve(clientRoot, path), { recursive: true });
 }
 
