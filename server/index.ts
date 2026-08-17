@@ -8,8 +8,13 @@ import {
   connectedRequestHashOf,
   connectedUnderwritingRequestSchema,
   mainnetUnderwritingRequestSchema,
+  receiptBoundMainnetUnderwritingRequestSchema,
+  RECEIPT_BOUND_MAINNET_SCHEMA,
   type ConnectedDeployment
 } from "../agent/src/connected-underwriting.js";
+import { MAINNET_RECEIPT_HISTORY_BASELINE } from "../agent/src/mainnet-receipt-history-baseline.js";
+import { verifyMainnetReceiptHistoryEvidence } from "../agent/src/mainnet-receipt-history-evidence.js";
+import { parseReceiptBoundHistorySnapshot } from "../agent/src/receipt-bound-history.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../agent/src/d1-connected-decision-store.js";
 import { StrictBankrUnderwritingModel } from "../agent/src/live-model.js";
 import { assertFundingCandidateAgainstInvoice, validateFundingCandidate } from "../web/funding-candidate.mjs";
@@ -125,10 +130,20 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
     return json({ error: error instanceof Error ? error.message : "INVALID_REQUEST" }, 400);
   }
   try {
-    (deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema : mainnetUnderwritingRequestSchema).parse(body);
+    const requestSchema = deployment === CONNECTED_TESTNET ? connectedUnderwritingRequestSchema
+      : (body as { schemaVersion?: unknown })?.schemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA ? receiptBoundMainnetUnderwritingRequestSchema : mainnetUnderwritingRequestSchema;
+    requestSchema.parse(body);
+    const historyVerifier = deployment === CONNECTED_MAINNET ? {
+      verify: async (candidate: { receiptBoundHistory?: unknown }) => {
+        const supplied = parseReceiptBoundHistorySnapshot(candidate.receiptBoundHistory);
+        if (JSON.stringify(supplied) !== JSON.stringify(MAINNET_RECEIPT_HISTORY_BASELINE)) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_MISMATCH");
+        await verifyReceiptHistoryBaseline();
+      }
+    } : undefined;
     const model = new StrictBankrUnderwritingModel({
       apiKey: config.BANKR_API_KEY,
-      evidenceBoundary: deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic"
+      evidenceBoundary: (body as { schemaVersion?: unknown })?.schemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA
+        ? "receipt-bound-mainnet" : deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic"
     });
     const providerDefinitions = deployment === CONNECTED_TESTNET ? officialTestnetProviders : officialMainnetProviders;
     const observer = new TwoProviderConnectedInvoiceObserver(providerDefinitions.map(
@@ -138,7 +153,8 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
       observer,
       store: decisionStoreFor(config.DB),
       modelFactory: () => model,
-      deployment
+      deployment,
+      ...(historyVerifier ? { historyVerifier } : {})
     });
     const assessment = await service.authorize(body);
     return json({ ...assessment, artifactHash: connectedArtifactHashOf(assessment) });
@@ -149,6 +165,38 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
     const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "CONNECTED_UNDERWRITING_FAILED";
     const status = code.includes("IN_PROGRESS") ? 409 : code.includes("BUDGET") ? 429 : 422;
     return json({ error: code }, status);
+  }
+};
+
+const verifyReceiptHistoryBaseline = async (): Promise<void> => {
+  await verifyMainnetReceiptHistoryEvidence();
+  const providers = officialMainnetProviders.map(({ label, endpoint }) => new OfficialReadOnlyRpc(label, endpoint));
+  const [chainIds, heads, pinnedBlocks] = await Promise.all([
+    Promise.all(providers.map((rpc) => rpc.request("eth_chainId", []))),
+    Promise.all(providers.map((rpc) => rpc.request("eth_getBlockByNumber", ["latest", false]))),
+    Promise.all(providers.map((rpc) => rpc.request("eth_getBlockByNumber", [`0x${BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock).toString(16)}`, false])))
+  ]);
+  if (chainIds.some((value) => value !== "0xc4")) throw new Error("CONNECTED_RECEIPT_HISTORY_WRONG_CHAIN");
+  const headRecords = heads as Array<{ number?: unknown; timestamp?: unknown }>;
+  const pinnedRecords = pinnedBlocks as Array<{ hash?: unknown; number?: unknown; timestamp?: unknown }>;
+  if (pinnedRecords.some((block) => String(block.hash).toLowerCase() !== MAINNET_RECEIPT_HISTORY_BASELINE.throughBlockHash
+    || BigInt(String(block.number)) !== BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock))) throw new Error("CONNECTED_RECEIPT_HISTORY_REORG");
+  const headNumbers = headRecords.map((block) => BigInt(String(block.number)));
+  const pinnedTimes = pinnedRecords.map((block) => Number(BigInt(String(block.timestamp))));
+  if (headNumbers.some((number) => number < BigInt(MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock) + 12n)) throw new Error("CONNECTED_RECEIPT_HISTORY_NOT_CONFIRMED");
+  if (Math.max(...pinnedTimes) !== Math.min(...pinnedTimes)) throw new Error("CONNECTED_RECEIPT_HISTORY_PROVIDER_DISAGREEMENT");
+};
+
+const receiptHistoryResponse = async (request: Request): Promise<Response> => {
+  if (request.method !== "GET") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
+  const payer = new URL(request.url).searchParams.get("payer");
+  if (payer?.toLowerCase() !== MAINNET_RECEIPT_HISTORY_BASELINE.payer.toLowerCase()) return json({ error: "RECEIPT_HISTORY_NOT_AVAILABLE" }, 404);
+  try {
+    await verifyReceiptHistoryBaseline();
+    return json({ snapshot: MAINNET_RECEIPT_HISTORY_BASELINE, source: "two-official-rpc-confirmed-checkpoint", defaultsRepresented: false });
+  } catch (error) {
+    const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "CONNECTED_RECEIPT_HISTORY_UNAVAILABLE";
+    return json({ error: code }, 503);
   }
 };
 
@@ -188,8 +236,8 @@ const artifactStatusResponse = async (request: Request, config: Environment): Pr
     return json({ error: "CORRUPT_ARTIFACT_REQUEST" }, 500);
   }
   const requestRecord = storedRequest as Record<string, unknown>;
-  const schema = requestRecord?.schemaVersion === CONNECTED_MAINNET.schemaVersion
-    ? mainnetUnderwritingRequestSchema : connectedUnderwritingRequestSchema;
+  const schema = requestRecord?.schemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA ? receiptBoundMainnetUnderwritingRequestSchema
+    : requestRecord?.schemaVersion === CONNECTED_MAINNET.schemaVersion ? mainnetUnderwritingRequestSchema : connectedUnderwritingRequestSchema;
   const parsed = schema.safeParse(storedRequest);
   if (!parsed.success) return json({ error: "CORRUPT_ARTIFACT_REQUEST" }, 500);
   if (parsed.data.invoiceId !== candidate.invoiceId || connectedRequestHashOf(parsed.data) !== candidate.requestHash) {
@@ -280,6 +328,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/api/connected-underwriting") return underwritingResponse(request, environment, CONNECTED_TESTNET);
     if (url.pathname === "/api/mainnet-underwriting") return underwritingResponse(request, environment, CONNECTED_MAINNET);
+    if (url.pathname === "/api/mainnet-receipt-history") return receiptHistoryResponse(request);
     if (url.pathname === "/api/assessment-artifact-status") return artifactStatusResponse(request, environment);
     if (url.pathname === "/api/funding-candidate") return fundingCandidateResponse(request, environment);
     if (url.pathname === "/") url.pathname = "/index.html";

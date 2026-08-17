@@ -8,17 +8,21 @@ import {
   ConnectedPolicyRefusal,
   connectedArtifactHashOf,
   connectedAssessmentTypedData,
+  RECEIPT_BOUND_CONTEXT,
+  RECEIPT_BOUND_MAINNET_SCHEMA,
   type ConnectedDecisionStore,
   type ConnectedDeployment,
   type ConnectedUnderwritingRequest,
   type RegisteredInvoiceObservation,
   type StoredConnectedDecision
 } from "../src/connected-underwriting.js";
+import { MAINNET_RECEIPT_HISTORY_BASELINE } from "../src/mainnet-receipt-history-baseline.js";
 import type { InvoiceRiskInput, ModelDecision, UnderwritingModel } from "../src/schema.js";
 import { buildStrictBankrRequest } from "../src/live-model.js";
 import {
   BANKR_APPROVAL_EXPLANATION,
   BANKR_MAINNET_APPROVAL_EXPLANATION,
+  BANKR_RECEIPT_BOUND_APPROVAL_EXPLANATION,
   BANKR_REJECTION_EXPLANATION
 } from "../src/live-model.js";
 
@@ -119,7 +123,7 @@ const approval: ModelDecision = {
   explanation: BANKR_APPROVAL_EXPLANATION
 };
 
-function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed, deployment: ConnectedDeployment = CONNECTED_TESTNET) {
+function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed, deployment: ConnectedDeployment = CONNECTED_TESTNET, historyVerifier?: { verify(request: ConnectedUnderwritingRequest): Promise<void> }) {
   const store = new MemoryStore();
   let observerCalls = 0;
   let modelCalls = 0;
@@ -139,7 +143,7 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
         providerResponseId: "bankr-test-response",
         requestedModel: "gpt-5.6-terra",
         returnedModel: "gpt-5.6-terra",
-        requestHash: buildStrictBankrRequest(capturedInput!, deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic").requestHash,
+        requestHash: buildStrictBankrRequest(capturedInput!, capturedInput?.receiptBoundHistory ? "receipt-bound-mainnet" : deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic").requestHash,
         responseHash: keccak256(stringToHex(rawResponse)),
         rawResponse,
         decision
@@ -156,10 +160,38 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
     store,
     observer: { async inspect() { observerCalls += 1; return observerCalls === 1 ? observed : postObserved; } },
     modelFactory: () => model,
-    deployment
+    deployment,
+    ...(historyVerifier ? { historyVerifier } : {})
   });
   return { service, store, calls: () => ({ observerCalls, modelCalls }), capturedInput: () => capturedInput };
 }
+
+test("receipt-bound authority verifies the exact signed checkpoint before observation or model use", async () => {
+  const { syntheticFixtureAcknowledged: _fixtureBoundary, ...commonRequest } = unsignedRequest;
+  const receipt = MAINNET_RECEIPT_HISTORY_BASELINE;
+  const unsigned: Omit<ConnectedUnderwritingRequest, "supplierAuthorization"> = {
+    ...commonRequest, schemaVersion: RECEIPT_BOUND_MAINNET_SCHEMA, label: CONNECTED_MAINNET.label, realValueAcknowledged: true,
+    payer: receipt.payer, receiptBoundHistory: { ...receipt, invoiceIds: [...receipt.invoiceIds] },
+    payerHistory: { completedSettlements: 1, onTimeSettlements: 1, lateSettlements: 0, defaults: 0, concentrationBps: 7142, daysSinceLastSettlement: 0 },
+    redactedContext: RECEIPT_BOUND_CONTEXT
+  };
+  const authorized = { ...unsigned, supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(unsigned, CONNECTED_MAINNET)) };
+  const observed = observation({ chainId: 196, receivables: CONNECTED_MAINNET.receivables, settlementToken: CONNECTED_MAINNET.settlementToken, payer: receipt.payer });
+  let verifierCalls = 0;
+  const h = harness({ ...approval, explanation: BANKR_RECEIPT_BOUND_APPROVAL_EXPLANATION, reasons: ["DUAL_SIGNATURES_VERIFIED", "STRONG_ON_TIME_HISTORY"] }, observed, observed, CONNECTED_MAINNET, {
+    async verify() { verifierCalls += 1; }
+  });
+  const result = await h.service.authorize(authorized);
+  expect(result.decision.verdict).toBe("APPROVE");
+  expect(h.capturedInput()?.receiptBoundHistory?.historyCommitment).toBe(receipt.historyCommitment);
+  expect(verifierCalls).toBe(1);
+
+  const altered = { ...unsigned, receiptBoundHistory: { ...receipt, invoiceIds: [...receipt.invoiceIds], historyCommitment: `0x${"ff".repeat(32)}` as `0x${string}` } };
+  const alteredRequest = { ...altered, supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(altered, CONNECTED_MAINNET)) };
+  const rejected = harness(approval, observed, observed, CONNECTED_MAINNET);
+  await expect(rejected.service.authorize(alteredRequest)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_VERIFIER_REQUIRED");
+  expect(rejected.calls()).toEqual({ observerCalls: 0, modelCalls: 0 });
+});
 
 test("mainnet requests bind the genuine-value acknowledgement, chain-196 domain and production deployment", async () => {
   const { syntheticFixtureAcknowledged: _fixtureBoundary, ...commonRequest } = unsignedRequest;

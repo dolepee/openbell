@@ -842,7 +842,8 @@ export const connectedAssessmentTypedData = (request) => {
     dueDate: request.dueDate,
     payerHistory: request.payerHistory,
     redactedContext: request.redactedContext,
-    valueBoundaryAcknowledged: deployment === OPENBELL_TESTNET ? request.syntheticFixtureAcknowledged : request.realValueAcknowledged
+    valueBoundaryAcknowledged: deployment === OPENBELL_TESTNET ? request.syntheticFixtureAcknowledged : request.realValueAcknowledged,
+    ...(request.receiptBoundHistory ? { receiptBoundHistory: request.receiptBoundHistory } : {})
   })));
   return {
     domain: domainFor(deployment),
@@ -877,7 +878,7 @@ export const walletConnectedAssessmentTypedData = (request) => {
   };
 };
 
-export async function buildConnectedAssessmentRequest({ session: sessionCandidate, registrationTransactionHash, funder, payerHistory, redactedContext, supplierAuthorization = null }) {
+export async function buildConnectedAssessmentRequest({ session: sessionCandidate, registrationTransactionHash, funder, payerHistory, receiptBoundHistory = null, redactedContext, supplierAuthorization = null }) {
   const session = await validateInvoiceSession(sessionCandidate);
   const deployment = deploymentForTarget(session.dealPackage.target);
   if (!deployment) throw new Error("Unsupported connected assessment deployment.");
@@ -893,11 +894,11 @@ export async function buildConnectedAssessmentRequest({ session: sessionCandidat
     history[key] = value;
   }
   if (history.concentrationBps > 10_000 || history.onTimeSettlements + history.lateSettlements > history.completedSettlements) throw new Error("Payer history is inconsistent.");
-  if (Object.values(history).some((value) => value !== 0)) throw new Error("Unverified payer history is disabled for connected assessments.");
+  if (deployment === OPENBELL_TESTNET && Object.values(history).some((value) => value !== 0)) throw new Error("Unverified payer history is disabled for connected assessments.");
   const context = String(redactedContext).trim();
   if (!context || context.length > 2_000) throw new Error("Redacted context must contain 1 to 2,000 characters.");
   const unsigned = {
-    schemaVersion: deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : "openbell-mainnet-underwriting-v1",
+    schemaVersion: deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : receiptBoundHistory ? "openbell-mainnet-receipt-bound-underwriting-v1" : "openbell-mainnet-underwriting-v1",
     label: deployment.label,
     registrationTransactionHash: asHash(registrationTransactionHash, "Registration transaction hash"),
     invoiceId: terms.invoiceId,
@@ -911,6 +912,7 @@ export async function buildConnectedAssessmentRequest({ session: sessionCandidat
     requestedAdvance: session.dealPackage.underwritingRequest.requestedAdvance,
     payerHistory: history,
     redactedContext: context,
+    ...(receiptBoundHistory ? { receiptBoundHistory } : {}),
     ...(deployment === OPENBELL_TESTNET ? { syntheticFixtureAcknowledged: true } : { realValueAcknowledged: true })
   };
   if (supplierAuthorization === null) return unsigned;

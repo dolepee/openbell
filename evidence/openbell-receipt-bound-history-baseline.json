@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "openbell-receipt-bound-history-baseline-v1",
+  "capturedAt": "2026-08-17T21:28:06Z",
+  "derivation": {
+    "fromBlock": "67764503",
+    "throughBlock": "68230450",
+    "chunkSizeBlocks": 100,
+    "chunksPerProvider": 4660,
+    "confirmations": 12,
+    "providerAgreementRequired": true
+  },
+  "providers": [
+    {
+      "provider": "official-xlayer",
+      "endpointCommitment": "0x6dc6837936cfafdb8db23141dc98177dbd4f1c79c1557d49210b9323920fb950"
+    },
+    {
+      "provider": "official-okx",
+      "endpointCommitment": "0xfa5659df3a429653458dace179429da5792e84e14097e98fc8e5afe67fa1148c"
+    }
+  ],
+  "snapshot": {
+    "schemaVersion": "openbell-receipt-bound-history-v1",
+    "chainId": 196,
+    "receivables": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+    "payer": "0xbad35FA6e368e90fC4faf63507F2D0A2Fdf94BAF",
+    "fromBlock": "67764503",
+    "throughBlock": "68230450",
+    "throughBlockHash": "0xa4f0a9b4f8e4cdd3adadb8ef187b28155f049e70100dc8294aa16852d66daf80",
+    "completedSettlements": 1,
+    "onTimeSettlements": 1,
+    "lateSettlements": 0,
+    "activeFunded": 0,
+    "overdueFunded": 0,
+    "counterpartyConcentrationBps": 7142,
+    "daysSinceLastSettlement": 0,
+    "invoiceIds": [
+      "0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88",
+      "0xd2d05e432f15d248418412260dff78e75611f00ac164dd6ea650d35735c2c60c"
+    ],
+    "historyCommitment": "0x42be4b2330dd65653d9e4a9de9f03175ef8daf46b7fed2c75fba4ca1c9464e1a"
+  },
+  "claimsNotProven": [
+    "Global creditworthiness or liabilities outside this OpenBell contract",
+    "Legal validity of any invoice document",
+    "A protocol default state; overdue funded invoices are not labelled defaults",
+    "Independence of wallet owners"
+  ]
+}

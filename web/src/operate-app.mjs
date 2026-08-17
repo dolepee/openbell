@@ -33,6 +33,7 @@ const isMainnet = document.body.dataset.network === "mainnet" || globalThis.loca
 const ACTIVE_DEPLOYMENT = isMainnet ? OPENBELL_MAINNET_CONNECTED : OPENBELL_TESTNET;
 const ACTIVE_TOKEN_LABEL = isMainnet ? "USDG" : "fixture tUSDG";
 const UNDERWRITING_ENDPOINT = isMainnet ? "/api/mainnet-underwriting" : "/api/connected-underwriting";
+const RECEIPT_BOUND_CONTEXT = "No offchain payer-performance claims were supplied. History is limited to confirmed OpenBell receipts on X Layer.";
 
 const configureMainnetSurface = () => {
   if (!isMainnet) return;
@@ -69,7 +70,7 @@ const configureMainnetSurface = () => {
   const receiptCopy = document.querySelector(".operate-receipt > p");
   if (receiptCopy) receiptCopy.textContent = "The transaction landed on X Layer mainnet. Open the receipt and verify the exact contract, signer, and canonical USDG amount.";
   const assessmentContext = document.querySelector("#assessment-context");
-  if (assessmentContext) assessmentContext.value = "Authorized evidence for a genuine receivable. No confidential document content is included.";
+  if (assessmentContext) assessmentContext.value = RECEIPT_BOUND_CONTEXT;
   const boundary = document.querySelector(".operate-boundary");
   if (boundary) boundary.innerHTML = '<div><p class="overline">LIVE PRODUCT BOUNDARY</p><h2 id="operate-boundary-title">Real settlement, bounded authority.</h2></div><p>OpenBell verifies signatures, observes confirmed registration through two official RPCs, obtains one genuine model response, and reconstructs exact USDG actions. It does not verify legal invoice validity, guarantee financing, or let the model custody funds.</p>';
   const escalationWorkspace = document.querySelector("#escalation-workspace");
@@ -434,19 +435,38 @@ assessmentForm?.addEventListener("submit", async (event) => {
     button.disabled = true;
     button.setAttribute("aria-busy", "true");
     button.textContent = "Authorizing supplier request…";
+    let receiptBoundHistory = null;
+    let payerHistory = {
+      completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0,
+      defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0
+    };
+    if (isMainnet) {
+      button.textContent = "Verifying X Layer receipts…";
+      const payer = invoiceSession.dealPackage.invoiceTerms.payer;
+      const historyResponse = await fetch(`/api/mainnet-receipt-history?payer=${encodeURIComponent(payer)}`, { cache: "no-store" });
+      const historyResult = await historyResponse.json();
+      if (!historyResponse.ok || !historyResult?.snapshot || historyResult.defaultsRepresented !== false) throw new Error(historyResult?.error ?? "Receipt-bound history is unavailable.");
+      receiptBoundHistory = historyResult.snapshot;
+      payerHistory = {
+        completedSettlements: receiptBoundHistory.completedSettlements,
+        onTimeSettlements: receiptBoundHistory.onTimeSettlements,
+        lateSettlements: receiptBoundHistory.lateSettlements,
+        defaults: 0,
+        concentrationBps: receiptBoundHistory.counterpartyConcentrationBps,
+        daysSinceLastSettlement: receiptBoundHistory.daysSinceLastSettlement
+      };
+      setText("#history-settlements", `${receiptBoundHistory.completedSettlements} confirmed · ${receiptBoundHistory.onTimeSettlements} on time`);
+      setText("#history-open", `${receiptBoundHistory.activeFunded} active · ${receiptBoundHistory.overdueFunded} overdue, not defaults`);
+      setText("#history-range", `Blocks ${receiptBoundHistory.fromBlock}–${receiptBoundHistory.throughBlock}`);
+      setText("#history-commitment", compact(receiptBoundHistory.historyCommitment));
+    }
     const fields = {
       session: invoiceSession,
       registrationTransactionHash,
       funder: document.querySelector("#assessment-funder").value.trim(),
-      payerHistory: {
-        completedSettlements: 0,
-        onTimeSettlements: 0,
-        lateSettlements: 0,
-        defaults: 0,
-        concentrationBps: 0,
-        daysSinceLastSettlement: 0
-      },
-      redactedContext: document.querySelector("#assessment-context").value
+      payerHistory,
+      receiptBoundHistory,
+      redactedContext: isMainnet ? RECEIPT_BOUND_CONTEXT : document.querySelector("#assessment-context").value
     };
     const unsigned = await buildConnectedAssessmentRequest(fields);
     const signingPayload = walletConnectedAssessmentTypedData(unsigned);

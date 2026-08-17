@@ -33,8 +33,7 @@
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="/" aria-current="page">Overview</a>
           <a href="/studio/">Deal studio</a>
-          <a href="/proof/#mainnet">Receipts</a>
-          <a href="/workspace/">Verified desk</a>
+          <a href="#receipt-history">Receipt history</a>
         </nav>
         <a class="header-cta signal-nav-cta" data-funding-action href="/proof/#mainnet">Follow five receipts <span aria-hidden="true">↗</span></a>
       </div>
@@ -88,6 +87,28 @@
           <div class="number-model"><small>GENUINE MODEL</small><strong>NO</strong><i>RETRY</i></div>
           <div class="number-code"><small>ESCALATION CEILING</small><strong>0.025</strong><i>USDG</i></div>
           <div class="number-answer"><small>EXECUTED</small><strong>0.025</strong><i>USDG</i><span>50% of request · 25% of face value</span></div>
+        </div>
+      </section>
+
+      <section class="receipt-intelligence" id="receipt-history" aria-labelledby="receipt-intelligence-title">
+        <div class="receipt-intelligence-lead">
+          <p>RECEIPT-BOUND UNDERWRITING</p>
+          <h2 id="receipt-intelligence-title">AI reads X Layer receipts.<br />Not supplier claims.</h2>
+          <span>OpenBell derives payer history from confirmed contract events across both official X Layer RPCs. The supplier signs the exact checkpoint and commitment before one model request can begin.</span>
+          <div class="receipt-intelligence-links">
+            <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-baseline.json">Inspect checkpoint <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-observations.json">Recompute evidence <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="receipt-intelligence-data" aria-label="Confirmed receipt history checkpoint">
+          <header><span>CHAIN 196 / CONFIRMED CHECKPOINT</span><b><i></i> 2 RPCs AGREE</b></header>
+          <dl>
+            <div><dt>Completed settlements</dt><dd>1</dd><small>1 on time · 0 late</small></div>
+            <div><dt>Open funded invoices</dt><dd>0</dd><small>0 overdue · not labelled defaults</small></div>
+            <div><dt>Counterparty concentration</dt><dd>71.42%</dd><small>Derived from registered face value</small></div>
+            <div><dt>Confirmed through</dt><dd>68,230,450</dd><small>X Layer mainnet block</small></div>
+          </dl>
+          <footer><span>HISTORY COMMITMENT</span><code>0x42be4b2330dd65653d9e4a9de9f03175ef8daf46b7fed2c75fba4ca1c9464e1a</code></footer>
         </div>
       </section>
 
@@ -146,7 +167,7 @@
     <footer class="site-footer signal-footer">
       <div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div>
       <p>Credit intelligence constrained by code.</p>
-      <nav aria-label="Footer navigation"><a href="/fund/">Fund</a><a href="/studio/">Deal studio</a><a href="/mainnet/">Full desk</a><a href="/operate/">Testnet desk</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
+      <nav aria-label="Footer navigation"><a href="/fund/">Fund</a><a href="/studio/">Deal studio</a><a href="/mainnet/">Full desk</a><a href="/operate/">Testnet desk</a><a href="/workspace/">Verified desk</a><a href="#receipt-history">Receipt history</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
     </footer>
     <script type="module">
       const fundingActions = document.querySelectorAll("[data-funding-action]");
