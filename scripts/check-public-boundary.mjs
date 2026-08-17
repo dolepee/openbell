@@ -147,6 +147,11 @@ export const scanPublicText = ({ path, text }) => {
   return violations;
 };
 
+export const scanCurrentEvidenceShape = ({ path, text }) => {
+  if (!/(?:mainnet-lifecycle|independent-cold-funder)-observations\.json$/i.test(path)) return [];
+  return /"input"\s*:/.test(text) ? [`forbidden raw calldata in sanitized observations: ${path}`] : [];
+};
+
 const git = (args, options = {}) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, ...options });
 
 export const runPublicBoundaryScan = () => {
@@ -165,7 +170,9 @@ export const runPublicBoundaryScan = () => {
       if (!expected?.has(sha256(bytes))) violations.push(`unvalidated binary asset: ${path}`);
       continue;
     }
-    violations.push(...scanPublicText({ path, text: bytes.toString("utf8") }));
+    const text = bytes.toString("utf8");
+    violations.push(...scanPublicText({ path, text }));
+    violations.push(...scanCurrentEvidenceShape({ path, text }));
   }
 
   const objects = git(["rev-list", "--objects", "--all"]).trim().split("\n").filter(Boolean);

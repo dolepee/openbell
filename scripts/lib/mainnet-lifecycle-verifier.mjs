@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { decodeFunctionData, decodeFunctionResult, encodeAbiParameters, encodeFunctionData, getAddress, hashTypedData, keccak256, parseAbi, parseAbiParameters } from "viem";
+import { decodeFunctionResult, encodeAbiParameters, encodeFunctionData, getAddress, hashTypedData, keccak256, parseAbi, parseAbiParameters } from "viem";
 
 export const CHAIN_ID = 196n;
 export const CONTRACT = "0xc4Ef249b80a6a034198C226278c51b0a903840dd";
@@ -30,11 +30,11 @@ export const OFFICIAL_ENDPOINT_COMMITMENTS = Object.freeze({
 });
 
 export const TRANSACTIONS = Object.freeze([
-  { action: "REGISTER_INVOICE", hash: "0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948", from: SUPPLIER, to: CONTRACT, nonce: 2n, block: 68_207_307n, blockHash: "0x8af4d377eb8dafbcf4b71f667a9d859dadd4f9ad208b0bb8f541afedee80cce2", index: 19n, gasUsed: 280_146n, gasPrice: 28_600_000n, inputHash: "0xc7a1c1f17ccfb0d418b2a4947b52e0db43dbca1141870cb9a6e57aa557902267", logs: 1 },
-  { action: "APPROVE_FUNDING", hash: "0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f", from: FUNDER, to: USDG, nonce: 1n, block: 68_212_029n, blockHash: "0x1c50a7d4a227aec06c0c67de45179733215836e8967a4b9c67e6d4c3db4cf13e", index: 7n, gasUsed: 57_969n, gasPrice: 20_000_001n, inputHash: "0x610883ba30068155d6f5d6924478eef265131fafb50b2c0359a0f2eb8ffcea84", logs: 1 },
-  { action: "FUND_INVOICE", hash: "0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a", from: FUNDER, to: CONTRACT, nonce: 2n, block: 68_212_034n, blockHash: "0x80cc31e423a47d2ff8da06747976afcbc983c621505b570828f01697656f198e", index: 15n, gasUsed: 191_702n, gasPrice: 20_000_001n, inputHash: "0xcc4b878e0830d083bd3e52e6d712d9bbf25b5fdd07fa8adde521b62b0e2ce2cd", logs: 2 },
-  { action: "APPROVE_SETTLEMENT", hash: "0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb", from: PAYER, to: USDG, nonce: 28n, block: 68_212_389n, blockHash: "0xb4e725c8cb6043a85e58bdf0547c81cefb9661ed2431b86d60560a1e2cea8cca", index: 1n, gasUsed: 57_969n, gasPrice: 28_600_000n, inputHash: "0xbe927be1b166b717744586b1543fbf9e0823e12c3ea7645b1848e168ac15caf9", logs: 1 },
-  { action: "SETTLE_INVOICE", hash: "0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5", from: PAYER, to: CONTRACT, nonce: 29n, block: 68_212_422n, blockHash: "0x4931069da1824f601533a3fda513bf5c02a982b5d88c6af8aa65ea1805a7ce12", index: 15n, gasUsed: 77_545n, gasPrice: 28_600_000n, inputHash: "0x9c53685e31e6a71806d68bd74ea87c054f05316a68fec2cc09796579ca6ddcb2", logs: 2 }
+  { action: "REGISTER_INVOICE", hash: "0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948", from: SUPPLIER, to: CONTRACT, nonce: 2n, block: 68_207_307n, blockHash: "0x8af4d377eb8dafbcf4b71f667a9d859dadd4f9ad208b0bb8f541afedee80cce2", index: 19n, gasUsed: 280_146n, gasPrice: 28_600_000n, inputHash: "0xc7a1c1f17ccfb0d418b2a4947b52e0db43dbca1141870cb9a6e57aa557902267", inputLength: 580, selector: "0x3c9a7ece", logs: 1 },
+  { action: "APPROVE_FUNDING", hash: "0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f", from: FUNDER, to: USDG, nonce: 1n, block: 68_212_029n, blockHash: "0x1c50a7d4a227aec06c0c67de45179733215836e8967a4b9c67e6d4c3db4cf13e", index: 7n, gasUsed: 57_969n, gasPrice: 20_000_001n, inputHash: "0x610883ba30068155d6f5d6924478eef265131fafb50b2c0359a0f2eb8ffcea84", inputLength: 68, selector: "0x095ea7b3", logs: 1 },
+  { action: "FUND_INVOICE", hash: "0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a", from: FUNDER, to: CONTRACT, nonce: 2n, block: 68_212_034n, blockHash: "0x80cc31e423a47d2ff8da06747976afcbc983c621505b570828f01697656f198e", index: 15n, gasUsed: 191_702n, gasPrice: 20_000_001n, inputHash: "0xcc4b878e0830d083bd3e52e6d712d9bbf25b5fdd07fa8adde521b62b0e2ce2cd", inputLength: 484, selector: "0xda7e7cc4", logs: 2 },
+  { action: "APPROVE_SETTLEMENT", hash: "0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb", from: PAYER, to: USDG, nonce: 28n, block: 68_212_389n, blockHash: "0xb4e725c8cb6043a85e58bdf0547c81cefb9661ed2431b86d60560a1e2cea8cca", index: 1n, gasUsed: 57_969n, gasPrice: 28_600_000n, inputHash: "0xbe927be1b166b717744586b1543fbf9e0823e12c3ea7645b1848e168ac15caf9", inputLength: 68, selector: "0x095ea7b3", logs: 1 },
+  { action: "SETTLE_INVOICE", hash: "0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5", from: PAYER, to: CONTRACT, nonce: 29n, block: 68_212_422n, blockHash: "0x4931069da1824f601533a3fda513bf5c02a982b5d88c6af8aa65ea1805a7ce12", index: 15n, gasUsed: 77_545n, gasPrice: 28_600_000n, inputHash: "0x9c53685e31e6a71806d68bd74ea87c054f05316a68fec2cc09796579ca6ddcb2", inputLength: 36, selector: "0x987757dd", logs: 2 }
 ]);
 
 export const tokenAbi = parseAbi([
@@ -132,19 +132,13 @@ export const verifyMainnetLifecycleObservations = (observations) => {
       const actual = observation.transactions[index];
       requireTrue(actual.action === expected.action && lower(actual.transaction.hash) === lower(expected.hash), `${observation.provider}:${expected.action}:HASH`);
       requireTrue(getAddress(actual.transaction.from) === expected.from && getAddress(actual.transaction.to) === expected.to, `${observation.provider}:${expected.action}:PARTIES`);
-      requireTrue(quantity(actual.transaction.nonce) === expected.nonce && quantity(actual.transaction.value) === 0n && keccak256(actual.transaction.input) === expected.inputHash, `${observation.provider}:${expected.action}:INPUT`);
+      requireTrue(quantity(actual.transaction.nonce) === expected.nonce && quantity(actual.transaction.value) === 0n, `${observation.provider}:${expected.action}:VALUE_NONCE`);
+      requireTrue(lower(actual.transaction.inputKeccak256) === lower(expected.inputHash) && actual.transaction.inputLength === expected.inputLength && lower(actual.transaction.selector) === lower(expected.selector) && actual.transaction.input === undefined, `${observation.provider}:${expected.action}:SANITIZED_INPUT_COMMITMENT`);
       requireTrue(quantity(actual.transaction.blockNumber) === expected.block && lower(actual.transaction.blockHash) === lower(expected.blockHash) && quantity(actual.transaction.transactionIndex) === expected.index, `${observation.provider}:${expected.action}:BLOCK`);
       requireTrue(lower(actual.receipt.transactionHash) === lower(expected.hash) && quantity(actual.receipt.status) === 1n, `${observation.provider}:${expected.action}:RECEIPT`);
       requireTrue(quantity(actual.receipt.blockNumber) === expected.block && lower(actual.receipt.blockHash) === lower(expected.blockHash) && quantity(actual.receipt.transactionIndex) === expected.index, `${observation.provider}:${expected.action}:RECEIPT_BLOCK`);
       requireTrue(quantity(actual.receipt.gasUsed) === expected.gasUsed && quantity(actual.receipt.effectiveGasPrice) === expected.gasPrice && actual.receipt.logs.length === expected.logs, `${observation.provider}:${expected.action}:RECEIPT_DETAILS`);
       requireTrue(quantity(actual.block.number) === expected.block && lower(actual.block.hash) === lower(expected.blockHash) && lower(actual.block.transactions[Number(expected.index)]) === lower(expected.hash), `${observation.provider}:${expected.action}:CANONICAL_INCLUSION`);
-    }
-    const fundingCall = decodeFunctionData({ abi: fundAbi, data: observation.transactions[2].transaction.input });
-    const [approval, underwriterSignature] = fundingCall.args;
-    requireTrue(fundingCall.functionName === "fund" && underwriterSignature.length === 132, `${observation.provider}:FUND_CALL_SHAPE`);
-    for (const [field, expected] of Object.entries(expectedEscalationApproval)) {
-      const actual = approval[field];
-      requireTrue(typeof expected === "bigint" ? actual === expected : lower(actual) === lower(expected), `${observation.provider}:ESCALATION_${field.toUpperCase()}`);
     }
     for (const [name, spec] of Object.entries(lifecycleCalls)) {
       const actual = observation.calls[name];
