@@ -1,7 +1,7 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { connectedCompletedArtifactTableSql, connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
+import { connectedCompletedArtifactMigrationSql, connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../src/d1-connected-decision-store.js";
 
 class StatementAdapter {
@@ -40,7 +40,49 @@ const artifactHash = `0x${"cc".repeat(32)}` as const;
 test("Sites D1 migration is byte-derived from the runtime schema", () => {
   expect(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8")).toBe(`${connectedDecisionTableSql};\n\n${connectedDailyBudgetTableSql};\n`);
   expect(readFileSync("drizzle/0001_connected_policy_refusals.sql", "utf8")).toBe(`${connectedPolicyRefusalTableSql};\n`);
-  expect(readFileSync("drizzle/0002_connected_completed_artifacts.sql", "utf8")).toBe(`${connectedCompletedArtifactTableSql};\n`);
+  expect(readFileSync("drizzle/0002_connected_completed_artifacts.sql", "utf8")).toBe(`${connectedCompletedArtifactMigrationSql};\n`);
+});
+
+test("artifact migration archives unverifiable legacy completions and reopens the invoice", () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8"));
+  sqlite.prepare("INSERT INTO connected_underwriting_decisions (invoice_id, request_hash, request_json, status, result_json, created_at, updated_at) VALUES (?, ?, ?, 'COMPLETE', ?, ?, ?)")
+    .run(invoiceId, requestHash, "{\"request\":1}", "{\"legacy\":true}", 100, 200);
+  sqlite.exec(readFileSync("drizzle/0002_connected_completed_artifacts.sql", "utf8"));
+  expect(sqlite.prepare("SELECT invoice_id, request_hash, request_json, result_json, created_at, updated_at FROM connected_underwriting_legacy_completed_decisions WHERE invoice_id = ?").get(invoiceId)).toEqual({
+    invoice_id: invoiceId,
+    request_hash: requestHash,
+    request_json: "{\"request\":1}",
+    result_json: "{\"legacy\":true}",
+    created_at: 100,
+    updated_at: 200
+  });
+  expect(sqlite.prepare("SELECT invoice_id FROM connected_underwriting_decisions WHERE invoice_id = ?").get(invoiceId)).toBeUndefined();
+});
+
+test("runtime initialization also retires a legacy completion if deployment migrations lag", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8"));
+  sqlite.prepare("INSERT INTO connected_underwriting_decisions (invoice_id, request_hash, request_json, status, result_json, created_at, updated_at) VALUES (?, ?, ?, 'COMPLETE', ?, ?, ?)")
+    .run(invoiceId, requestHash, "{\"request\":1}", "{\"legacy\":true}", 100, 200);
+  const adapter: D1DatabaseLike = {
+    prepare: (sql) => new StatementAdapter(sqlite.prepare(sql)),
+    batch: async (statements) => {
+      sqlite.exec("BEGIN");
+      try {
+        const results = [];
+        for (const statement of statements) results.push(await statement.run());
+        sqlite.exec("COMMIT");
+        return results;
+      } catch (error) {
+        sqlite.exec("ROLLBACK");
+        throw error;
+      }
+    }
+  };
+  const store = new D1ConnectedDecisionStore(adapter, () => 300);
+  expect(await store.claim(invoiceId, requestHash, "{\"request\":2}")).toEqual({ claimed: true, row: { requestHash, status: "CLAIMED" } });
+  expect(sqlite.prepare("SELECT result_json FROM connected_underwriting_legacy_completed_decisions WHERE invoice_id = ?").get(invoiceId)).toEqual({ result_json: "{\"legacy\":true}" });
 });
 
 test("D1 store atomically claims once and returns the exact completed envelope", async () => {

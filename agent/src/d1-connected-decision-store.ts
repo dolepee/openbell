@@ -1,5 +1,13 @@
 import type { Hex } from "viem";
-import { connectedCompletedArtifactTableSql, connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
+import {
+  archiveLegacyConnectedDecisionsSql,
+  connectedCompletedArtifactTableSql,
+  connectedDailyBudgetTableSql,
+  connectedDecisionTableSql,
+  connectedLegacyCompletedDecisionTableSql,
+  connectedPolicyRefusalTableSql,
+  retireLegacyConnectedDecisionsSql
+} from "../../db/schema.js";
 import type { ConnectedDecisionStore, StoredConnectedDecision } from "./connected-underwriting.js";
 
 interface D1RunResult { readonly success?: boolean; readonly meta?: { readonly changes?: number } }
@@ -46,6 +54,13 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (refusalResult.success === false) throw new Error("CONNECTED_STORE_REFUSAL_SCHEMA_FAILED");
     const completedArtifactResult = await this.database.prepare(connectedCompletedArtifactTableSql).run();
     if (completedArtifactResult.success === false) throw new Error("CONNECTED_STORE_COMPLETED_ARTIFACT_SCHEMA_FAILED");
+    const legacyResult = await this.database.prepare(connectedLegacyCompletedDecisionTableSql).run();
+    if (legacyResult.success === false) throw new Error("CONNECTED_STORE_LEGACY_SCHEMA_FAILED");
+    const legacyMigration = await this.database.batch([
+      this.database.prepare(archiveLegacyConnectedDecisionsSql),
+      this.database.prepare(retireLegacyConnectedDecisionsSql)
+    ]);
+    if (legacyMigration.length !== 2 || legacyMigration.some((result) => result.success === false)) throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_FAILED");
     this.#initialized = true;
   }
 
