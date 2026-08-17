@@ -201,12 +201,12 @@ const artifactStatusResponse = async (request: Request, config: Environment): Pr
 const fundingCandidateResponse = async (request: Request, config: Environment): Promise<Response> => {
   if (request.method === "GET") {
     const row = await config.DB.prepare(
-      `SELECT candidate_json
+      `SELECT candidate_json, expires_at
        FROM mainnet_funding_candidates
        WHERE status = 'OPEN' AND expires_at > unixepoch()
        ORDER BY created_at DESC
        LIMIT 1`
-    ).first<{ candidate_json: string }>();
+    ).first<{ candidate_json: string; expires_at: number }>();
     if (!row) return json({ error: "NO_OPEN_FUNDING_CANDIDATE" }, 404);
     try {
       const candidate: unknown = JSON.parse(row.candidate_json);
@@ -225,6 +225,9 @@ const fundingCandidateResponse = async (request: Request, config: Environment): 
         return json({ error: "FUNDING_CANDIDATE_STATE_UNAVAILABLE" }, 503);
       }
       if (decodeInvoiceState(states[0] as `0x${string}`).status !== 1) {
+        return json({ error: "NO_OPEN_FUNDING_CANDIDATE" }, 404);
+      }
+      if (!Number.isSafeInteger(row.expires_at) || row.expires_at <= Math.floor(Date.now() / 1_000)) {
         return json({ error: "NO_OPEN_FUNDING_CANDIDATE" }, 404);
       }
       return json(candidate);

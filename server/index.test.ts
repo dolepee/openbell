@@ -160,7 +160,7 @@ test("funding candidate endpoint returns only the current open D1 candidate", as
   vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(1))));
   const candidateEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
-    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_900_000_000 }) }) }
   } as never;
   const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
   expect(response.status).toBe(200);
@@ -178,7 +178,24 @@ test("funding candidate endpoint hides a row after its invoice leaves REGISTERED
   vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(2))));
   const candidateEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
-    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_900_000_000 }) }) }
+  } as never;
+  const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: "NO_OPEN_FUNDING_CANDIDATE" });
+});
+
+test("funding candidate endpoint rechecks expiry after current state verification", async () => {
+  const candidate = {
+    schemaVersion: "openbell-mainnet-funding-candidate-v1",
+    status: "OPEN",
+    title: "One bounded supplier advance",
+    invoice: { invoiceId: `0x${"10".repeat(32)}` }
+  };
+  vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(1))));
+  const candidateEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1 }) }) }
   } as never;
   const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
   expect(response.status).toBe(404);
@@ -197,7 +214,7 @@ test("funding candidate endpoint fails closed for missing, malformed, and non-GE
 
   const corruptEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
-    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify({ schemaVersion: "wrong", status: "OPEN" }) }) }) }
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify({ schemaVersion: "wrong", status: "OPEN" }), expires_at: 1_900_000_000 }) }) }
   } as never;
   const corrupt = await worker.fetch(new Request(endpoint), corruptEnvironment);
   expect(corrupt.status).toBe(500);
