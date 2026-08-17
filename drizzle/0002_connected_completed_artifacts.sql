@@ -15,6 +15,11 @@ CREATE TABLE IF NOT EXISTS connected_underwriting_legacy_completed_decisions (
   updated_at INTEGER NOT NULL
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS connected_underwriting_schema_state (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+) STRICT;
+
 INSERT OR IGNORE INTO connected_underwriting_legacy_completed_decisions
   (invoice_id, request_hash, request_json, result_json, created_at, updated_at)
 SELECT invoice_id, request_hash, request_json, result_json, created_at, updated_at
@@ -32,3 +37,6 @@ WHERE status = 'COMPLETE'
     WHERE artifact.invoice_id = connected_underwriting_decisions.invoice_id
       AND artifact.request_hash = connected_underwriting_decisions.request_hash
   );
+
+INSERT OR IGNORE INTO connected_underwriting_schema_state (key, value)
+VALUES ('completed-artifacts-v1', 'complete');

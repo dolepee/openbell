@@ -43,6 +43,12 @@ export const connectedLegacyCompletedDecisionTableSql = `CREATE TABLE IF NOT EXI
   updated_at INTEGER NOT NULL
 ) STRICT`;
 
+export const connectedSchemaStateTableSql = `CREATE TABLE IF NOT EXISTS connected_underwriting_schema_state (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+) STRICT`;
+export const CONNECTED_ARTIFACT_MIGRATION_KEY = "completed-artifacts-v1";
+
 export const archiveLegacyConnectedDecisionsSql = `INSERT OR IGNORE INTO connected_underwriting_legacy_completed_decisions
   (invoice_id, request_hash, request_json, result_json, created_at, updated_at)
 SELECT invoice_id, request_hash, request_json, result_json, created_at, updated_at
@@ -61,10 +67,17 @@ WHERE status = 'COMPLETE'
       AND artifact.request_hash = connected_underwriting_decisions.request_hash
   )`;
 
+export const markConnectedArtifactMigrationSql = `INSERT OR IGNORE INTO connected_underwriting_schema_state (key, value)
+VALUES ('${CONNECTED_ARTIFACT_MIGRATION_KEY}', 'complete')`;
+
 export const connectedCompletedArtifactMigrationSql = `${connectedCompletedArtifactTableSql};
 
 ${connectedLegacyCompletedDecisionTableSql};
 
+${connectedSchemaStateTableSql};
+
 ${archiveLegacyConnectedDecisionsSql};
 
-${retireLegacyConnectedDecisionsSql}`;
+${retireLegacyConnectedDecisionsSql};
+
+${markConnectedArtifactMigrationSql}`;

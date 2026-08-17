@@ -83,6 +83,7 @@ test("runtime initialization also retires a legacy completion if deployment migr
   const store = new D1ConnectedDecisionStore(adapter, () => 300);
   expect(await store.claim(invoiceId, requestHash, "{\"request\":2}")).toEqual({ claimed: true, row: { requestHash, status: "CLAIMED" } });
   expect(sqlite.prepare("SELECT result_json FROM connected_underwriting_legacy_completed_decisions WHERE invoice_id = ?").get(invoiceId)).toEqual({ result_json: "{\"legacy\":true}" });
+  expect(sqlite.prepare("SELECT value FROM connected_underwriting_schema_state WHERE key = 'completed-artifacts-v1'").get()).toEqual({ value: "complete" });
 });
 
 test("D1 store atomically claims once and returns the exact completed envelope", async () => {

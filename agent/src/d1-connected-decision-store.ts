@@ -1,11 +1,14 @@
 import type { Hex } from "viem";
 import {
   archiveLegacyConnectedDecisionsSql,
+  CONNECTED_ARTIFACT_MIGRATION_KEY,
   connectedCompletedArtifactTableSql,
   connectedDailyBudgetTableSql,
   connectedDecisionTableSql,
   connectedLegacyCompletedDecisionTableSql,
   connectedPolicyRefusalTableSql,
+  connectedSchemaStateTableSql,
+  markConnectedArtifactMigrationSql,
   retireLegacyConnectedDecisionsSql
 } from "../../db/schema.js";
 import type { ConnectedDecisionStore, StoredConnectedDecision } from "./connected-underwriting.js";
@@ -56,11 +59,21 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (completedArtifactResult.success === false) throw new Error("CONNECTED_STORE_COMPLETED_ARTIFACT_SCHEMA_FAILED");
     const legacyResult = await this.database.prepare(connectedLegacyCompletedDecisionTableSql).run();
     if (legacyResult.success === false) throw new Error("CONNECTED_STORE_LEGACY_SCHEMA_FAILED");
-    const legacyMigration = await this.database.batch([
-      this.database.prepare(archiveLegacyConnectedDecisionsSql),
-      this.database.prepare(retireLegacyConnectedDecisionsSql)
-    ]);
-    if (legacyMigration.length !== 2 || legacyMigration.some((result) => result.success === false)) throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_FAILED");
+    const schemaStateResult = await this.database.prepare(connectedSchemaStateTableSql).run();
+    if (schemaStateResult.success === false) throw new Error("CONNECTED_STORE_SCHEMA_STATE_FAILED");
+    const migrationMarker = await this.database.prepare(
+      "SELECT value FROM connected_underwriting_schema_state WHERE key = ?"
+    ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY).first<{ value: string }>();
+    if (migrationMarker === null) {
+      const legacyMigration = await this.database.batch([
+        this.database.prepare(archiveLegacyConnectedDecisionsSql),
+        this.database.prepare(retireLegacyConnectedDecisionsSql),
+        this.database.prepare(markConnectedArtifactMigrationSql)
+      ]);
+      if (legacyMigration.length !== 3 || legacyMigration.some((result) => result.success === false)) throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_FAILED");
+    } else if (migrationMarker.value !== "complete") {
+      throw new Error("CONNECTED_STORE_INVALID_SCHEMA_STATE");
+    }
     this.#initialized = true;
   }
 
