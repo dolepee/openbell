@@ -151,7 +151,7 @@ export interface ConnectedDecisionStore {
   beginModel(invoiceId: Hex, requestHash: Hex): Promise<void>;
   complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
   fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void>;
-  recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void>;
+  sealPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex, failureCode: string): Promise<void>;
   loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null>;
   reserveDailyModelCall(day: string, maximum: number): Promise<boolean>;
 }
@@ -384,6 +384,13 @@ export class ConnectedPolicyRefusal extends Error {
   }
 }
 
+class ConnectedPolicyRefusalPersistenceError extends Error {
+  constructor() {
+    super("CONNECTED_POLICY_REFUSAL_PERSISTENCE_FAILED");
+    this.name = "ConnectedPolicyRefusalPersistenceError";
+  }
+}
+
 const buildPolicyRefusalEvidence = (
   refusal: UnderwritingRefusal,
   modelEvidence: z.infer<typeof modelEvidenceSchema>,
@@ -517,8 +524,11 @@ export class ConnectedUnderwritingService {
         if (!(error instanceof UnderwritingRefusal)) throw error;
         const refusal = buildPolicyRefusalEvidence(error, modelEvidence, postModelObservation);
         const refusalJson = JSON.stringify(refusal);
-        await this.dependencies.store.recordPolicyRefusal(request.invoiceId, requestHash, refusalJson, refusalArtifactHashOf(refusalJson));
-        await this.dependencies.store.fail(request.invoiceId, requestHash, error.code);
+        try {
+          await this.dependencies.store.sealPolicyRefusal(request.invoiceId, requestHash, refusalJson, refusalArtifactHashOf(refusalJson), error.code);
+        } catch {
+          throw new ConnectedPolicyRefusalPersistenceError();
+        }
         throw new ConnectedPolicyRefusal(refusal);
       }
       const { digest } = typedDecision(decision, nonce, deployment);
@@ -527,7 +537,7 @@ export class ConnectedUnderwritingService {
       await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson);
       return result;
     } catch (error) {
-      if (error instanceof ConnectedPolicyRefusal) throw error;
+      if (error instanceof ConnectedPolicyRefusal || error instanceof ConnectedPolicyRefusalPersistenceError) throw error;
       await this.dependencies.store.fail(request.invoiceId, requestHash, failureCode(error));
       throw error;
     }

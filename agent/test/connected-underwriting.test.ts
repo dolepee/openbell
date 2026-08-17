@@ -71,9 +71,10 @@ class MemoryStore implements ConnectedDecisionStore {
   async fail(invoiceId: `0x${string}`, requestHash: `0x${string}`, failureCode: string): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "FAILED", failureCode });
   }
-  async recordPolicyRefusal(invoiceId: `0x${string}`, _requestHash: `0x${string}`, resultJson: string, artifactHash: `0x${string}`): Promise<void> {
+  async sealPolicyRefusal(invoiceId: `0x${string}`, requestHash: `0x${string}`, resultJson: string, artifactHash: `0x${string}`, failureCode: string): Promise<void> {
     if (this.refusals.has(invoiceId)) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
     this.refusals.set(invoiceId, { resultJson, artifactHash });
+    this.rows.set(invoiceId, { requestHash, status: "FAILED", failureCode });
   }
   async loadPolicyRefusal(invoiceId: `0x${string}`): Promise<{ resultJson: string; artifactHash: `0x${string}` } | null> { return this.refusals.get(invoiceId) ?? null; }
   async reserveDailyModelCall(): Promise<boolean> { return true; }
@@ -285,6 +286,15 @@ test.each(["providerResponseId", "responseHash", "decision"] as const)("durable 
   else parsed.modelEvidence.decision.confidenceBps = 6_998;
   h.store.refusals.set(request.invoiceId, { ...stored, resultJson: JSON.stringify(parsed) });
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_POLICY_REFUSAL_ARTIFACT_HASH_MISMATCH");
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
+});
+
+test("refusal persistence failure does not create a terminal row without its artifact", async () => {
+  const h = harness({ ...approval, confidenceBps: 6_999 });
+  h.store.sealPolicyRefusal = async () => { throw new Error("D1_BATCH_FAILED"); };
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_POLICY_REFUSAL_PERSISTENCE_FAILED");
+  expect(h.store.rows.get(request.invoiceId)).toEqual(expect.objectContaining({ status: "MODEL_IN_FLIGHT" }));
+  expect(h.store.refusals.has(request.invoiceId)).toBe(false);
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 

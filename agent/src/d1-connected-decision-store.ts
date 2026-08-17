@@ -8,7 +8,10 @@ interface D1Statement {
   run(): Promise<D1RunResult>;
   first<T>(): Promise<T | null>;
 }
-export interface D1DatabaseLike { prepare(sql: string): D1Statement }
+export interface D1DatabaseLike {
+  prepare(sql: string): D1Statement;
+  batch(statements: D1Statement[]): Promise<D1RunResult[]>;
+}
 
 interface DecisionRow {
   readonly request_hash: string;
@@ -107,12 +110,21 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_FAIL_CONFLICT");
   }
 
-  async recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void> {
+  async sealPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex, failureCode: string): Promise<void> {
     await this.#initialize();
-    const result = await this.database.prepare(
-      "INSERT INTO connected_underwriting_policy_refusals (invoice_id, request_hash, result_json, artifact_hash, created_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
-    ).bind(invoiceId, requestHash, resultJson, artifactHash, this.now(), invoiceId, requestHash).run();
-    if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
+    const timestamp = this.now();
+    const results = await this.database.batch([
+      this.database.prepare(
+        "INSERT INTO connected_underwriting_policy_refusals (invoice_id, request_hash, result_json, artifact_hash, created_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
+      ).bind(invoiceId, requestHash, resultJson, artifactHash, timestamp, invoiceId, requestHash),
+      this.database.prepare(
+        "UPDATE connected_underwriting_decisions SET status = 'FAILED', failure_code = ?, updated_at = ? WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT'"
+      ).bind(failureCode, timestamp, invoiceId, requestHash)
+    ]);
+    if (results.length !== 2) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
+    const inserted = results[0]!;
+    const failed = results[1]!;
+    if (inserted.meta?.changes !== 1 || failed.meta?.changes !== 1) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
   }
 
   async loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null> {

@@ -17,7 +17,21 @@ class StatementAdapter {
 
 const database = (): D1DatabaseLike => {
   const sqlite = new DatabaseSync(":memory:");
-  return { prepare: (sql) => new StatementAdapter(sqlite.prepare(sql)) };
+  return {
+    prepare: (sql) => new StatementAdapter(sqlite.prepare(sql)),
+    batch: async (statements) => {
+      sqlite.exec("BEGIN");
+      try {
+        const results = [];
+        for (const statement of statements) results.push(await statement.run());
+        sqlite.exec("COMMIT");
+        return results;
+      } catch (error) {
+        sqlite.exec("ROLLBACK");
+        throw error;
+      }
+    }
+  };
 };
 const invoiceId = `0x${"aa".repeat(32)}` as const;
 const requestHash = `0x${"bb".repeat(32)}` as const;
@@ -56,10 +70,9 @@ test("D1 store preserves one policy-refusal artifact without reopening execution
   const store = new D1ConnectedDecisionStore(database(), () => 210);
   await store.claim(invoiceId, requestHash, "{}");
   await store.beginModel(invoiceId, requestHash);
-  await store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":1}", artifactHash);
-  await store.fail(invoiceId, requestHash, "LOW_CONFIDENCE");
+  await store.sealPolicyRefusal(invoiceId, requestHash, "{\"refusal\":1}", artifactHash, "LOW_CONFIDENCE");
   expect(await store.loadPolicyRefusal(invoiceId, requestHash)).toEqual({ resultJson: "{\"refusal\":1}", artifactHash });
-  await expect(store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":2}", artifactHash)).rejects.toThrow("CONNECTED_STORE_REFUSAL_CONFLICT");
+  await expect(store.sealPolicyRefusal(invoiceId, requestHash, "{\"refusal\":2}", artifactHash, "LOW_CONFIDENCE")).rejects.toThrow("CONNECTED_STORE_REFUSAL_CONFLICT");
   expect((await store.claim(invoiceId, requestHash, "{}")).row).toEqual({ requestHash, status: "FAILED", failureCode: "LOW_CONFIDENCE" });
 });
 
