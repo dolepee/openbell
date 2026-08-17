@@ -8,7 +8,6 @@ import {
   connectedLegacyCompletedDecisionTableSql,
   connectedPolicyRefusalTableSql,
   connectedSchemaStateTableSql,
-  markConnectedArtifactMigrationSql,
   retireLegacyConnectedDecisionsSql
 } from "../../db/schema.js";
 import type { ConnectedDecisionStore, StoredConnectedDecision } from "./connected-underwriting.js";
@@ -65,12 +64,26 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
       "SELECT value FROM connected_underwriting_schema_state WHERE key = ?"
     ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY).first<{ value: string }>();
     if (migrationMarker === null) {
+      const migrationOwner = `running:${crypto.randomUUID()}`;
       const legacyMigration = await this.database.batch([
-        this.database.prepare(archiveLegacyConnectedDecisionsSql),
-        this.database.prepare(retireLegacyConnectedDecisionsSql),
-        this.database.prepare(markConnectedArtifactMigrationSql)
+        this.database.prepare(
+          "INSERT OR IGNORE INTO connected_underwriting_schema_state (key, value) VALUES (?, ?)"
+        ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner),
+        this.database.prepare(`${archiveLegacyConnectedDecisionsSql}
+  AND EXISTS (SELECT 1 FROM connected_underwriting_schema_state WHERE key = ? AND value = ?)`)
+          .bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner),
+        this.database.prepare(`${retireLegacyConnectedDecisionsSql}
+  AND EXISTS (SELECT 1 FROM connected_underwriting_schema_state WHERE key = ? AND value = ?)`)
+          .bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner),
+        this.database.prepare(
+          "UPDATE connected_underwriting_schema_state SET value = 'complete' WHERE key = ? AND value = ?"
+        ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner)
       ]);
-      if (legacyMigration.length !== 3 || legacyMigration.some((result) => result.success === false)) throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_FAILED");
+      if (legacyMigration.length !== 4 || legacyMigration.some((result) => result.success === false)) throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_FAILED");
+      const completedMarker = await this.database.prepare(
+        "SELECT value FROM connected_underwriting_schema_state WHERE key = ?"
+      ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY).first<{ value: string }>();
+      if (completedMarker?.value !== "complete") throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_INCOMPLETE");
     } else if (migrationMarker.value !== "complete") {
       throw new Error("CONNECTED_STORE_INVALID_SCHEMA_STATE");
     }

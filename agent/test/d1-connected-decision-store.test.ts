@@ -65,9 +65,11 @@ test("runtime initialization also retires a legacy completion if deployment migr
   sqlite.exec(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8"));
   sqlite.prepare("INSERT INTO connected_underwriting_decisions (invoice_id, request_hash, request_json, status, result_json, created_at, updated_at) VALUES (?, ?, ?, 'COMPLETE', ?, ?, ?)")
     .run(invoiceId, requestHash, "{\"request\":1}", "{\"legacy\":true}", 100, 200);
+  let batchCalls = 0;
   const adapter: D1DatabaseLike = {
     prepare: (sql) => new StatementAdapter(sqlite.prepare(sql)),
     batch: async (statements) => {
+      batchCalls += 1;
       sqlite.exec("BEGIN");
       try {
         const results = [];
@@ -84,6 +86,10 @@ test("runtime initialization also retires a legacy completion if deployment migr
   expect(await store.claim(invoiceId, requestHash, "{\"request\":2}")).toEqual({ claimed: true, row: { requestHash, status: "CLAIMED" } });
   expect(sqlite.prepare("SELECT result_json FROM connected_underwriting_legacy_completed_decisions WHERE invoice_id = ?").get(invoiceId)).toEqual({ result_json: "{\"legacy\":true}" });
   expect(sqlite.prepare("SELECT value FROM connected_underwriting_schema_state WHERE key = 'completed-artifacts-v1'").get()).toEqual({ value: "complete" });
+  expect(batchCalls).toBe(1);
+  const secondStore = new D1ConnectedDecisionStore(adapter, () => 301);
+  expect(await secondStore.load(invoiceId)).toEqual({ requestHash, status: "CLAIMED" });
+  expect(batchCalls).toBe(1);
 });
 
 test("D1 store atomically claims once and returns the exact completed envelope", async () => {
