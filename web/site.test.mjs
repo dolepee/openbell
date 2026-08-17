@@ -75,11 +75,12 @@ test("multi-page launch surface separates product, deal preparation, verified ca
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
   }
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
-  assert.match(overview, /One invoice\.<br \/>Three limits\.<br \/><em>Zero ambiguity\.<\/em>/);
-  assert.match(overview, /min\(request, model, code\)/);
+  assert.match(overview, /The model said no\.<br \/>The human took less\.<br \/><em>Code held the line\.<\/em>/);
+  assert.match(overview, /50% of request · 25% of face value/);
   assert.match(overview, /href="\/mainnet\/">Open live USDG desk/);
   assert.match(overview, /href="\/operate\/">Testnet desk/);
-  assert.match(overview, /No mainnet lifecycle or real-value activity/);
+  assert.match(overview, /5 canonical mainnet receipts/);
+  assert.match(overview, /0\.02525 USDG repaid/);
   assert.match(studio, /BROWSER-ONLY PREPARATION/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
@@ -97,13 +98,12 @@ test("multi-page launch surface separates product, deal preparation, verified ca
   assert.match(workspace, /data-invoice="approved"/);
   assert.match(workspace, /data-invoice="rejected"/);
   assert.match(proof, /0xc4Ef249b80a6a034198C226278c51b0a903840dd/);
-  assert.match(proof, /0x328c80d5…f413e/);
-  assert.match(proof, /0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798/);
-  assert.match(proof, /0xac31d5ee9c4474c6233ad141a436115d439bda8599dc9680852b6ffe4371f020/);
-  assert.match(proof, /d5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8/);
+  assert.match(proof, /0x8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd/);
+  assert.match(proof, /0x4d33…7948/);
+  assert.match(proof, /0xdd8e…58e5/);
   assert.match(proof, /0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253/);
   assert.match(proof, /0x1ea5…0036/);
-  assert.match(proof, /Independent\/explorer source verification false/);
+  assert.match(proof, /Independent audit or explorer source verification/);
   assert.match(proof, /RECORDED AI/);
   assert.match(proof, /NO LIVE MODEL/);
   assert.match(architecture, /AI proposes.<br \/>The contract disposes/);
@@ -143,6 +143,30 @@ test("public mainnet deployment evidence is exact, minimal, and private-material
     deterministicVerificationBytes: deterministicVerification
   }), { publicRecordHash: "0xd5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8" });
   assert.doesNotMatch(exported, /\/Users\/|"privateKey"\s*:|"signedTransaction"\s*:|rpc\.xlayer|xlayerrpc|"credential"\s*:/i);
+});
+
+test("public mainnet lifecycle evidence proves exact settlement without private material", async () => {
+  const [source, exported, verificationSource, verificationExported] = await Promise.all([
+    read("../evidence/openbell-xlayer-mainnet-lifecycle-observations.json"),
+    read("./data/openbell-xlayer-mainnet-lifecycle-observations.json"),
+    read("../evidence/openbell-xlayer-mainnet-lifecycle-verification.json"),
+    read("./data/openbell-xlayer-mainnet-lifecycle-verification.json")
+  ]);
+  assert.equal(exported, source);
+  assert.equal(verificationExported, verificationSource);
+  const evidence = JSON.parse(verificationExported);
+  assert.equal(evidence.chainId, "196");
+  assert.equal(evidence.finalStatus, "SETTLED");
+  assert.equal(evidence.advanceAmount, "25000");
+  assert.equal(evidence.repaymentAmount, "25250");
+  assert.equal(evidence.transactionHashes.length, 5);
+  assert.equal(evidence.escalationCommitmentVerified, true);
+  assert.equal(evidence.exactFundingDeltaVerified, true);
+  assert.equal(evidence.exactRepaymentDeltaVerified, true);
+  assert.equal(evidence.residualAllowancesZero, true);
+  assert.equal(evidence.providerAgreement, true);
+  assert.equal(evidence.independentlyVerified, false);
+  assert.doesNotMatch(`${source}\n${verificationSource}`, /\/Users\/|"privateKey"\s*:|"signedTransaction"\s*:|"signature"\s*:|https:\/\/rpc\.xlayer|https:\/\/xlayerrpc/i);
 });
 
 test("public network evidence is exact, no-value, and signature-free", async () => {

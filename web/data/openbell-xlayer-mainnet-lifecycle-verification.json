@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "openbell-xlayer-mainnet-lifecycle-verification-v1",
+  "observationsSha256": "0x8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd",
+  "chainId": "196",
+  "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+  "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+  "invoiceId": "0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88",
+  "invoiceDigest": "0x8e9b5664af51c14523594a47326899f8efc2da711741ee6455d69cc62672d2ce",
+  "decisionDigest": "0x3c93b26994011b6884928f65168190c009f5b536aff99b4825fe77bbc908ddb6",
+  "rejectedArtifactHash": "0x5d437f0fb6ee5e611c63eedc12b82e5b28c0cde498f41529416762ff2c868277",
+  "faceValue": "100000",
+  "advanceAmount": "25000",
+  "repaymentAmount": "25250",
+  "finalStatus": "SETTLED",
+  "providerResults": [
+    {
+      "provider": "official-xlayer",
+      "head": "68212713",
+      "headHash": "0x0f1ba9c6ad5d17ae993b445244e9ba17f61a3502c2c400557f0e9e0309b8582a",
+      "confirmations": "292"
+    },
+    {
+      "provider": "official-okx",
+      "head": "68212724",
+      "headHash": "0x4494228621894b7b0411120840fd9b956ba9efcc55c84adf0015ea2744fe501f",
+      "confirmations": "303"
+    }
+  ],
+  "minimumObservedConfirmations": "292",
+  "transactionHashes": [
+    {
+      "action": "REGISTER_INVOICE",
+      "hash": "0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948"
+    },
+    {
+      "action": "APPROVE_FUNDING",
+      "hash": "0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f"
+    },
+    {
+      "action": "FUND_INVOICE",
+      "hash": "0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a"
+    },
+    {
+      "action": "APPROVE_SETTLEMENT",
+      "hash": "0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb"
+    },
+    {
+      "action": "SETTLE_INVOICE",
+      "hash": "0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5"
+    }
+  ],
+  "escalationPolicy": "HUMAN_REVIEW_AFTER_MODEL_REJECTION_V1",
+  "escalationCommitmentVerified": true,
+  "exactFundingDeltaVerified": true,
+  "exactRepaymentDeltaVerified": true,
+  "residualAllowancesZero": true,
+  "providerAgreement": true,
+  "endpointProvenanceCommitted": true,
+  "independentlyVerified": false
+}
