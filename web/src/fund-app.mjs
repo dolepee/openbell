@@ -88,12 +88,12 @@ const refreshWallet = async ({ requestAccounts = false } = {}) => {
   await refreshState();
 };
 
-const refreshState = async () => {
+const refreshState = async ({ blockTag = "latest" } = {}) => {
   if (!candidate || !account || chainId !== OPENBELL_MAINNET_CONNECTED.chainId) return render();
   const [invoiceResult, allowanceResult, balanceResult] = await Promise.all([
-    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.receivables, data: buildInvoiceStateCall(candidate.invoice.invoiceId) }, "latest"]),
-    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: buildAllowanceStateCall(candidate.invoice.funder) }, "latest"]),
-    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: `0x70a08231000000000000000000000000${candidate.invoice.funder.slice(2).toLowerCase()}` }, "latest"])
+    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.receivables, data: buildInvoiceStateCall(candidate.invoice.invoiceId) }, blockTag]),
+    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: buildAllowanceStateCall(candidate.invoice.funder) }, blockTag]),
+    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: `0x70a08231000000000000000000000000${candidate.invoice.funder.slice(2).toLowerCase()}` }, blockTag])
   ]);
   invoiceRecord = decodeInvoiceState(invoiceResult);
   assertFundingCandidateAgainstInvoice(candidate, invoiceRecord);
@@ -176,11 +176,22 @@ const execute = async (action, button, busyText, idleText) => {
     render();
     throw new Error("The X Layer receipt reports failure.");
   }
-  try {
-    await refreshState();
+  let transitionObserved = false;
+  for (let attempt = 0; attempt < 6 && !transitionObserved; attempt += 1) {
+    try {
+      await refreshState({ blockTag: receipt.blockNumber });
+      transitionObserved = action.kind === "APPROVE_FUNDING"
+        ? allowance === action.amount
+        : invoiceRecord?.status === 2;
+    } catch {
+      // A receipt may propagate before every RPC backend can serve its block.
+    }
+    if (!transitionObserved) await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  if (transitionObserved) {
     pendingHash = undefined;
     render();
-  } catch {
+  } else {
     setError(`Transaction ${hash} is confirmed. Live state refresh is delayed; check the explorer before taking another action.`);
   }
   return hash;
