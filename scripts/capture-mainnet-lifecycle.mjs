@@ -1,11 +1,24 @@
 import { OFFICIAL_ENDPOINT_COMMITMENTS, TRANSACTIONS, lifecycleCalls, verifyMainnetLifecycleObservations } from "./lib/mainnet-lifecycle-verifier.mjs";
+import { keccak256 } from "viem";
 
 const endpoints = [
   { provider: "official-xlayer", url: "https://rpc.xlayer.tech" },
   { provider: "official-okx", url: "https://xlayerrpc.okx.com" }
 ];
 
-const transactionView = (value) => ({ hash: value.hash, from: value.from, to: value.to, nonce: value.nonce, value: value.value, input: value.input, blockNumber: value.blockNumber, blockHash: value.blockHash, transactionIndex: value.transactionIndex });
+const transactionView = (value) => ({
+  hash: value.hash,
+  from: value.from,
+  to: value.to,
+  nonce: value.nonce,
+  value: value.value,
+  inputKeccak256: keccak256(value.input),
+  inputLength: (value.input.length - 2) / 2,
+  selector: value.input.slice(0, 10),
+  blockNumber: value.blockNumber,
+  blockHash: value.blockHash,
+  transactionIndex: value.transactionIndex
+});
 const receiptView = (value) => ({ transactionHash: value.transactionHash, status: value.status, blockNumber: value.blockNumber, blockHash: value.blockHash, transactionIndex: value.transactionIndex, gasUsed: value.gasUsed, effectiveGasPrice: value.effectiveGasPrice, logs: value.logs.map(({ address, topics, data, logIndex }) => ({ address, topics, data, logIndex })) });
 
 const capture = async ({ provider, url }) => {

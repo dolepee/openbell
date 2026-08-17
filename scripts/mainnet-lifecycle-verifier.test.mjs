@@ -17,8 +17,11 @@ test("verifies the complete canonical-USDG mainnet lifecycle across two provider
 
 test("rejects transaction, state, balance and provider drift", () => {
   const changedTransaction = structuredClone(observations);
-  changedTransaction.providers[0].transactions[2].transaction.input = "0x00";
-  assert.throws(() => verifyMainnetLifecycleObservations(changedTransaction), /FUND_INVOICE:INPUT/);
+  changedTransaction.providers[0].transactions[2].transaction.inputKeccak256 = "0x00";
+  assert.throws(() => verifyMainnetLifecycleObservations(changedTransaction), /FUND_INVOICE:SANITIZED_INPUT_COMMITMENT/);
+  const leakedInput = structuredClone(observations);
+  leakedInput.providers[0].transactions[2].transaction.input = "0x00";
+  assert.throws(() => verifyMainnetLifecycleObservations(leakedInput), /FUND_INVOICE:SANITIZED_INPUT_COMMITMENT/);
   const changedState = structuredClone(observations);
   changedState.providers[0].calls.invoice.result = `0x${"00".repeat(352)}`;
   assert.throws(() => verifyMainnetLifecycleObservations(changedState));

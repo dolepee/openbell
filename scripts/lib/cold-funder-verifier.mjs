@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { decodeEventLog, decodeFunctionData, decodeFunctionResult, encodeFunctionData, getAddress, hashTypedData, keccak256, parseAbi } from "viem";
-import { OFFICIAL_ENDPOINT_COMMITMENTS, approvalTypes, fundAbi, invoiceAbi, tokenAbi } from "./mainnet-lifecycle-verifier.mjs";
+import { decodeEventLog, decodeFunctionResult, encodeFunctionData, getAddress, hashTypedData, parseAbi } from "viem";
+import { OFFICIAL_ENDPOINT_COMMITMENTS, approvalTypes, invoiceAbi, tokenAbi } from "./mainnet-lifecycle-verifier.mjs";
 
 export const CHAIN_ID = 196n;
 export const CONTRACT = "0xc4Ef249b80a6a034198C226278c51b0a903840dd";
@@ -25,7 +25,29 @@ export const FUNDING = Object.freeze({
   nonce: 4n,
   gasUsed: 174_626n,
   gasPrice: 28_600_000n,
-  inputHash: "0xb89a1160ee1ca2b58c89c8bd7a77bc5e293a02a8fbca6d368c7aa7c8730392ee"
+  inputHash: "0xb89a1160ee1ca2b58c89c8bd7a77bc5e293a02a8fbca6d368c7aa7c8730392ee",
+  inputLength: 484,
+  selector: "0xda7e7cc4"
+});
+
+const expectedApproval = Object.freeze({
+  invoiceId: INVOICE_ID,
+  invoiceDigest: INVOICE_DIGEST,
+  funder: FUNDER,
+  advanceAmount: ADVANCE_AMOUNT,
+  repaymentAmount: REPAYMENT_AMOUNT,
+  riskTimestamp: 1_786_986_149n,
+  expiresAt: 1_786_987_949n,
+  riskReasonsHash: "0x3f7cd8dbedb6b14fbd5b9fedb1f67190d2f1f8f1c12e26a6d4beebc6bf516fe2",
+  modelHash: REJECTED_ARTIFACT_HASH,
+  nonce: 21_741_668_453_183_765_571_918_574_014_450_757_149_221_004_248_653_003_967_211_688_466_942_607_729_248n
+});
+
+const expectedDecisionDigest = hashTypedData({
+  domain: { name: "OpenBell Receivables", version: "1", chainId: CHAIN_ID, verifyingContract: CONTRACT },
+  types: approvalTypes,
+  primaryType: "RiskApproval",
+  message: expectedApproval
 });
 
 const fundingEventAbi = parseAbi([
@@ -52,6 +74,7 @@ export const verifyColdFunderObservations = (observations) => {
   requireTrue(observations?.schemaVersion === "openbell-independent-cold-funder-observations-v1", "WRONG_COLD_FUNDER_SCHEMA");
   requireTrue(Array.isArray(observations.providers) && observations.providers.length === 2, "TWO_PROVIDERS_REQUIRED");
   requireTrue(new Set(observations.providers.map(({ provider }) => provider)).size === 2, "PROVIDERS_NOT_DISTINCT");
+  requireTrue(lower(expectedDecisionDigest) === lower(DECISION_DIGEST), "DECISION_DIGEST_MISMATCH");
   const providerResults = [];
   for (const observation of observations.providers) {
     requireTrue(OFFICIAL_ENDPOINT_COMMITMENTS[observation.provider] === observation.endpointCommitment, `${observation.provider}:ENDPOINT_COMMITMENT`);
@@ -61,24 +84,19 @@ export const verifyColdFunderObservations = (observations) => {
     const { transaction, receipt, block } = observation.funding;
     requireTrue(lower(transaction.hash) === lower(FUNDING.hash), `${observation.provider}:HASH`);
     requireTrue(getAddress(transaction.from) === FUNDER && getAddress(transaction.to) === CONTRACT, `${observation.provider}:PARTIES`);
-    requireTrue(quantity(transaction.nonce) === FUNDING.nonce && quantity(transaction.value) === 0n && keccak256(transaction.input) === FUNDING.inputHash, `${observation.provider}:INPUT`);
+    requireTrue(quantity(transaction.nonce) === FUNDING.nonce && quantity(transaction.value) === 0n, `${observation.provider}:VALUE_NONCE`);
+    requireTrue(lower(transaction.inputKeccak256) === lower(FUNDING.inputHash) && transaction.inputLength === FUNDING.inputLength && lower(transaction.selector) === lower(FUNDING.selector) && transaction.input === undefined, `${observation.provider}:SANITIZED_INPUT_COMMITMENT`);
     requireTrue(quantity(transaction.blockNumber) === FUNDING.block && lower(transaction.blockHash) === lower(FUNDING.blockHash) && quantity(transaction.transactionIndex) === FUNDING.index, `${observation.provider}:BLOCK`);
     requireTrue(lower(receipt.transactionHash) === lower(FUNDING.hash) && quantity(receipt.status) === 1n, `${observation.provider}:RECEIPT`);
     requireTrue(quantity(receipt.blockNumber) === FUNDING.block && lower(receipt.blockHash) === lower(FUNDING.blockHash) && quantity(receipt.transactionIndex) === FUNDING.index, `${observation.provider}:RECEIPT_BLOCK`);
     requireTrue(quantity(receipt.gasUsed) === FUNDING.gasUsed && quantity(receipt.effectiveGasPrice) === FUNDING.gasPrice && receipt.logs.length === 2, `${observation.provider}:RECEIPT_DETAILS`);
     requireTrue(quantity(block.number) === FUNDING.block && lower(block.hash) === lower(FUNDING.blockHash) && lower(block.transactions[Number(FUNDING.index)]) === lower(FUNDING.hash), `${observation.provider}:CANONICAL_INCLUSION`);
-    const decoded = decodeFunctionData({ abi: fundAbi, data: transaction.input });
-    const [approval, signature] = decoded.args;
-    requireTrue(decoded.functionName === "fund" && signature.length === 132, `${observation.provider}:FUND_CALL_SHAPE`);
-    requireTrue(lower(approval.invoiceId) === lower(INVOICE_ID) && lower(approval.invoiceDigest) === lower(INVOICE_DIGEST) && getAddress(approval.funder) === FUNDER, `${observation.provider}:APPROVAL_BINDING`);
-    requireTrue(approval.advanceAmount === ADVANCE_AMOUNT && approval.repaymentAmount === REPAYMENT_AMOUNT && lower(approval.modelHash) === lower(REJECTED_ARTIFACT_HASH), `${observation.provider}:APPROVAL_ECONOMICS`);
-    requireTrue(lower(hashTypedData({ domain: { name: "OpenBell Receivables", version: "1", chainId: CHAIN_ID, verifyingContract: CONTRACT }, types: approvalTypes, primaryType: "RiskApproval", message: approval })) === lower(DECISION_DIGEST), `${observation.provider}:DECISION_DIGEST`);
     const transfer = decodeEventLog({ abi: fundingEventAbi, eventName: "Transfer", topics: receipt.logs[0].topics, data: receipt.logs[0].data, strict: true });
     requireTrue(getAddress(receipt.logs[0].address) === USDG && getAddress(transfer.args.from) === FUNDER && getAddress(transfer.args.to) === SUPPLIER && transfer.args.value === ADVANCE_AMOUNT, `${observation.provider}:TRANSFER_EVENT`);
     const funded = decodeEventLog({ abi: fundingEventAbi, eventName: "InvoiceFunded", topics: receipt.logs[1].topics, data: receipt.logs[1].data, strict: true });
     requireTrue(getAddress(receipt.logs[1].address) === CONTRACT && lower(funded.args.invoiceId) === lower(INVOICE_ID) && lower(funded.args.decisionDigest) === lower(DECISION_DIGEST), `${observation.provider}:FUNDED_EVENT_BINDING`);
     requireTrue(getAddress(funded.args.funder) === FUNDER && getAddress(funded.args.supplier) === SUPPLIER && funded.args.advanceAmount === ADVANCE_AMOUNT && funded.args.repaymentAmount === REPAYMENT_AMOUNT, `${observation.provider}:FUNDED_EVENT_ECONOMICS`);
-    requireTrue(lower(funded.args.riskReasonsHash) === lower(approval.riskReasonsHash) && lower(funded.args.modelHash) === lower(REJECTED_ARTIFACT_HASH), `${observation.provider}:FUNDED_EVENT_DECISION`);
+    requireTrue(lower(funded.args.riskReasonsHash) === lower(expectedApproval.riskReasonsHash) && lower(funded.args.modelHash) === lower(REJECTED_ARTIFACT_HASH), `${observation.provider}:FUNDED_EVENT_DECISION`);
     for (const [name, spec] of Object.entries(calls)) {
       const actual = observation.calls[name];
       requireTrue(getAddress(actual.to) === spec.to && quantity(actual.block) === spec.block && actual.data === spec.data, `${observation.provider}:${name}:CALL`);

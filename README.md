@@ -79,9 +79,9 @@ in transaction `0xa9068a...030a`. The chain proves the distinct wallet, exact tr
 - Reproducible sanitized verification record: [`evidence/openbell-xlayer-mainnet-verification-record.json`](evidence/openbell-xlayer-mainnet-verification-record.json), SHA-256 `d5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8`
 - Sanitized two-provider observations: [`evidence/openbell-xlayer-mainnet-observations.json`](evidence/openbell-xlayer-mainnet-observations.json), SHA-256 `e8e750a45a206664b0e85db3496482232556f4b2d0a23db9073c8f4e71b77dd9`. Each source is bound to a fixed official-endpoint SHA-256 commitment; endpoint provenance is committed, not independently attested.
 - Deterministic observation verification: [`evidence/openbell-xlayer-mainnet-observation-verification.json`](evidence/openbell-xlayer-mainnet-observation-verification.json), derived by `node scripts/verify-mainnet-observations.mjs`
-- Mainnet lifecycle observations: [`evidence/openbell-xlayer-mainnet-lifecycle-observations.json`](evidence/openbell-xlayer-mainnet-lifecycle-observations.json), SHA-256 `8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd`
+- Sanitized mainnet lifecycle observations: [`evidence/openbell-xlayer-mainnet-lifecycle-observations.json`](evidence/openbell-xlayer-mainnet-lifecycle-observations.json), SHA-256 `2f8d95f0ee211a720577ce57afef04f7d7a8af63e017c11cf25eec3981468489`
 - Mainnet lifecycle verification: [`evidence/openbell-xlayer-mainnet-lifecycle-verification.json`](evidence/openbell-xlayer-mainnet-lifecycle-verification.json), derived by `node scripts/verify-mainnet-lifecycle.mjs`
-- Independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `f6f45a45015ee00c75b9159c837d49de994b2a498329142b0026821354045969`
+- Sanitized independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `a68a8b7d2727ea4be5bd2dc43cd46fc4281816206866fc41322b11bcfe8bab17`
 - Deterministic cold-funder verification: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json), derived by `node scripts/verify-cold-funder.mjs`
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
@@ -104,10 +104,12 @@ repaid.
 - Exact repayment allowance: [`0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb`](https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb)
 - Settle `0.02525 USDG`: [`0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5`](https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5)
 
-The public verifier checks both official RPCs, canonical transaction inclusion, exact calldata,
+The public verifier checks both official RPCs, canonical transaction inclusion, committed calldata,
 receipt success, final invoice state, historical supplier/funder/payer balance deltas, and zero
-remaining token allowances. Endpoint provenance is committed but not independently attested, and
-the public evidence contains no signatures, signed transactions, credentials, or wallet secrets.
+remaining token allowances. Raw signature-bearing calldata is excluded; each transaction retains
+its fixed hash, selector, byte length, and irreversible calldata commitment. Endpoint provenance is
+committed but not independently attested, and the current public evidence contains no raw
+signatures, signed transactions, credentials, or wallet secrets.
 
 ### No-value testnet fixture
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "openbell-xlayer-mainnet-lifecycle-verification-v1",
-  "observationsSha256": "0x8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd",
+  "observationsSha256": "0x2f8d95f0ee211a720577ce57afef04f7d7a8af63e017c11cf25eec3981468489",
   "chainId": "196",
   "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
   "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
@@ -15,18 +15,18 @@
   "providerResults": [
     {
       "provider": "official-xlayer",
-      "head": "68212713",
-      "headHash": "0x0f1ba9c6ad5d17ae993b445244e9ba17f61a3502c2c400557f0e9e0309b8582a",
-      "confirmations": "292"
+      "head": "68219758",
+      "headHash": "0x6246e943768b3187cd33c135126499c6386375f3a2cf4b515cb8600fc7b357bb",
+      "confirmations": "7337"
     },
     {
       "provider": "official-okx",
-      "head": "68212724",
-      "headHash": "0x4494228621894b7b0411120840fd9b956ba9efcc55c84adf0015ea2744fe501f",
-      "confirmations": "303"
+      "head": "68219769",
+      "headHash": "0xe24b8396fed12113b55e37e16a483577e6ad129673c1400a09c5b8958f2d33aa",
+      "confirmations": "7348"
     }
   ],
-  "minimumObservedConfirmations": "292",
+  "minimumObservedConfirmations": "7337",
   "transactionHashes": [
     {
       "action": "REGISTER_INVOICE",

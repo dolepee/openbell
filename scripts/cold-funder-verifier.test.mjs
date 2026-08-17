@@ -15,8 +15,11 @@ test("verifies independent cold funding across two official providers", () => {
 
 test("rejects funding, state, balance and provider drift", () => {
   const changedTransaction = structuredClone(observations);
-  changedTransaction.providers[0].funding.transaction.input = "0x00";
-  assert.throws(() => verifyColdFunderObservations(changedTransaction), /INPUT/);
+  changedTransaction.providers[0].funding.transaction.inputKeccak256 = "0x00";
+  assert.throws(() => verifyColdFunderObservations(changedTransaction), /SANITIZED_INPUT_COMMITMENT/);
+  const leakedInput = structuredClone(observations);
+  leakedInput.providers[0].funding.transaction.input = "0x00";
+  assert.throws(() => verifyColdFunderObservations(leakedInput), /SANITIZED_INPUT_COMMITMENT/);
   const changedState = structuredClone(observations);
   changedState.providers[0].calls.invoice.result = `0x${"00".repeat(352)}`;
   assert.throws(() => verifyColdFunderObservations(changedState));

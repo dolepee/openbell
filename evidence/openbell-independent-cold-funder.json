@@ -1,6 +1,6 @@
 {
   "schemaVersion": "openbell-independent-cold-funder-verification-v1",
-  "observationsSha256": "0xf6f45a45015ee00c75b9159c837d49de994b2a498329142b0026821354045969",
+  "observationsSha256": "0xa68a8b7d2727ea4be5bd2dc43cd46fc4281816206866fc41322b11bcfe8bab17",
   "chainId": "196",
   "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
   "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
@@ -19,18 +19,18 @@
   "providerResults": [
     {
       "provider": "official-xlayer",
-      "head": "68218867",
-      "headHash": "0x3db5f0ee0ae145d66f5ba2bf47d9fda511c0db972a01f7407178c525cd59412d",
-      "confirmations": "662"
+      "head": "68219774",
+      "headHash": "0x0719bb9e19422d07790794e8567c8853bbcb6c8f5d72b9168780dd9fc62e302c",
+      "confirmations": "1569"
     },
     {
       "provider": "official-okx",
-      "head": "68218871",
-      "headHash": "0x788d02b5eb4f94d247b94ee8abc3e13e4c2620236aa8ec6d61eaecd58df53568",
-      "confirmations": "666"
+      "head": "68219779",
+      "headHash": "0xe376e6e7d960bba0c3caa0814bb3bfc7b8340b3fa7feb2578cf1a17c01368df5",
+      "confirmations": "1574"
     }
   ],
-  "minimumObservedConfirmations": "662",
+  "minimumObservedConfirmations": "1569",
   "canonicalInclusionVerified": true,
   "exactFundingDeltaVerified": true,
   "residualAllowanceZero": true,

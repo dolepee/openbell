@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { scanPublicText } from "./check-public-boundary.mjs";
+import { scanCurrentEvidenceShape, scanPublicText } from "./check-public-boundary.mjs";
 
 const prohibited = [
   ["secret assignment", `private${"Key"}: "0x${"de".repeat(32)}"`],
@@ -63,6 +63,17 @@ for (const [name, text, path = "fixture.txt"] of prohibited) {
 test("accepts explicit negative disclosure fields and public fixture labels", () => {
   const text = JSON.stringify({ privateKeysIncluded: false, signedTransactionsIncluded: false, credentialsIncluded: false, label: "NO REAL VALUE" });
   assert.deepEqual(scanPublicText({ path: "evidence.json", text }), []);
+});
+
+test("rejects raw calldata in current signature-bearing observation files", () => {
+  assert.notEqual(scanCurrentEvidenceShape({
+    path: "evidence/openbell-independent-cold-funder-observations.json",
+    text: JSON.stringify({ transaction: { input: `0x${"ab".repeat(484)}` } })
+  }).length, 0);
+  assert.deepEqual(scanCurrentEvidenceShape({
+    path: "evidence/openbell-independent-cold-funder-observations.json",
+    text: JSON.stringify({ transaction: { inputKeccak256: `0x${"ab".repeat(32)}` } })
+  }), []);
 });
 
 test("accepts an uninitialized typed credential member before a later safe assignment", () => {
