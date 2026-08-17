@@ -171,9 +171,18 @@ const execute = async (action, button, busyText, idleText) => {
   render();
   setBusy(button, true, "Waiting for X Layer…", idleText);
   const receipt = await waitForReceipt(hash);
-  if (receipt.status !== "0x1") throw new Error("The X Layer receipt reports failure.");
-  pendingHash = undefined;
-  await refreshState();
+  if (receipt.status !== "0x1") {
+    pendingHash = undefined;
+    render();
+    throw new Error("The X Layer receipt reports failure.");
+  }
+  try {
+    await refreshState();
+    pendingHash = undefined;
+    render();
+  } catch {
+    setError(`Transaction ${hash} is confirmed. Live state refresh is delayed; check the explorer before taking another action.`);
+  }
   return hash;
 };
 
