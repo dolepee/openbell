@@ -1,10 +1,12 @@
 import { privateKeyToAccount } from "viem/accounts";
+import { keccak256, stringToHex } from "viem";
 import { expect, test } from "vitest";
 import {
   CONNECTED_MAINNET,
   CONNECTED_TESTNET,
   ConnectedUnderwritingService,
   ConnectedPolicyRefusal,
+  connectedArtifactHashOf,
   connectedAssessmentTypedData,
   type ConnectedDecisionStore,
   type ConnectedDeployment,
@@ -54,6 +56,7 @@ const authorizedRequest = async (changes: Partial<Omit<ConnectedUnderwritingRequ
 class MemoryStore implements ConnectedDecisionStore {
   readonly rows = new Map<string, StoredConnectedDecision>();
   readonly refusals = new Map<string, { resultJson: string; artifactHash: `0x${string}` }>();
+  readonly completedArtifactHashes = new Map<string, `0x${string}`>();
   async load(invoiceId: `0x${string}`): Promise<StoredConnectedDecision | null> { return this.rows.get(invoiceId) ?? null; }
   async claim(invoiceId: `0x${string}`, requestHash: `0x${string}`): Promise<{ claimed: boolean; row: StoredConnectedDecision }> {
     const existing = this.rows.get(invoiceId);
@@ -65,9 +68,11 @@ class MemoryStore implements ConnectedDecisionStore {
   async beginModel(invoiceId: `0x${string}`, requestHash: `0x${string}`): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "MODEL_IN_FLIGHT" });
   }
-  async complete(invoiceId: `0x${string}`, requestHash: `0x${string}`, resultJson: string): Promise<void> {
+  async complete(invoiceId: `0x${string}`, requestHash: `0x${string}`, resultJson: string, artifactHash: `0x${string}`): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "COMPLETE", resultJson });
+    this.completedArtifactHashes.set(invoiceId, artifactHash);
   }
+  async loadCompletedArtifactHash(invoiceId: `0x${string}`): Promise<`0x${string}` | null> { return this.completedArtifactHashes.get(invoiceId) ?? null; }
   async fail(invoiceId: `0x${string}`, requestHash: `0x${string}`, failureCode: string): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "FAILED", failureCode });
   }
@@ -122,13 +127,21 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
   const model: UnderwritingModel & { readonly lastReceipt?: unknown } = {
     modelId: "bankr:gpt-5.6-terra",
     get lastReceipt() {
-      return decision instanceof Error ? undefined : {
+      if (decision instanceof Error) return undefined;
+      const rawResponse = JSON.stringify({
+        id: "bankr-test-response",
+        object: "chat.completion",
+        model: "gpt-5.6-terra",
+        choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(decision) } }]
+      });
+      return {
         provider: "bankr-chat-completions",
         providerResponseId: "bankr-test-response",
         requestedModel: "gpt-5.6-terra",
         returnedModel: "gpt-5.6-terra",
         requestHash: buildStrictBankrRequest(capturedInput!, deployment === CONNECTED_MAINNET ? "registered-mainnet" : "synthetic").requestHash,
-        responseHash: `0x${"cd".repeat(32)}`,
+        responseHash: keccak256(stringToHex(rawResponse)),
+        rawResponse,
         decision
       };
     },
@@ -235,6 +248,18 @@ test("durable replay remains exact when the confirmed block advances during the 
   expect(first.observation.blockHash).toBe(postObservation.blockHash);
   const second = await h.service.authorize(request);
   expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
+});
+
+test("durable successful replay rejects result bytes that do not match the stored artifact commitment", async () => {
+  const h = harness(approval);
+  await h.service.authorize(request);
+  const row = h.store.rows.get(request.invoiceId);
+  if (row?.status !== "COMPLETE" || !row.resultJson) throw new Error("expected complete row");
+  const parsed = JSON.parse(row.resultJson);
+  parsed.modelEvidence.providerResponseId = "transport-edited-response";
+  h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_ARTIFACT_HASH_MISMATCH");
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
@@ -359,6 +384,24 @@ test("durable replay rejects a coherently edited decision row without external c
   const parsed = JSON.parse(row.resultJson);
   parsed.decision.advanceAmount = "74000000";
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
+  h.store.completedArtifactHashes.set(request.invoiceId, connectedArtifactHashOf(parsed));
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
+});
+
+test("durable replay rejects a coherently rewritten provider envelope and commitment", async () => {
+  const h = harness(approval);
+  await h.service.authorize(request);
+  const row = h.store.rows.get(request.invoiceId);
+  if (row?.status !== "COMPLETE" || !row.resultJson) throw new Error("expected complete row");
+  const parsed = JSON.parse(row.resultJson);
+  parsed.modelEvidence.providerResponseId = "coherently-forged-response";
+  const envelope = JSON.parse(parsed.modelEvidence.rawResponse);
+  envelope.id = parsed.modelEvidence.providerResponseId;
+  parsed.modelEvidence.rawResponse = JSON.stringify(envelope);
+  parsed.modelEvidence.responseHash = keccak256(stringToHex(parsed.modelEvidence.rawResponse));
+  h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
+  h.store.completedArtifactHashes.set(request.invoiceId, connectedArtifactHashOf(parsed));
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
@@ -371,7 +414,8 @@ test.each(["providerResponseId", "responseHash"] as const)("durable replay rejec
   const parsed = JSON.parse(row.resultJson);
   parsed.modelEvidence[field] = field === "providerResponseId" ? "forged-response" : `0x${"ef".repeat(32)}`;
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
-  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_DECISION_CORRUPT_MODEL_BINDING");
+  h.store.completedArtifactHashes.set(request.invoiceId, connectedArtifactHashOf(parsed));
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_RECEIPT_INVALID");
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
@@ -383,6 +427,7 @@ test("durable replay recomputes and rejects an edited Bankr request hash", async
   const parsed = JSON.parse(row.resultJson);
   parsed.modelEvidence.requestHash = `0x${"ef".repeat(32)}`;
   h.store.rows.set(request.invoiceId, { ...row, resultJson: JSON.stringify(parsed) });
+  h.store.completedArtifactHashes.set(request.invoiceId, connectedArtifactHashOf(parsed));
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_MODEL_REQUEST_HASH_MISMATCH");
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });

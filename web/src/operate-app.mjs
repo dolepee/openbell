@@ -106,6 +106,7 @@ let pendingAssessment;
 let pendingAssessmentRequest;
 let pendingPolicyRefusal;
 let pendingPolicyRefusalRequest;
+let pendingPolicyRefusalArtifactHash;
 
 const compact = (value) => `${value.slice(0, 10)}…${value.slice(-6)}`;
 const setText = (selector, value) => {
@@ -286,6 +287,7 @@ sessionForm?.addEventListener("submit", async (event) => {
     pendingAssessmentRequest = undefined;
     pendingPolicyRefusal = undefined;
     pendingPolicyRefusalRequest = undefined;
+    pendingPolicyRefusalArtifactHash = undefined;
     assessmentWorkspace.hidden = true;
     assessmentResult.hidden = true;
     sessionFile.setAttribute("aria-invalid", "false");
@@ -399,6 +401,7 @@ assessmentForm?.addEventListener("submit", async (event) => {
   pendingAssessmentRequest = undefined;
   pendingPolicyRefusal = undefined;
   pendingPolicyRefusalRequest = undefined;
+  pendingPolicyRefusalArtifactHash = undefined;
   signDecisionButton.hidden = false;
   downloadAssessmentButton.textContent = "Download unsigned assessment";
   refreshDecisionState();
@@ -439,8 +442,9 @@ assessmentForm?.addEventListener("submit", async (event) => {
     const result = await response.json();
     if (invoiceSession?.dealPackage?.invoiceTerms?.invoiceId?.toLowerCase() !== authorized.invoiceId.toLowerCase()) throw new Error("The active invoice changed while underwriting was in progress.");
     if (response.status === 422 && result?.error === "CONNECTED_POLICY_REFUSAL") {
-      pendingPolicyRefusal = validateConnectedPolicyRefusal(result.policyRefusal, authorized);
+      pendingPolicyRefusal = validateConnectedPolicyRefusal(result.policyRefusal, authorized, result.policyRefusalArtifactHash);
       pendingPolicyRefusalRequest = authorized;
+      pendingPolicyRefusalArtifactHash = result.policyRefusalArtifactHash;
       setText("#assessment-verdict", "Policy refused · no execution authority.");
       setText("#assessment-economics", `${pendingPolicyRefusal.refusal.code} · ${pendingPolicyRefusal.refusal.message}`);
       setText("#assessment-provider", `${pendingPolicyRefusal.modelEvidence.requestedModel} · response ${compact(pendingPolicyRefusal.modelEvidence.providerResponseId)} · exact refusal evidence sealed`);
@@ -478,10 +482,13 @@ assessmentForm?.addEventListener("submit", async (event) => {
 downloadAssessmentButton?.addEventListener("click", () => {
   assessmentError.textContent = "";
   try {
-    if (pendingPolicyRefusal && pendingPolicyRefusalRequest) {
-      validateConnectedPolicyRefusal(pendingPolicyRefusal, pendingPolicyRefusalRequest);
+    if (pendingPolicyRefusal && pendingPolicyRefusalRequest && pendingPolicyRefusalArtifactHash) {
+      validateConnectedPolicyRefusal(pendingPolicyRefusal, pendingPolicyRefusalRequest, pendingPolicyRefusalArtifactHash);
       if (invoiceSession?.dealPackage?.invoiceTerms?.invoiceId?.toLowerCase() !== pendingPolicyRefusalRequest.invoiceId.toLowerCase()) throw new Error("The active invoice changed after underwriting.");
-      downloadJson("openbell-policy-refusal.json", pendingPolicyRefusal);
+      downloadJson("openbell-policy-refusal.json", {
+        policyRefusal: pendingPolicyRefusal,
+        artifactHash: pendingPolicyRefusalArtifactHash
+      });
     } else if (pendingAssessment && pendingAssessmentRequest) {
       validateConnectedAssessment(pendingAssessment, pendingAssessmentRequest);
       if (invoiceSession?.dealPackage?.invoiceTerms?.invoiceId?.toLowerCase() !== pendingAssessmentRequest.invoiceId.toLowerCase()) throw new Error("The active invoice changed after underwriting.");

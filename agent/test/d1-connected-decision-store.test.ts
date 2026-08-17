@@ -1,7 +1,7 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
+import { connectedCompletedArtifactTableSql, connectedDailyBudgetTableSql, connectedDecisionTableSql, connectedPolicyRefusalTableSql } from "../../db/schema.js";
 import { D1ConnectedDecisionStore, type D1DatabaseLike } from "../src/d1-connected-decision-store.js";
 
 class StatementAdapter {
@@ -40,6 +40,7 @@ const artifactHash = `0x${"cc".repeat(32)}` as const;
 test("Sites D1 migration is byte-derived from the runtime schema", () => {
   expect(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8")).toBe(`${connectedDecisionTableSql};\n\n${connectedDailyBudgetTableSql};\n`);
   expect(readFileSync("drizzle/0001_connected_policy_refusals.sql", "utf8")).toBe(`${connectedPolicyRefusalTableSql};\n`);
+  expect(readFileSync("drizzle/0002_connected_completed_artifacts.sql", "utf8")).toBe(`${connectedCompletedArtifactTableSql};\n`);
 });
 
 test("D1 store atomically claims once and returns the exact completed envelope", async () => {
@@ -51,10 +52,11 @@ test("D1 store atomically claims once and returns the exact completed envelope",
   const concurrent = await store.claim(invoiceId, requestHash, "{\"request\":1}");
   expect(concurrent).toEqual({ claimed: false, row: { requestHash, status: "CLAIMED" } });
   await store.beginModel(invoiceId, requestHash);
-  await store.complete(invoiceId, requestHash, "{\"result\":1}");
+  await store.complete(invoiceId, requestHash, "{\"result\":1}", artifactHash);
+  expect(await store.loadCompletedArtifactHash(invoiceId, requestHash)).toBe(artifactHash);
   const replay = await store.claim(invoiceId, requestHash, "{\"request\":1}");
   expect(replay).toEqual({ claimed: false, row: { requestHash, status: "COMPLETE", resultJson: "{\"result\":1}" } });
-  await expect(store.complete(invoiceId, requestHash, "{}")).rejects.toThrow("CONNECTED_STORE_COMPLETE_CONFLICT");
+  await expect(store.complete(invoiceId, requestHash, "{}", artifactHash)).rejects.toThrow("CONNECTED_STORE_COMPLETE_CONFLICT");
 });
 
 test("D1 store seals failure and refuses later state replacement", async () => {
@@ -63,7 +65,7 @@ test("D1 store seals failure and refuses later state replacement", async () => {
   await store.fail(invoiceId, requestHash, "LIVE_MODEL_TIMEOUT");
   const replay = await store.claim(invoiceId, requestHash, "{}");
   expect(replay.row).toEqual({ requestHash, status: "FAILED", failureCode: "LIVE_MODEL_TIMEOUT" });
-  await expect(store.complete(invoiceId, requestHash, "{}")).rejects.toThrow("CONNECTED_STORE_COMPLETE_CONFLICT");
+  await expect(store.complete(invoiceId, requestHash, "{}", artifactHash)).rejects.toThrow("CONNECTED_STORE_COMPLETE_CONFLICT");
 });
 
 test("D1 store preserves one policy-refusal artifact without reopening execution", async () => {

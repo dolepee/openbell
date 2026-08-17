@@ -4,6 +4,7 @@ import {
   CONNECTED_TESTNET,
   ConnectedPolicyRefusal,
   ConnectedUnderwritingService,
+  connectedArtifactHashOf,
   connectedUnderwritingRequestSchema,
   mainnetUnderwritingRequestSchema,
   type ConnectedDeployment
@@ -128,10 +129,11 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
       modelFactory: () => model,
       deployment
     });
-    return json(await service.authorize(body));
+    const assessment = await service.authorize(body);
+    return json({ ...assessment, artifactHash: connectedArtifactHashOf(assessment) });
   } catch (error) {
     if (error instanceof ConnectedPolicyRefusal) {
-      return json({ error: error.message, policyRefusal: error.evidence }, 422);
+      return json({ error: error.message, policyRefusal: error.evidence, policyRefusalArtifactHash: error.artifactHash }, 422);
     }
     const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "CONNECTED_UNDERWRITING_FAILED";
     const status = code.includes("IN_PROGRESS") ? 409 : code.includes("BUDGET") ? 429 : 422;

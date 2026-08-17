@@ -28,7 +28,7 @@ import {
   walletConnectedAssessmentTypedData,
   validateBrowserAction,
   validateConnectedAssessment,
-  validateConnectedPolicyRefusal
+  validateConnectedPolicyRefusal as validateConnectedPolicyRefusalArtifact
 } from "./testnet-flow.mjs";
 import { OPENBELL_TESTNET_TARGET, buildUnsignedDealPackage } from "./deal-package.mjs";
 
@@ -79,6 +79,7 @@ const policyRefusal = {
     returnedModel: "gpt-5.6-terra",
     requestHash: `0x${"12".repeat(32)}`,
     responseHash: `0x${"13".repeat(32)}`,
+    rawResponse: "pending",
     decision: { verdict: "APPROVE", maximumAdvanceBps: 7000, feeBps: 100, confidenceBps: 6500, reasons: ["MODEL_UNCERTAINTY"], explanation: "The supplied synthetic evidence supports approval within the returned structured limits." }
   },
   observation: {
@@ -105,6 +106,14 @@ const policyRefusal = {
     invoiceDigestRegistered: true
   }
 };
+const rawBankrResponse = (decision, providerResponseId = "response-test-1", returnedModel = "gpt-5.6-terra") => JSON.stringify({
+  id: providerResponseId,
+  object: "chat.completion",
+  model: returnedModel,
+  choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(decision) } }]
+});
+policyRefusal.modelEvidence.rawResponse = rawBankrResponse(policyRefusal.modelEvidence.decision);
+policyRefusal.modelEvidence.responseHash = keccak256(stringToHex(policyRefusal.modelEvidence.rawResponse));
 const policyRefusalRequest = {
   schemaVersion: "openbell-connected-underwriting-v1",
   label: OPENBELL_TESTNET.label,
@@ -142,6 +151,22 @@ const canonicalJson = (value) => {
   if (value && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   return JSON.stringify(value);
 };
+const artifactHashOf = (value) => keccak256(stringToHex(canonicalJson(value)));
+const cohereProviderReceipt = (candidate) => {
+  const evidence = candidate.modelEvidence;
+  const rawResponse = rawBankrResponse(evidence.decision, evidence.providerResponseId, evidence.returnedModel);
+  const responseHash = keccak256(stringToHex(rawResponse));
+  if (evidence.rawResponse === rawResponse && evidence.responseHash === responseHash) return candidate;
+  return { ...candidate, modelEvidence: { ...evidence, rawResponse, responseHash } };
+};
+const validateConnectedPolicyRefusal = (candidate, expectedRequest) => {
+  const coherent = cohereProviderReceipt(candidate);
+  return validateConnectedPolicyRefusalArtifact(coherent, expectedRequest, artifactHashOf(coherent));
+};
+const sealAssessment = (assessment) => {
+  const coherent = cohereProviderReceipt(assessment);
+  return { ...coherent, artifactHash: artifactHashOf(coherent) };
+};
 const unsignedAssessmentRequest = { ...policyRefusalRequest, syntheticFixtureAcknowledged: true };
 const successfulAssessmentRequest = {
   ...unsignedAssessmentRequest,
@@ -155,6 +180,8 @@ const successfulModelDecision = {
 const successfulModelEvidence = {
   ...policyRefusal.modelEvidence,
   requestHash: buildBrowserBankrRequestHash(refusalModelInput(policyRefusal, successfulAssessmentRequest), "synthetic"),
+  rawResponse: rawBankrResponse(successfulModelDecision),
+  responseHash: keccak256(stringToHex(rawBankrResponse(successfulModelDecision))),
   decision: successfulModelDecision
 };
 const receiptCommitment = keccak256(encodeAbiParameters(
@@ -198,7 +225,7 @@ const successfulSigningDigest = hashTypedData(approvalTypedData({
   modelHash: successfulDecision.modelHash,
   nonce: successfulNonce
 }));
-const successfulAssessment = {
+const successfulAssessmentCore = {
   decision: successfulDecision,
   modelEvidence: successfulModelEvidence,
   observation: policyRefusal.observation,
@@ -211,6 +238,7 @@ const successfulAssessment = {
     nonce: successfulNonce
   }
 };
+const successfulAssessment = sealAssessment(successfulAssessmentCore);
 const wrongDeploymentDigest = hashTypedData(approvalTypedData({
   invoiceId: successfulDecision.invoiceId,
   invoiceDigest: successfulDecision.invoiceDigest,
@@ -226,6 +254,10 @@ const wrongDeploymentDigest = hashTypedData(approvalTypedData({
 
 test("policy refusals preserve evidence without exposing execution authority", () => {
   assert.equal(validateConnectedPolicyRefusal(policyRefusal, policyRefusalRequest), policyRefusal);
+  assert.throws(() => validateConnectedPolicyRefusalArtifact({
+    ...policyRefusal,
+    modelEvidence: { ...policyRefusal.modelEvidence, responseHash: `0x${"ef".repeat(32)}` }
+  }, policyRefusalRequest, artifactHashOf(policyRefusal)), /artifact commitment/);
   assert.equal("signingRequest" in policyRefusal, false);
   assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, executionAuthority: true }, policyRefusalRequest), /no execution authority/);
   assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, signingRequest: {} }, policyRefusalRequest), /unsupported or missing fields/);
@@ -291,7 +323,7 @@ test("policy refusals preserve evidence without exposing execution authority", (
   };
   const roundedRequest = { ...policyRefusalRequest, faceValue: "1" };
   roundedRefusal.modelEvidence.requestHash = buildBrowserBankrRequestHash(refusalModelInput(roundedRefusal, roundedRequest), "synthetic");
-  assert.equal(validateConnectedPolicyRefusal(roundedRefusal, roundedRequest), roundedRefusal);
+  assert.doesNotThrow(() => validateConnectedPolicyRefusal(roundedRefusal, roundedRequest));
 });
 
 test("successful connected assessments bind every economic input before underwriter signing", () => {
@@ -313,8 +345,28 @@ test("successful connected assessments bind every economic input before underwri
     { ...successfulAssessment, signingRequest: { ...successfulAssessment.signingRequest, label: OPENBELL_MAINNET_CONNECTED.label, chainId: "196", authorizedDigest: wrongDeploymentDigest } },
     { ...successfulAssessment, signingRequest: { ...successfulAssessment.signingRequest, nonce: "1" } }
   ]) {
-    assert.throws(() => validateConnectedAssessment(changedAssessment, successfulAssessmentRequest), /bounded result|digest changed|nonce|unsupported by the submitted evidence|signing deployment/);
+    assert.throws(() => validateConnectedAssessment(changedAssessment, successfulAssessmentRequest), /artifact commitment/);
   }
+  for (const changedAssessmentCore of [
+    { ...successfulAssessmentCore, decision: { ...successfulAssessmentCore.decision, advanceAmount: "69000000" } },
+    { ...successfulAssessmentCore, modelEvidence: { ...successfulAssessmentCore.modelEvidence, providerResponseId: "coherently-edited-response" } },
+    { ...successfulAssessmentCore, modelEvidence: { ...successfulAssessmentCore.modelEvidence, decision: { ...successfulAssessmentCore.modelEvidence.decision, reasons: ["PRIOR_DEFAULT"] } } },
+    { ...successfulAssessmentCore, signingRequest: { ...successfulAssessmentCore.signingRequest, label: OPENBELL_MAINNET_CONNECTED.label, chainId: "196", authorizedDigest: wrongDeploymentDigest } },
+    { ...successfulAssessmentCore, signingRequest: { ...successfulAssessmentCore.signingRequest, nonce: "1" } }
+  ]) {
+    assert.throws(() => validateConnectedAssessment(sealAssessment(changedAssessmentCore), successfulAssessmentRequest), /bounded result|nonce|unsupported by the submitted evidence|signing deployment/);
+  }
+  const rawEditedCore = {
+    ...successfulAssessmentCore,
+    modelEvidence: { ...successfulAssessmentCore.modelEvidence, rawResponse: successfulAssessmentCore.modelEvidence.rawResponse.replace("response-test-1", "edited-response") }
+  };
+  assert.throws(() => validateConnectedAssessment({ ...rawEditedCore, artifactHash: artifactHashOf(rawEditedCore) }, successfulAssessmentRequest), /raw response hash/);
+  const coherentRaw = rawBankrResponse(successfulAssessmentCore.modelEvidence.decision, "edited-response");
+  const coherentlyEditedRawCore = {
+    ...successfulAssessmentCore,
+    modelEvidence: { ...successfulAssessmentCore.modelEvidence, rawResponse: coherentRaw, responseHash: keccak256(stringToHex(coherentRaw)) }
+  };
+  assert.throws(() => validateConnectedAssessment({ ...coherentlyEditedRawCore, artifactHash: artifactHashOf(coherentlyEditedRawCore) }, successfulAssessmentRequest), /raw response does not match/);
 });
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({

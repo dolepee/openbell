@@ -150,7 +150,8 @@ export interface ConnectedDecisionStore {
   load(invoiceId: Hex): Promise<StoredConnectedDecision | null>;
   claim(invoiceId: Hex, requestHash: Hex, requestJson: string): Promise<{ claimed: boolean; row: StoredConnectedDecision }>;
   beginModel(invoiceId: Hex, requestHash: Hex): Promise<void>;
-  complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
+  complete(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void>;
+  loadCompletedArtifactHash(invoiceId: Hex, requestHash: Hex): Promise<Hex | null>;
   fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void>;
   sealPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex, failureCode: string): Promise<void>;
   loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null>;
@@ -164,8 +165,23 @@ const modelEvidenceSchema = z.object({
   returnedModel: z.literal("gpt-5.6-terra"),
   requestHash: bytes32,
   responseHash: bytes32,
+  rawResponse: z.string().min(1).max(64 * 1_024),
   decision: modelDecisionSchema.strict()
-}).strict();
+}).strict().superRefine((evidence, context) => {
+  if (keccak256(stringToHex(evidence.rawResponse)) !== evidence.responseHash) {
+    context.addIssue({ code: "custom", message: "CONNECTED_MODEL_RAW_RESPONSE_HASH_MISMATCH" });
+    return;
+  }
+  try {
+    const envelope = JSON.parse(evidence.rawResponse) as { id?: unknown; model?: unknown; choices?: Array<{ message?: { content?: unknown } }> };
+    const rawDecision = JSON.parse(String(envelope.choices?.[0]?.message?.content));
+    if (envelope.id !== evidence.providerResponseId || envelope.model !== evidence.returnedModel || canonicalJson(rawDecision) !== canonicalJson(evidence.decision)) {
+      context.addIssue({ code: "custom", message: "CONNECTED_MODEL_RAW_RESPONSE_RECEIPT_MISMATCH" });
+    }
+  } catch {
+    context.addIssue({ code: "custom", message: "CONNECTED_MODEL_RAW_RESPONSE_INVALID" });
+  }
+});
 const registeredObservationSchema = z.object({
   chainId: z.number().int().positive(),
   receivables: address,
@@ -206,7 +222,15 @@ const canonicalJson = (value: unknown): string => {
   return JSON.stringify(value);
 };
 const requestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
-const refusalArtifactHashOf = (resultJson: string): Hex => keccak256(stringToHex(resultJson));
+export const connectedArtifactHashOf = (value: unknown): Hex => keccak256(stringToHex(canonicalJson(value)));
+const storedArtifactHashOf = (resultJson: string): Hex => connectedArtifactHashOf(JSON.parse(resultJson));
+const parseModelEvidence = (candidate: unknown): z.infer<typeof modelEvidenceSchema> => {
+  try {
+    return modelEvidenceSchema.parse(candidate);
+  } catch {
+    throw new Error("CONNECTED_MODEL_RECEIPT_INVALID");
+  }
+};
 const failureCode = (error: unknown): string => error instanceof Error ? error.message.slice(0, 160) : "CONNECTED_UNDERWRITING_FAILED";
 const unsupportedZeroHistoryReasons = new Set([
   "STRONG_ON_TIME_HISTORY",
@@ -379,7 +403,7 @@ const policyRefusalEvidenceSchema = z.object({
 export type ConnectedPolicyRefusalEvidence = z.infer<typeof policyRefusalEvidenceSchema>;
 
 export class ConnectedPolicyRefusal extends Error {
-  constructor(readonly evidence: ConnectedPolicyRefusalEvidence) {
+  constructor(readonly evidence: ConnectedPolicyRefusalEvidence, readonly artifactHash: Hex) {
     super("CONNECTED_POLICY_REFUSAL");
     this.name = "ConnectedPolicyRefusal";
   }
@@ -451,12 +475,14 @@ export class ConnectedUnderwritingService {
     const returnStored = async (row: StoredConnectedDecision): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> => {
       if (row.requestHash !== requestHash) throw new Error("CONNECTED_DECISION_REQUEST_CONFLICT");
       if (row.status === "COMPLETE" && row.resultJson) {
+        const storedArtifactHash = await this.dependencies.store.loadCompletedArtifactHash(request.invoiceId, requestHash);
+        if (storedArtifactHash === null || storedArtifactHashOf(row.resultJson) !== storedArtifactHash) throw new Error("CONNECTED_DECISION_ARTIFACT_HASH_MISMATCH");
         const parsed: unknown = JSON.parse(row.resultJson);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         const record = parsed as Record<string, unknown>;
         if (Object.keys(record).sort().join(",") !== "decision,modelEvidence,observation,signingRequest") throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         const decision = boundedDecisionSchema.parse(record.decision);
-        const modelEvidence = modelEvidenceSchema.parse(record.modelEvidence);
+        const modelEvidence = parseModelEvidence(record.modelEvidence);
         const storedObservation = registeredObservationSchema.parse(record.observation) as RegisteredInvoiceObservation;
         assertObservation(request, storedObservation, deployment);
         const storedInput = riskInputFrom(request, storedObservation);
@@ -479,12 +505,12 @@ export class ConnectedUnderwritingService {
       if (row.status === "FAILED") {
         const storedRefusal = await this.dependencies.store.loadPolicyRefusal(request.invoiceId, requestHash);
         if (storedRefusal !== null) {
-          if (refusalArtifactHashOf(storedRefusal.resultJson) !== storedRefusal.artifactHash) {
+          if (storedArtifactHashOf(storedRefusal.resultJson) !== storedRefusal.artifactHash) {
             throw new Error("CONNECTED_POLICY_REFUSAL_ARTIFACT_HASH_MISMATCH");
           }
           const refusal = await validateStoredPolicyRefusal(JSON.parse(storedRefusal.resultJson), request, deployment);
           if (row.failureCode !== refusal.refusal.code) throw new Error("CONNECTED_POLICY_REFUSAL_FAILURE_CODE_MISMATCH");
-          throw new ConnectedPolicyRefusal(refusal);
+          throw new ConnectedPolicyRefusal(refusal, storedRefusal.artifactHash);
         }
         throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
       }
@@ -503,7 +529,7 @@ export class ConnectedUnderwritingService {
       await this.dependencies.store.beginModel(request.invoiceId, requestHash);
       const model = this.dependencies.modelFactory();
       const modelDecision = modelDecisionSchema.strict().parse(await model.decide(input));
-      const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
+      const modelEvidence = parseModelEvidence((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
       if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
       assertModelReasonsSupported(input, modelDecision, deployment);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
@@ -526,17 +552,18 @@ export class ConnectedUnderwritingService {
         if (!(error instanceof UnderwritingRefusal)) throw error;
         const refusal = buildPolicyRefusalEvidence(error, modelEvidence, postModelObservation);
         const refusalJson = JSON.stringify(refusal);
+        const refusalArtifactHash = storedArtifactHashOf(refusalJson);
         try {
-          await this.dependencies.store.sealPolicyRefusal(request.invoiceId, requestHash, refusalJson, refusalArtifactHashOf(refusalJson), error.code);
+          await this.dependencies.store.sealPolicyRefusal(request.invoiceId, requestHash, refusalJson, refusalArtifactHash, error.code);
         } catch {
           throw new ConnectedPolicyRefusalPersistenceError();
         }
-        throw new ConnectedPolicyRefusal(refusal);
+        throw new ConnectedPolicyRefusal(refusal, refusalArtifactHash);
       }
       const { digest } = typedDecision(decision, nonce, deployment);
       const result = buildUnsignedAssessmentResult(decision, postModelObservation, nonce, digest, modelEvidence, deployment);
       const resultJson = JSON.stringify(result);
-      await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson);
+      await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson, storedArtifactHashOf(resultJson));
       return result;
     } catch (error) {
       if (error instanceof ConnectedPolicyRefusal || error instanceof ConnectedPolicyRefusalPersistenceError) throw error;

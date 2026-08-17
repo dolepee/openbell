@@ -162,6 +162,7 @@ export interface LiveModelReceipt {
   readonly returnedModel: typeof BANKR_UNDERWRITING_MODEL;
   readonly requestHash: `0x${string}`;
   readonly responseHash: `0x${string}`;
+  readonly rawResponse: string;
   readonly decision: ModelDecision;
 }
 
@@ -210,6 +211,7 @@ export class StrictBankrUnderwritingModel implements UnderwritingModel {
         returnedModel: BANKR_UNDERWRITING_MODEL,
         requestHash: request.requestHash,
         responseHash: keccak256(stringToHex(raw)),
+        rawResponse: raw,
         decision
       };
       return decision;

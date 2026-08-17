@@ -3,4 +3,4 @@ export function buildBrowserBankrRequestHash(
   boundary: "synthetic" | "registered-mainnet"
 ): `0x${string}`;
 export function validateConnectedAssessment<T>(candidate: T, expectedRequest: unknown): T;
-export function validateConnectedPolicyRefusal<T>(candidate: T, expectedRequest: unknown): T;
+export function validateConnectedPolicyRefusal<T>(candidate: T, expectedRequest: unknown, expectedArtifactHash: unknown): T;
