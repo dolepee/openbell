@@ -79,19 +79,33 @@ test("the separately published baseline cannot drift from the same disclosure bo
 
   const removed = loadBaseline();
   removed.claimsNotProven.pop();
-  expect(() => verifyPublicReceiptHistoryBaseline(removed)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_BOUNDARY");
+  expect(() => verifyPublicReceiptHistoryBaseline(removed)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_ARTIFACT");
 
   const rewritten = loadBaseline();
   rewritten.claimsNotProven[0] = "Complete global creditworthiness is proven.";
-  expect(() => verifyPublicReceiptHistoryBaseline(rewritten)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_BOUNDARY");
+  expect(() => verifyPublicReceiptHistoryBaseline(rewritten)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_ARTIFACT");
+
+  const contradictory = loadBaseline();
+  contradictory.claimsProven = ["Independence of wallet owners"];
+  expect(() => verifyPublicReceiptHistoryBaseline(contradictory)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_ARTIFACT");
 });
 
 test("the public baseline derivation and snapshot are pinned", () => {
   const shallow = loadBaseline();
   shallow.derivation.confirmations = 1;
-  expect(() => verifyPublicReceiptHistoryBaseline(shallow)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_DERIVATION");
+  expect(() => verifyPublicReceiptHistoryBaseline(shallow)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_ARTIFACT");
 
   const economicDrift = loadBaseline();
   economicDrift.snapshot.completedSettlements = 2;
-  expect(() => verifyPublicReceiptHistoryBaseline(economicDrift)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_SNAPSHOT");
+  expect(() => verifyPublicReceiptHistoryBaseline(economicDrift)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_ARTIFACT");
+});
+
+test("unrecognized fields are rejected throughout provider observations", async () => {
+  const topLevel = loadArtifact();
+  topLevel.claimsProven = ["Independence of wallet owners"];
+  await expect(verifyReceiptHistoryEvidenceArtifact(topLevel)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+
+  const nested = loadArtifact();
+  nested.providers[0].observations.logs[0].claim = "synthetic";
+  await expect(verifyReceiptHistoryEvidenceArtifact(nested)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
 });

@@ -97,17 +97,29 @@ const canonicalJson = (value: unknown): string => {
   return JSON.stringify(value);
 };
 
+const requireExactKeys = (value: unknown, keys: readonly string[], code: string): void => {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || canonicalJson(Object.keys(value).sort()) !== canonicalJson([...keys].sort())) throw new Error(code);
+};
+
 export const verifyPublicReceiptHistoryBaseline = (input: unknown): void => {
   const candidate = input as PublicBaselineEvidence;
-  if (candidate?.schemaVersion !== "openbell-receipt-bound-history-baseline-v1"
-    || candidate.capturedAt !== REQUIRED_CAPTURED_AT
-    || canonicalJson(candidate.claimsNotProven) !== canonicalJson(REQUIRED_BOUNDARY_DISCLOSURES)) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_BOUNDARY");
-  if (candidate.derivation.fromBlock !== MAINNET_RECEIPT_HISTORY_BASELINE.fromBlock
-    || candidate.derivation.throughBlock !== MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock
-    || candidate.derivation.chunkSizeBlocks !== 100 || candidate.derivation.chunksPerProvider !== 4_660
-    || candidate.derivation.confirmations !== REQUIRED_CONFIRMATIONS || candidate.derivation.providerAgreementRequired !== true) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_DERIVATION");
-  if (canonicalJson(candidate.providers) !== canonicalJson([...ENDPOINT_COMMITMENTS].map(([provider, endpointCommitment]) => ({ provider, endpointCommitment })))) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_PROVENANCE");
-  if (canonicalJson(candidate.snapshot) !== canonicalJson(MAINNET_RECEIPT_HISTORY_BASELINE)) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_SNAPSHOT");
+  const expected = {
+    schemaVersion: "openbell-receipt-bound-history-baseline-v1",
+    capturedAt: REQUIRED_CAPTURED_AT,
+    derivation: {
+      fromBlock: MAINNET_RECEIPT_HISTORY_BASELINE.fromBlock,
+      throughBlock: MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock,
+      chunkSizeBlocks: 100,
+      chunksPerProvider: 4_660,
+      confirmations: REQUIRED_CONFIRMATIONS,
+      providerAgreementRequired: true
+    },
+    providers: [...ENDPOINT_COMMITMENTS].map(([provider, endpointCommitment]) => ({ provider, endpointCommitment })),
+    snapshot: MAINNET_RECEIPT_HISTORY_BASELINE,
+    claimsNotProven: REQUIRED_BOUNDARY_DISCLOSURES
+  };
+  if (canonicalJson(candidate) !== canonicalJson(expected)) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_ARTIFACT");
 };
 
 const evidenceRpc = (provider: EvidenceProvider): ReadOnlyJsonRpc => ({
@@ -143,11 +155,19 @@ const evidenceRpc = (provider: EvidenceProvider): ReadOnlyJsonRpc => ({
 export const verifyReceiptHistoryEvidenceArtifact = async (input: unknown): Promise<ReceiptBoundHistorySnapshot> => {
   verifyPublicReceiptHistoryBaseline(publicBaselineArtifact);
   const candidate = input as ReceiptHistoryEvidence;
+  requireExactKeys(candidate, ["schemaVersion", "capturedAt", "derivation", "providers", "claimsNotProven"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+  requireExactKeys(candidate.derivation, ["fromBlock", "throughBlock", "chunkSizeBlocks", "chunksPerProvider", "confirmations", "totalMatchingLogsPerProvider"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
   if (candidate?.schemaVersion !== "openbell-receipt-bound-history-observations-v1") throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SCHEMA");
   if (candidate.capturedAt !== REQUIRED_CAPTURED_AT
     || canonicalJson(candidate.claimsNotProven) !== canonicalJson(REQUIRED_BOUNDARY_DISCLOSURES)) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_BOUNDARY");
   if (candidate.providers.length !== 2 || new Set(candidate.providers.map(({ provider }) => provider)).size !== 2) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_PROVIDERS");
   for (const provider of candidate.providers) {
+    requireExactKeys(provider, ["provider", "endpointCommitment", "observationCommitment", "chainId", "head", "observations"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+    requireExactKeys(provider.head, ["number", "hash", "timestamp"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+    requireExactKeys(provider.observations, ["logs", "calls", "blocks"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+    for (const log of provider.observations.logs) requireExactKeys(log, ["address", "blockHash", "blockNumber", "transactionHash", "transactionIndex", "logIndex", "data", "topics", "removed"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+    for (const call of provider.observations.calls) requireExactKeys(call, ["invoiceId", "to", "block", "data", "result"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
+    for (const block of provider.observations.blocks) requireExactKeys(block, ["number", "hash", "timestamp"], "CONNECTED_RECEIPT_HISTORY_EVIDENCE_SHAPE");
     if (provider.chainId !== "0xc4" || ENDPOINT_COMMITMENTS.get(provider.provider) !== provider.endpointCommitment) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_PROVENANCE");
     if (provider.observationCommitment !== keccak256(stringToHex(canonicalJson(provider.observations)))) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_OBSERVATION_COMMITMENT");
     if (provider.head.number !== `0x${(BigInt(candidate.derivation.throughBlock) + BigInt(REQUIRED_CONFIRMATIONS) - 1n).toString(16)}`) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_HEAD");
