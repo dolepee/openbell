@@ -17,6 +17,8 @@ const fundButton = document.querySelector("#fund-invoice");
 const consent = document.querySelector("#fund-consent");
 const errorNode = document.querySelector("#fund-error");
 const completePanel = document.querySelector("#fund-complete");
+const PUBLIC_RPC_URL = "https://rpc.xlayer.tech";
+const RPC_TIMEOUT_MS = 10_000;
 
 let account;
 let chainId;
@@ -24,6 +26,7 @@ let candidate;
 let invoiceRecord;
 let allowance = 0n;
 let balance = 0n;
+let pendingHash;
 
 const setText = (selector, value) => {
   const node = document.querySelector(selector);
@@ -34,6 +37,27 @@ const usd = (value) => `${formatUnits(value, 6)} USDG`;
 const rpc = (method, params = []) => {
   if (!provider?.request) throw new Error("No compatible browser wallet was found.");
   return provider.request({ method, params });
+};
+const publicRpc = async (method, params = []) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+  try {
+    const response = await fetch(PUBLIC_RPC_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`X Layer RPC returned HTTP ${response.status}.`);
+    const payload = await response.json();
+    if (payload.error) throw new Error(payload.error.message || "X Layer rejected the action simulation.");
+    return payload.result;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("X Layer preflight timed out. Retry the action.");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 const setError = (message = "") => { errorNode.textContent = message; };
 const setBusy = (button, busy, busyText, idleText) => {
@@ -64,12 +88,12 @@ const refreshWallet = async ({ requestAccounts = false } = {}) => {
   await refreshState();
 };
 
-const refreshState = async () => {
+const refreshState = async ({ blockTag = "latest" } = {}) => {
   if (!candidate || !account || chainId !== OPENBELL_MAINNET_CONNECTED.chainId) return render();
   const [invoiceResult, allowanceResult, balanceResult] = await Promise.all([
-    rpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.receivables, data: buildInvoiceStateCall(candidate.invoice.invoiceId) }, "latest"]),
-    rpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: buildAllowanceStateCall(candidate.invoice.funder) }, "latest"]),
-    rpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: `0x70a08231000000000000000000000000${candidate.invoice.funder.slice(2).toLowerCase()}` }, "latest"])
+    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.receivables, data: buildInvoiceStateCall(candidate.invoice.invoiceId) }, blockTag]),
+    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: buildAllowanceStateCall(candidate.invoice.funder) }, blockTag]),
+    publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: `0x70a08231000000000000000000000000${candidate.invoice.funder.slice(2).toLowerCase()}` }, blockTag])
   ]);
   invoiceRecord = decodeInvoiceState(invoiceResult);
   assertFundingCandidateAgainstInvoice(candidate, invoiceRecord);
@@ -98,8 +122,8 @@ const render = () => {
   const accepted = consent.checked;
   const approvedAdvance = candidate?.invoice.approvedAdvance ?? 0n;
   const exactAllowance = allowance === approvedAdvance;
-  approveButton.disabled = !correctWallet || !registered || exactAllowance || balance < approvedAdvance || !accepted;
-  fundButton.disabled = !correctWallet || !registered || !exactAllowance || balance < approvedAdvance || !accepted;
+  approveButton.disabled = Boolean(pendingHash) || !correctWallet || !registered || exactAllowance || balance < approvedAdvance || !accepted;
+  fundButton.disabled = Boolean(pendingHash) || !correctWallet || !registered || !exactAllowance || balance < approvedAdvance || !accepted;
   if (correctWallet && registered && allowance > approvedAdvance) setError("Existing USDG allowance exceeds this invoice. Reset it before funding.");
   else if (correctWallet && registered && balance < approvedAdvance) setError("This wallet does not hold enough USDG for the exact advance.");
   if (funded) {
@@ -111,34 +135,65 @@ const render = () => {
 
 const waitForReceipt = async (hash) => {
   for (let attempt = 0; attempt < 90; attempt += 1) {
-    const receipt = await rpc("eth_getTransactionReceipt", [hash]);
-    if (receipt) return receipt;
+    try {
+      const receipt = await publicRpc("eth_getTransactionReceipt", [hash]);
+      if (receipt) return receipt;
+    } catch {
+      // The transaction hash is already authoritative. A transient read failure
+      // must not turn a broadcast into a retryable action.
+    }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
-  throw new Error("The transaction was sent, but confirmation is still pending.");
+  throw new Error(`Transaction ${hash} was sent, but confirmation is still pending. Check it in the X Layer explorer before retrying.`);
 };
 
 const execute = async (action, button, busyText, idleText) => {
   setError();
+  setBusy(button, true, "Checking exact action…", idleText);
   assertWalletContext(action, { account, chainId });
   if (!consent.checked) throw new Error("Confirm the real-value funding boundary first.");
-  const invoiceResult = await rpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.receivables, data: buildInvoiceStateCall(action.invoiceId) }, "latest"]);
+  const invoiceResult = await publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.receivables, data: buildInvoiceStateCall(action.invoiceId) }, "latest"]);
   assertActionAgainstInvoice(action, invoiceResult, Math.floor(Date.now() / 1_000));
   assertFundingCandidateAgainstInvoice(candidate, decodeInvoiceState(invoiceResult));
   if (action.kind === "FUND_INVOICE") {
-    const allowanceResult = await rpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: buildAllowanceStateCall(candidate.invoice.funder) }, "latest"]);
+    const allowanceResult = await publicRpc("eth_call", [{ to: OPENBELL_MAINNET_CONNECTED.settlementToken, data: buildAllowanceStateCall(candidate.invoice.funder) }, "latest"]);
     if (decodeAllowanceState(allowanceResult) !== action.amount) throw new Error("Funding requires an exact USDG allowance.");
   }
   const transaction = { from: action.signer, to: action.to, data: action.data, value: "0x0" };
   setBusy(button, true, "Simulating exact action…", idleText);
-  await rpc("eth_call", [transaction, "latest"]);
-  await rpc("eth_estimateGas", [transaction]);
+  await publicRpc("eth_call", [transaction, "latest"]);
+  await publicRpc("eth_estimateGas", [transaction]);
   setBusy(button, true, "Confirm in wallet…", idleText);
   const hash = await rpc("eth_sendTransaction", [transaction]);
+  pendingHash = hash;
+  const receiptLink = document.querySelector("#fund-receipt");
+  if (receiptLink) receiptLink.href = `${OPENBELL_MAINNET_CONNECTED.explorerTransactionBase}${hash}`;
+  render();
   setBusy(button, true, "Waiting for X Layer…", idleText);
   const receipt = await waitForReceipt(hash);
-  if (receipt.status !== "0x1") throw new Error("The X Layer receipt reports failure.");
-  await refreshState();
+  if (receipt.status !== "0x1") {
+    pendingHash = undefined;
+    render();
+    throw new Error("The X Layer receipt reports failure.");
+  }
+  let transitionObserved = false;
+  for (let attempt = 0; attempt < 6 && !transitionObserved; attempt += 1) {
+    try {
+      await refreshState({ blockTag: receipt.blockNumber });
+      transitionObserved = action.kind === "APPROVE_FUNDING"
+        ? allowance === action.amount
+        : invoiceRecord?.status === 2;
+    } catch {
+      // A receipt may propagate before every RPC backend can serve its block.
+    }
+    if (!transitionObserved) await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  if (transitionObserved) {
+    pendingHash = undefined;
+    render();
+  } else {
+    setError(`Transaction ${hash} is confirmed. Live state refresh is delayed; check the explorer before taking another action.`);
+  }
   return hash;
 };
 
