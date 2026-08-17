@@ -3,9 +3,10 @@
 **Turn a payer-signed invoice into bounded USDG funding.**
 
 OpenBell is a request-funded receivables protocol on X Layer. A supplier and payer sign one
-canonical invoice, an AI underwriter produces bounded advance terms, and a funder advances exact
-USDG only when those terms pass deterministic contract limits. The payer later settles the fixed
-repayment directly to the funder.
+canonical invoice, a genuine AI underwriter approves bounded terms or refuses, and deterministic
+contract limits decide what can move. A disclosed human exception can accept accountability after
+a refusal only at stricter limits and without erasing the original model artifact. The payer later
+settles the fixed repayment directly to the funder.
 
 **Live app:** [openbell.dolepee.com](https://openbell.dolepee.com/)
 
@@ -14,7 +15,7 @@ repayment directly to the funder.
 The user outcome is deliberately simple:
 
 ```text
-signed invoice -> bounded AI decision -> exact USDG advance -> payer settlement
+signed invoice -> authoritative AI decision -> bounded execution -> exact USDG settlement
 ```
 
 ## V2 deal preparation
@@ -30,7 +31,7 @@ amount or reject the invoice, and supplier plus payer authority remains mandator
 
 ## Connected testnet desk
 
-The current product branch adds a connected, no-value X Layer testnet journey at `/operate/`:
+The product includes a connected, no-value X Layer testnet journey at `/operate/`:
 
 - supplier and payer sign the same numeric-chain EIP-712 invoice in a browser handoff;
 - the supplier registers the exact invoice after a fresh simulation;
@@ -45,16 +46,18 @@ The current product branch adds a connected, no-value X Layer testnet journey at
   packages against the labelled fixture contracts.
 
 The service has a durable five-call daily ceiling, exact-request replay, confirmed-block rechecks,
-and local reconstruction of cached model/signature results. This branch is not yet the published
-site and has not produced a new model response or transaction. It remains
-`XLAYER TESTNET FIXTURE — NO REAL VALUE`: legal invoice validity, financing availability, canonical
-USDG, and any mainnet lifecycle remain outside the claim.
+and local reconstruction of cached model/signature results. This route remains
+`XLAYER TESTNET FIXTURE — NO REAL VALUE`; it is retained for reproducible testing and is separate
+from the canonical-USDG mainnet evidence below.
 
 ## Current status
 
-OpenBell is in pre-alpha development for BuildX AI Season. The contract is deployed and verified
-on X Layer mainnet, while the complete economic journey remains a labelled no-value testnet
-fixture. Operator disclosure (not independently verified): no mainnet lifecycle or real-value activity has occurred.
+OpenBell is in pre-alpha development for BuildX AI Season. The contract is deployed on X Layer
+mainnet and one complete canonical-USDG lifecycle has reached `SETTLED`. An unrelated supplier
+signed and registered the invoice through the public browser workflow. The payer and funder were
+founder-operated, and the underwriter signature was produced by the disclosed project operator.
+This proves the product path and real token movement; it does not independently establish the
+offchain invoice's legal validity or market demand.
 
 - Mainnet OpenBell Receivables: [`0xc4Ef249b80a6a034198C226278c51b0a903840dd`](https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd)
 - Mainnet deployment transaction: [`0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e`](https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e)
@@ -64,6 +67,8 @@ fixture. Operator disclosure (not independently verified): no mainnet lifecycle 
 - Reproducible sanitized verification record: [`evidence/openbell-xlayer-mainnet-verification-record.json`](evidence/openbell-xlayer-mainnet-verification-record.json), SHA-256 `d5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8`
 - Sanitized two-provider observations: [`evidence/openbell-xlayer-mainnet-observations.json`](evidence/openbell-xlayer-mainnet-observations.json), SHA-256 `e8e750a45a206664b0e85db3496482232556f4b2d0a23db9073c8f4e71b77dd9`. Each source is bound to a fixed official-endpoint SHA-256 commitment; endpoint provenance is committed, not independently attested.
 - Deterministic observation verification: [`evidence/openbell-xlayer-mainnet-observation-verification.json`](evidence/openbell-xlayer-mainnet-observation-verification.json), derived by `node scripts/verify-mainnet-observations.mjs`
+- Mainnet lifecycle observations: [`evidence/openbell-xlayer-mainnet-lifecycle-observations.json`](evidence/openbell-xlayer-mainnet-lifecycle-observations.json), SHA-256 `8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd`
+- Mainnet lifecycle verification: [`evidence/openbell-xlayer-mainnet-lifecycle-verification.json`](evidence/openbell-xlayer-mainnet-lifecycle-verification.json), derived by `node scripts/verify-mainnet-lifecycle.mjs`
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
 getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
@@ -71,7 +76,26 @@ source publication and an independent third-party audit remain separate, incompl
 The earlier `0xac31d5ee…f020` value is retained only as a sealed private-source manifest commitment; it is not
 described as a public manifest. The sanitized record above is the public, byte-reproducible preimage.
 
-The no-value testnet proof remains the only executed lifecycle:
+### Canonical-USDG mainnet lifecycle
+
+Invoice `0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88`
+had a face value of `0.10 USDG` and requested a `0.05 USDG` advance. The genuine first model
+assessment returned `REJECT` and was not retried. A disclosed human escalation bound the original
+rejected-artifact hash and authorized stricter terms: `0.025 USDG` advanced and `0.02525 USDG`
+repaid.
+
+- Register: [`0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948`](https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948)
+- Exact funding allowance: [`0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f`](https://www.okx.com/web3/explorer/xlayer/tx/0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f)
+- Fund `0.025 USDG`: [`0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a`](https://www.okx.com/web3/explorer/xlayer/tx/0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a)
+- Exact repayment allowance: [`0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb`](https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb)
+- Settle `0.02525 USDG`: [`0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5`](https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5)
+
+The public verifier checks both official RPCs, canonical transaction inclusion, exact calldata,
+receipt success, final invoice state, historical supplier/funder/payer balance deltas, and zero
+remaining token allowances. Endpoint provenance is committed but not independently attested, and
+the public evidence contains no signatures, signed transactions, credentials, or wallet secrets.
+
+### No-value testnet fixture
 
 - Fixture tUSDG: [`0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703`](https://www.okx.com/web3/explorer/xlayer-test/address/0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703)
 - OpenBell Receivables: [`0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18`](https://www.okx.com/web3/explorer/xlayer-test/address/0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18)
@@ -94,14 +118,18 @@ canonical X Layer test USDG at `0xF0863D7A29a55d0c4263c11bFac754312ff078DF`; the
 uses local state allocation and proves contract compatibility, not that an operator wallet can
 obtain that token. The mainnet script is separately configured for canonical USDG at
 `0x4ae46a509F6b1D9056937BA4500cb143933D2dc8`, which is also the settlement-token binding of the
-verified mainnet deployment. No mainnet invoice was registered, funded, settled, rejected, or moved
-for value.
+verified mainnet deployment and the token used by the completed lifecycle above.
 
 ## Why the AI is bounded
 
 The underwriter may tighten an advance, increase the required fee within the disclosed ceiling, or
 reject an invoice. It cannot bypass both-party signatures, alter the invoice hash, exceed the hard
 advance or fee caps, reuse stale risk data, or fund an invoice twice.
+
+In the mainnet lifecycle, the model refused and emitted no executable approval. The human
+escalation did not relabel that output: its signed digest committed to the rejected artifact and
+could authorize at most the stricter of 25% of face value and 50% of the original request. The
+executed `0.025 USDG` advance reached both limits exactly.
 
 The first genuine model evidence is now frozen with zero retries. Bankr-mediated GPT-5.6 Terra
 rejected the synthetic prior-default payer. For the stronger payer it proposed an 85% maximum and a
