@@ -101,30 +101,42 @@ const policyRefusal = {
     invoiceDigestRegistered: true
   }
 };
+const policyRefusalRequest = {
+  schemaVersion: "openbell-connected-underwriting-v1",
+  label: OPENBELL_TESTNET.label,
+  registrationTransactionHash: policyRefusal.observation.registrationTransactionHash,
+  invoiceId: policyRefusal.observation.invoiceId,
+  documentHash: policyRefusal.observation.documentHash,
+  supplier: policyRefusal.observation.supplier,
+  payer: policyRefusal.observation.payer,
+  faceValue: policyRefusal.observation.faceValue,
+  issuedAt: policyRefusal.observation.issuedAt,
+  dueDate: policyRefusal.observation.dueDate
+};
 
 test("policy refusals preserve evidence without exposing execution authority", () => {
-  assert.equal(validateConnectedPolicyRefusal(policyRefusal), policyRefusal);
+  assert.equal(validateConnectedPolicyRefusal(policyRefusal, policyRefusalRequest), policyRefusal);
   assert.equal("signingRequest" in policyRefusal, false);
-  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, executionAuthority: true }), /no execution authority/);
-  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, signingRequest: {} }), /unsupported or missing fields/);
+  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, executionAuthority: true }, policyRefusalRequest), /no execution authority/);
+  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, signingRequest: {} }, policyRefusalRequest), /unsupported or missing fields/);
   assert.throws(() => validateConnectedPolicyRefusal({
     ...policyRefusal,
     modelEvidence: { ...policyRefusal.modelEvidence, decision: { ...policyRefusal.modelEvidence.decision, verdict: "REJECT" } }
-  }), /contradicts the model decision/);
+  }, policyRefusalRequest), /contradicts the model decision/);
   assert.throws(() => validateConnectedPolicyRefusal({
     ...policyRefusal,
     modelEvidence: { ...policyRefusal.modelEvidence, decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 7_000 } }
-  }), /contradicts the model decision/);
+  }, policyRefusalRequest), /contradicts the model decision/);
   assert.throws(() => validateConnectedPolicyRefusal({
     ...policyRefusal,
     refusal: { ...policyRefusal.refusal, message: "A different refusal explanation." }
-  }), /contradicts the model decision/);
+  }, policyRefusalRequest), /contradicts the model decision/);
   for (const [code, message] of [
     ["INVALID_EVIDENCE", "Both signatures and the document hash must verify."],
     ["DUPLICATE_INVOICE", "The invoice already appears in the duplicate index."],
     ["INVALID_TENOR", "The invoice tenor is outside the protocol envelope."]
   ]) {
-    assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, refusal: { code, message } }), /reason is invalid/);
+    assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, refusal: { code, message } }, policyRefusalRequest), /reason is invalid/);
   }
   assert.throws(() => validateConnectedPolicyRefusal({
     ...policyRefusal,
@@ -133,7 +145,19 @@ test("policy refusals preserve evidence without exposing execution authority", (
       ...policyRefusal.modelEvidence,
       decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 8_000, maximumAdvanceBps: 1 }
     }
-  }), /contradicts the model decision/);
+  }, policyRefusalRequest), /contradicts the model decision/);
+  assert.throws(() => validateConnectedPolicyRefusal(policyRefusal), /exact submitted assessment request/);
+  assert.throws(() => validateConnectedPolicyRefusal(policyRefusal, { ...policyRefusalRequest, invoiceId: `0x${"ff".repeat(32)}` }), /does not match/);
+  const roundedRefusal = {
+    ...policyRefusal,
+    refusal: { code: "MODEL_REJECTED", message: "The bounded advance is zero." },
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 8_000, maximumAdvanceBps: 1 }
+    },
+    observation: { ...policyRefusal.observation, faceValue: "1" }
+  };
+  assert.equal(validateConnectedPolicyRefusal(roundedRefusal, { ...policyRefusalRequest, faceValue: "1" }), roundedRefusal);
 });
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({

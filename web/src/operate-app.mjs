@@ -426,7 +426,7 @@ assessmentForm?.addEventListener("submit", async (event) => {
     });
     const result = await response.json();
     if (response.status === 422 && result?.error === "CONNECTED_POLICY_REFUSAL") {
-      pendingPolicyRefusal = validateConnectedPolicyRefusal(result.policyRefusal);
+      pendingPolicyRefusal = validateConnectedPolicyRefusal(result.policyRefusal, authorized);
       setText("#assessment-verdict", "Policy refused · no execution authority.");
       setText("#assessment-economics", `${pendingPolicyRefusal.refusal.code} · ${pendingPolicyRefusal.refusal.message}`);
       setText("#assessment-provider", `${pendingPolicyRefusal.modelEvidence.requestedModel} · response ${compact(pendingPolicyRefusal.modelEvidence.providerResponseId)} · exact refusal evidence sealed`);

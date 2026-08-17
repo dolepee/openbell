@@ -241,8 +241,9 @@ const refusalMessages = Object.freeze({
   LOW_CONFIDENCE: "The model confidence is below the policy floor."
 });
 const CONNECTED_MIN_CONFIDENCE_BPS = 7_000;
+const CONNECTED_MAX_ADVANCE_BPS = 8_000n;
 
-export function validateConnectedPolicyRefusal(candidate) {
+export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
   allowedKeys(candidate, ["schemaVersion", "outcome", "executionAuthority", "refusal", "modelEvidence", "observation"], "Policy refusal");
   if (candidate.schemaVersion !== "openbell-connected-policy-refusal-v1" || candidate.outcome !== "POLICY_REFUSAL" || candidate.executionAuthority !== false) {
     throw new Error("Policy refusal must explicitly carry no execution authority.");
@@ -272,11 +273,7 @@ export function validateConnectedPolicyRefusal(candidate) {
     : candidate.refusal.message === expectedMessage;
   const lowConfidenceMatches = candidate.refusal.code !== "LOW_CONFIDENCE"
     || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS);
-  const boundedRejectionMatches = candidate.refusal.code !== "MODEL_REJECTED"
-    || (evidence.decision.verdict === "APPROVE"
-      && evidence.decision.confidenceBps >= CONNECTED_MIN_CONFIDENCE_BPS
-      && evidence.decision.maximumAdvanceBps === 0);
-  if (!messageMatches || !lowConfidenceMatches || !boundedRejectionMatches) {
+  if (!messageMatches || !lowConfidenceMatches) {
     throw new Error("Policy refusal contradicts the model decision or connected policy.");
   }
   const observation = candidate.observation;
@@ -295,6 +292,28 @@ export function validateConnectedPolicyRefusal(candidate) {
   asUint(observation.faceValue, "Observed face value");
   ["blockHash", "registrationTransactionHash", "invoiceId", "invoiceDigest", "documentHash"].forEach((key) => asHash(observation[key], `Observed ${key}`));
   ["receivables", "settlementToken", "supplier", "payer", "underwriter"].forEach((key) => asAddress(observation[key], `Observed ${key}`));
+  if (!expectedRequest || typeof expectedRequest !== "object" || Array.isArray(expectedRequest)) {
+    throw new Error("Policy refusal requires the exact submitted assessment request.");
+  }
+  const expectedSchema = deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : "openbell-mainnet-underwriting-v1";
+  const requestMatches = expectedRequest.schemaVersion === expectedSchema
+    && expectedRequest.label === deployment.label
+    && String(observation.registrationTransactionHash).toLowerCase() === String(expectedRequest.registrationTransactionHash).toLowerCase()
+    && String(observation.invoiceId).toLowerCase() === String(expectedRequest.invoiceId).toLowerCase()
+    && String(observation.documentHash).toLowerCase() === String(expectedRequest.documentHash).toLowerCase()
+    && String(observation.supplier).toLowerCase() === String(expectedRequest.supplier).toLowerCase()
+    && String(observation.payer).toLowerCase() === String(expectedRequest.payer).toLowerCase()
+    && observation.faceValue === expectedRequest.faceValue
+    && observation.issuedAt === expectedRequest.issuedAt
+    && observation.dueDate === expectedRequest.dueDate;
+  if (!requestMatches) throw new Error("Policy refusal does not match the submitted assessment request.");
+  if (candidate.refusal.code === "MODEL_REJECTED") {
+    const boundedAdvanceBps = BigInt(Math.min(evidence.decision.maximumAdvanceBps, Number(CONNECTED_MAX_ADVANCE_BPS)));
+    const maximumAdvance = (BigInt(observation.faceValue) * boundedAdvanceBps) / 10_000n;
+    if (evidence.decision.verdict !== "APPROVE" || evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS || maximumAdvance !== 0n) {
+      throw new Error("Policy refusal contradicts the model decision or connected policy.");
+    }
+  }
   return candidate;
 }
 
