@@ -1,4 +1,5 @@
 import evidence from "../../evidence/openbell-receipt-bound-history-observations.json" with { type: "json" };
+import baselineEvidence from "../../evidence/openbell-receipt-bound-history-baseline.json" with { type: "json" };
 import { keccak256, stringToHex } from "viem";
 import { CONNECTED_MAINNET } from "./connected-underwriting.js";
 import type { ReadOnlyJsonRpc } from "./confirmed-connected-observer.js";
@@ -55,6 +56,22 @@ interface ReceiptHistoryEvidence {
   readonly claimsNotProven: readonly string[];
 }
 
+interface PublicBaselineEvidence {
+  readonly schemaVersion: string;
+  readonly capturedAt: string;
+  readonly derivation: {
+    readonly fromBlock: string;
+    readonly throughBlock: string;
+    readonly chunkSizeBlocks: number;
+    readonly chunksPerProvider: number;
+    readonly confirmations: number;
+    readonly providerAgreementRequired: boolean;
+  };
+  readonly providers: readonly { readonly provider: string; readonly endpointCommitment: string }[];
+  readonly snapshot: unknown;
+  readonly claimsNotProven: readonly string[];
+}
+
 const ENDPOINT_COMMITMENTS = new Map([
   ["official-xlayer", "0x6dc6837936cfafdb8db23141dc98177dbd4f1c79c1557d49210b9323920fb950"],
   ["official-okx", "0xfa5659df3a429653458dace179429da5792e84e14097e98fc8e5afe67fa1148c"]
@@ -69,6 +86,7 @@ const REQUIRED_BOUNDARY_DISCLOSURES = [
 ] as const;
 
 const artifact = evidence as ReceiptHistoryEvidence;
+const publicBaselineArtifact = baselineEvidence as PublicBaselineEvidence;
 let verification: Promise<ReceiptBoundHistorySnapshot> | undefined;
 
 const canonicalJson = (value: unknown): string => {
@@ -77,6 +95,19 @@ const canonicalJson = (value: unknown): string => {
     return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   }
   return JSON.stringify(value);
+};
+
+export const verifyPublicReceiptHistoryBaseline = (input: unknown): void => {
+  const candidate = input as PublicBaselineEvidence;
+  if (candidate?.schemaVersion !== "openbell-receipt-bound-history-baseline-v1"
+    || candidate.capturedAt !== REQUIRED_CAPTURED_AT
+    || canonicalJson(candidate.claimsNotProven) !== canonicalJson(REQUIRED_BOUNDARY_DISCLOSURES)) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_BOUNDARY");
+  if (candidate.derivation.fromBlock !== MAINNET_RECEIPT_HISTORY_BASELINE.fromBlock
+    || candidate.derivation.throughBlock !== MAINNET_RECEIPT_HISTORY_BASELINE.throughBlock
+    || candidate.derivation.chunkSizeBlocks !== 100 || candidate.derivation.chunksPerProvider !== 4_660
+    || candidate.derivation.confirmations !== REQUIRED_CONFIRMATIONS || candidate.derivation.providerAgreementRequired !== true) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_DERIVATION");
+  if (canonicalJson(candidate.providers) !== canonicalJson([...ENDPOINT_COMMITMENTS].map(([provider, endpointCommitment]) => ({ provider, endpointCommitment })))) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_PROVENANCE");
+  if (canonicalJson(candidate.snapshot) !== canonicalJson(MAINNET_RECEIPT_HISTORY_BASELINE)) throw new Error("CONNECTED_RECEIPT_HISTORY_BASELINE_SNAPSHOT");
 };
 
 const evidenceRpc = (provider: EvidenceProvider): ReadOnlyJsonRpc => ({
@@ -110,6 +141,7 @@ const evidenceRpc = (provider: EvidenceProvider): ReadOnlyJsonRpc => ({
 });
 
 export const verifyReceiptHistoryEvidenceArtifact = async (input: unknown): Promise<ReceiptBoundHistorySnapshot> => {
+  verifyPublicReceiptHistoryBaseline(publicBaselineArtifact);
   const candidate = input as ReceiptHistoryEvidence;
   if (candidate?.schemaVersion !== "openbell-receipt-bound-history-observations-v1") throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SCHEMA");
   if (candidate.capturedAt !== REQUIRED_CAPTURED_AT

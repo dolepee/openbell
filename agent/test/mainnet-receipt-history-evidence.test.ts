@@ -2,10 +2,13 @@ import { readFileSync } from "node:fs";
 import { keccak256, stringToHex } from "viem";
 import { expect, test } from "vitest";
 import { MAINNET_RECEIPT_HISTORY_BASELINE } from "../src/mainnet-receipt-history-baseline.js";
-import { verifyReceiptHistoryEvidenceArtifact } from "../src/mainnet-receipt-history-evidence.js";
+import { verifyPublicReceiptHistoryBaseline, verifyReceiptHistoryEvidenceArtifact } from "../src/mainnet-receipt-history-evidence.js";
 
 const loadArtifact = (): Record<string, any> => JSON.parse(readFileSync(
   new URL("../../evidence/openbell-receipt-bound-history-observations.json", import.meta.url), "utf8"
+));
+const loadBaseline = (): Record<string, any> => JSON.parse(readFileSync(
+  new URL("../../evidence/openbell-receipt-bound-history-baseline.json", import.meta.url), "utf8"
 ));
 
 const canonicalJson = (value: unknown): string => {
@@ -69,4 +72,26 @@ test("confirmation depth is pinned to twelve rather than trusted from artifact m
   artifact.derivation.confirmations = 1;
   for (const provider of artifact.providers) provider.head.number = `0x${BigInt(artifact.derivation.throughBlock).toString(16)}`;
   await expect(verifyReceiptHistoryEvidenceArtifact(artifact)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_HEAD");
+});
+
+test("the separately published baseline cannot drift from the same disclosure boundary", () => {
+  expect(() => verifyPublicReceiptHistoryBaseline(loadBaseline())).not.toThrow();
+
+  const removed = loadBaseline();
+  removed.claimsNotProven.pop();
+  expect(() => verifyPublicReceiptHistoryBaseline(removed)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_BOUNDARY");
+
+  const rewritten = loadBaseline();
+  rewritten.claimsNotProven[0] = "Complete global creditworthiness is proven.";
+  expect(() => verifyPublicReceiptHistoryBaseline(rewritten)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_BOUNDARY");
+});
+
+test("the public baseline derivation and snapshot are pinned", () => {
+  const shallow = loadBaseline();
+  shallow.derivation.confirmations = 1;
+  expect(() => verifyPublicReceiptHistoryBaseline(shallow)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_DERIVATION");
+
+  const economicDrift = loadBaseline();
+  economicDrift.snapshot.completedSettlements = 2;
+  expect(() => verifyPublicReceiptHistoryBaseline(economicDrift)).toThrow("CONNECTED_RECEIPT_HISTORY_BASELINE_SNAPSHOT");
 });
