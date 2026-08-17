@@ -576,6 +576,7 @@ export function validateConnectedAssessment(assessment, expectedRequest) {
   if (canonicalJson(assessment.decision) !== canonicalJson(expectedDecision)) throw new Error("Connected assessment decision is not the bounded result of its model evidence.");
   const expectedNonce = BigInt(keccak256(stringToHex(canonicalJson(expectedRequest)))).toString();
   if (assessment.signingRequest?.nonce !== expectedNonce) throw new Error("Connected assessment nonce does not bind the submitted request.");
+  if (deploymentForEnvelope(assessment.signingRequest) !== deployment) throw new Error("Connected assessment signing deployment does not match its observation.");
   connectedDecisionTypedData(assessment);
   return assessment;
 }

@@ -4,6 +4,7 @@ import { encodeAbiParameters, hashTypedData, keccak256, parseAbiParameters, stri
 import { privateKeyToAccount } from "viem/accounts";
 import {
   OPENBELL_TESTNET,
+  OPENBELL_MAINNET_CONNECTED,
   FIXTURE_CLAIM_AMOUNT,
   approvalTypedData,
   addInvoiceSessionSignature,
@@ -210,6 +211,18 @@ const successfulAssessment = {
     nonce: successfulNonce
   }
 };
+const wrongDeploymentDigest = hashTypedData(approvalTypedData({
+  invoiceId: successfulDecision.invoiceId,
+  invoiceDigest: successfulDecision.invoiceDigest,
+  funder: successfulDecision.funder,
+  advanceAmount: successfulDecision.advanceAmount,
+  repaymentAmount: successfulDecision.repaymentAmount,
+  riskTimestamp: String(successfulDecision.riskTimestamp),
+  expiresAt: String(successfulDecision.expiresAt),
+  riskReasonsHash: successfulDecision.riskReasonsHash,
+  modelHash: successfulDecision.modelHash,
+  nonce: successfulNonce
+}, OPENBELL_MAINNET_CONNECTED));
 
 test("policy refusals preserve evidence without exposing execution authority", () => {
   assert.equal(validateConnectedPolicyRefusal(policyRefusal, policyRefusalRequest), policyRefusal);
@@ -297,9 +310,10 @@ test("successful connected assessments bind every economic input before underwri
     { ...successfulAssessment, decision: { ...successfulAssessment.decision, repaymentAmount: "70699999" } },
     { ...successfulAssessment, modelEvidence: { ...successfulAssessment.modelEvidence, responseHash: `0x${"ef".repeat(32)}` } },
     { ...successfulAssessment, modelEvidence: { ...successfulAssessment.modelEvidence, decision: { ...successfulAssessment.modelEvidence.decision, reasons: ["PRIOR_DEFAULT"] } } },
+    { ...successfulAssessment, signingRequest: { ...successfulAssessment.signingRequest, label: OPENBELL_MAINNET_CONNECTED.label, chainId: "196", authorizedDigest: wrongDeploymentDigest } },
     { ...successfulAssessment, signingRequest: { ...successfulAssessment.signingRequest, nonce: "1" } }
   ]) {
-    assert.throws(() => validateConnectedAssessment(changedAssessment, successfulAssessmentRequest), /bounded result|digest changed|nonce|unsupported by the submitted evidence/);
+    assert.throws(() => validateConnectedAssessment(changedAssessment, successfulAssessmentRequest), /bounded result|digest changed|nonce|unsupported by the submitted evidence|signing deployment/);
   }
 });
 
