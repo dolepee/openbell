@@ -26,6 +26,7 @@ let candidate;
 let invoiceRecord;
 let allowance = 0n;
 let balance = 0n;
+let pendingHash;
 
 const setText = (selector, value) => {
   const node = document.querySelector(selector);
@@ -121,8 +122,8 @@ const render = () => {
   const accepted = consent.checked;
   const approvedAdvance = candidate?.invoice.approvedAdvance ?? 0n;
   const exactAllowance = allowance === approvedAdvance;
-  approveButton.disabled = !correctWallet || !registered || exactAllowance || balance < approvedAdvance || !accepted;
-  fundButton.disabled = !correctWallet || !registered || !exactAllowance || balance < approvedAdvance || !accepted;
+  approveButton.disabled = Boolean(pendingHash) || !correctWallet || !registered || exactAllowance || balance < approvedAdvance || !accepted;
+  fundButton.disabled = Boolean(pendingHash) || !correctWallet || !registered || !exactAllowance || balance < approvedAdvance || !accepted;
   if (correctWallet && registered && allowance > approvedAdvance) setError("Existing USDG allowance exceeds this invoice. Reset it before funding.");
   else if (correctWallet && registered && balance < approvedAdvance) setError("This wallet does not hold enough USDG for the exact advance.");
   if (funded) {
@@ -134,11 +135,16 @@ const render = () => {
 
 const waitForReceipt = async (hash) => {
   for (let attempt = 0; attempt < 90; attempt += 1) {
-    const receipt = await publicRpc("eth_getTransactionReceipt", [hash]);
-    if (receipt) return receipt;
+    try {
+      const receipt = await publicRpc("eth_getTransactionReceipt", [hash]);
+      if (receipt) return receipt;
+    } catch {
+      // The transaction hash is already authoritative. A transient read failure
+      // must not turn a broadcast into a retryable action.
+    }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
-  throw new Error("The transaction was sent, but confirmation is still pending.");
+  throw new Error(`Transaction ${hash} was sent, but confirmation is still pending. Check it in the X Layer explorer before retrying.`);
 };
 
 const execute = async (action, button, busyText, idleText) => {
@@ -159,9 +165,14 @@ const execute = async (action, button, busyText, idleText) => {
   await publicRpc("eth_estimateGas", [transaction]);
   setBusy(button, true, "Confirm in wallet…", idleText);
   const hash = await rpc("eth_sendTransaction", [transaction]);
+  pendingHash = hash;
+  const receiptLink = document.querySelector("#fund-receipt");
+  if (receiptLink) receiptLink.href = `${OPENBELL_MAINNET_CONNECTED.explorerTransactionBase}${hash}`;
+  render();
   setBusy(button, true, "Waiting for X Layer…", idleText);
   const receipt = await waitForReceipt(hash);
   if (receipt.status !== "0x1") throw new Error("The X Layer receipt reports failure.");
+  pendingHash = undefined;
   await refreshState();
   return hash;
 };
