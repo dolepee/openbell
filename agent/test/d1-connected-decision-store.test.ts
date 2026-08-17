@@ -21,6 +21,7 @@ const database = (): D1DatabaseLike => {
 };
 const invoiceId = `0x${"aa".repeat(32)}` as const;
 const requestHash = `0x${"bb".repeat(32)}` as const;
+const artifactHash = `0x${"cc".repeat(32)}` as const;
 
 test("Sites D1 migration is byte-derived from the runtime schema", () => {
   expect(readFileSync("drizzle/0000_connected_underwriting.sql", "utf8")).toBe(`${connectedDecisionTableSql};\n\n${connectedDailyBudgetTableSql};\n`);
@@ -55,10 +56,10 @@ test("D1 store preserves one policy-refusal artifact without reopening execution
   const store = new D1ConnectedDecisionStore(database(), () => 210);
   await store.claim(invoiceId, requestHash, "{}");
   await store.beginModel(invoiceId, requestHash);
-  await store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":1}");
+  await store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":1}", artifactHash);
   await store.fail(invoiceId, requestHash, "LOW_CONFIDENCE");
-  expect(await store.loadPolicyRefusal(invoiceId, requestHash)).toBe("{\"refusal\":1}");
-  await expect(store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":2}")).rejects.toThrow("CONNECTED_STORE_REFUSAL_CONFLICT");
+  expect(await store.loadPolicyRefusal(invoiceId, requestHash)).toEqual({ resultJson: "{\"refusal\":1}", artifactHash });
+  await expect(store.recordPolicyRefusal(invoiceId, requestHash, "{\"refusal\":2}", artifactHash)).rejects.toThrow("CONNECTED_STORE_REFUSAL_CONFLICT");
   expect((await store.claim(invoiceId, requestHash, "{}")).row).toEqual({ requestHash, status: "FAILED", failureCode: "LOW_CONFIDENCE" });
 });
 

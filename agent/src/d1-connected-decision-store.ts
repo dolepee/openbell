@@ -107,20 +107,22 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_FAIL_CONFLICT");
   }
 
-  async recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void> {
+  async recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void> {
     await this.#initialize();
     const result = await this.database.prepare(
-      "INSERT INTO connected_underwriting_policy_refusals (invoice_id, request_hash, result_json, created_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
-    ).bind(invoiceId, requestHash, resultJson, this.now(), invoiceId, requestHash).run();
+      "INSERT INTO connected_underwriting_policy_refusals (invoice_id, request_hash, result_json, artifact_hash, created_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
+    ).bind(invoiceId, requestHash, resultJson, artifactHash, this.now(), invoiceId, requestHash).run();
     if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
   }
 
-  async loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<string | null> {
+  async loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null> {
     await this.#initialize();
     const row = await this.database.prepare(
-      "SELECT result_json FROM connected_underwriting_policy_refusals WHERE invoice_id = ? AND request_hash = ?"
-    ).bind(invoiceId, requestHash).first<{ result_json: string }>();
-    return row?.result_json ?? null;
+      "SELECT result_json, artifact_hash FROM connected_underwriting_policy_refusals WHERE invoice_id = ? AND request_hash = ?"
+    ).bind(invoiceId, requestHash).first<{ result_json: string; artifact_hash: string }>();
+    if (!row) return null;
+    if (!/^0x[0-9a-f]{64}$/.test(row.artifact_hash)) throw new Error("CONNECTED_STORE_CORRUPT_REFUSAL_HASH");
+    return { resultJson: row.result_json, artifactHash: row.artifact_hash as Hex };
   }
 
   async reserveDailyModelCall(day: string, maximum: number): Promise<boolean> {

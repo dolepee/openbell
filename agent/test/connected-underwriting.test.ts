@@ -53,7 +53,7 @@ const authorizedRequest = async (changes: Partial<Omit<ConnectedUnderwritingRequ
 
 class MemoryStore implements ConnectedDecisionStore {
   readonly rows = new Map<string, StoredConnectedDecision>();
-  readonly refusals = new Map<string, string>();
+  readonly refusals = new Map<string, { resultJson: string; artifactHash: `0x${string}` }>();
   async load(invoiceId: `0x${string}`): Promise<StoredConnectedDecision | null> { return this.rows.get(invoiceId) ?? null; }
   async claim(invoiceId: `0x${string}`, requestHash: `0x${string}`): Promise<{ claimed: boolean; row: StoredConnectedDecision }> {
     const existing = this.rows.get(invoiceId);
@@ -71,11 +71,11 @@ class MemoryStore implements ConnectedDecisionStore {
   async fail(invoiceId: `0x${string}`, requestHash: `0x${string}`, failureCode: string): Promise<void> {
     this.rows.set(invoiceId, { requestHash, status: "FAILED", failureCode });
   }
-  async recordPolicyRefusal(invoiceId: `0x${string}`, _requestHash: `0x${string}`, resultJson: string): Promise<void> {
+  async recordPolicyRefusal(invoiceId: `0x${string}`, _requestHash: `0x${string}`, resultJson: string, artifactHash: `0x${string}`): Promise<void> {
     if (this.refusals.has(invoiceId)) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
-    this.refusals.set(invoiceId, resultJson);
+    this.refusals.set(invoiceId, { resultJson, artifactHash });
   }
-  async loadPolicyRefusal(invoiceId: `0x${string}`): Promise<string | null> { return this.refusals.get(invoiceId) ?? null; }
+  async loadPolicyRefusal(invoiceId: `0x${string}`): Promise<{ resultJson: string; artifactHash: `0x${string}` } | null> { return this.refusals.get(invoiceId) ?? null; }
   async reserveDailyModelCall(): Promise<boolean> { return true; }
 }
 
@@ -271,6 +271,20 @@ test("low-confidence approval preserves model evidence but creates no signing au
     else throw error;
   }
   expect(replay?.evidence).toEqual(refusal?.evidence);
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
+});
+
+test.each(["providerResponseId", "responseHash", "decision"] as const)("durable refusal replay rejects edited artifact field %s", async (field) => {
+  const h = harness({ ...approval, confidenceBps: 6_999 });
+  await expect(h.service.authorize(request)).rejects.toBeInstanceOf(ConnectedPolicyRefusal);
+  const stored = h.store.refusals.get(request.invoiceId);
+  if (!stored) throw new Error("expected stored refusal");
+  const parsed = JSON.parse(stored.resultJson);
+  if (field === "providerResponseId") parsed.modelEvidence.providerResponseId = "forged-response";
+  else if (field === "responseHash") parsed.modelEvidence.responseHash = `0x${"ef".repeat(32)}`;
+  else parsed.modelEvidence.decision.confidenceBps = 6_998;
+  h.store.refusals.set(request.invoiceId, { ...stored, resultJson: JSON.stringify(parsed) });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_POLICY_REFUSAL_ARTIFACT_HASH_MISMATCH");
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 

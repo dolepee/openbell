@@ -151,8 +151,8 @@ export interface ConnectedDecisionStore {
   beginModel(invoiceId: Hex, requestHash: Hex): Promise<void>;
   complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
   fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void>;
-  recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
-  loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<string | null>;
+  recordPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void>;
+  loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null>;
   reserveDailyModelCall(day: string, maximum: number): Promise<boolean>;
 }
 
@@ -205,6 +205,7 @@ const canonicalJson = (value: unknown): string => {
   return JSON.stringify(value);
 };
 const requestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
+const refusalArtifactHashOf = (resultJson: string): Hex => keccak256(stringToHex(resultJson));
 const failureCode = (error: unknown): string => error instanceof Error ? error.message.slice(0, 160) : "CONNECTED_UNDERWRITING_FAILED";
 const unsupportedZeroHistoryReasons = new Set([
   "STRONG_ON_TIME_HISTORY",
@@ -468,9 +469,12 @@ export class ConnectedUnderwritingService {
         return rebuilt;
       }
       if (row.status === "FAILED") {
-        const refusalJson = await this.dependencies.store.loadPolicyRefusal(request.invoiceId, requestHash);
-        if (refusalJson !== null) {
-          const refusal = await validateStoredPolicyRefusal(JSON.parse(refusalJson), request, deployment);
+        const storedRefusal = await this.dependencies.store.loadPolicyRefusal(request.invoiceId, requestHash);
+        if (storedRefusal !== null) {
+          if (refusalArtifactHashOf(storedRefusal.resultJson) !== storedRefusal.artifactHash) {
+            throw new Error("CONNECTED_POLICY_REFUSAL_ARTIFACT_HASH_MISMATCH");
+          }
+          const refusal = await validateStoredPolicyRefusal(JSON.parse(storedRefusal.resultJson), request, deployment);
           throw new ConnectedPolicyRefusal(refusal);
         }
         throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
@@ -512,7 +516,8 @@ export class ConnectedUnderwritingService {
       } catch (error) {
         if (!(error instanceof UnderwritingRefusal)) throw error;
         const refusal = buildPolicyRefusalEvidence(error, modelEvidence, postModelObservation);
-        await this.dependencies.store.recordPolicyRefusal(request.invoiceId, requestHash, JSON.stringify(refusal));
+        const refusalJson = JSON.stringify(refusal);
+        await this.dependencies.store.recordPolicyRefusal(request.invoiceId, requestHash, refusalJson, refusalArtifactHashOf(refusalJson));
         await this.dependencies.store.fail(request.invoiceId, requestHash, error.code);
         throw new ConnectedPolicyRefusal(refusal);
       }
