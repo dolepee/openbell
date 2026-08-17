@@ -53,3 +53,20 @@ test("tampered scan completeness fails before economic derivation", async () => 
   artifact.derivation.chunksPerProvider -= 1;
   await expect(verifyReceiptHistoryEvidenceArtifact(artifact)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SCAN");
 });
+
+test("evidence boundary disclosures are immutable", async () => {
+  const removed = loadArtifact();
+  removed.claimsNotProven.pop();
+  await expect(verifyReceiptHistoryEvidenceArtifact(removed)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_BOUNDARY");
+
+  const rewritten = loadArtifact();
+  rewritten.claimsNotProven[1] = "Invoice documents are valid.";
+  await expect(verifyReceiptHistoryEvidenceArtifact(rewritten)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_BOUNDARY");
+});
+
+test("confirmation depth is pinned to twelve rather than trusted from artifact metadata", async () => {
+  const artifact = loadArtifact();
+  artifact.derivation.confirmations = 1;
+  for (const provider of artifact.providers) provider.head.number = `0x${BigInt(artifact.derivation.throughBlock).toString(16)}`;
+  await expect(verifyReceiptHistoryEvidenceArtifact(artifact)).rejects.toThrow("CONNECTED_RECEIPT_HISTORY_EVIDENCE_HEAD");
+});

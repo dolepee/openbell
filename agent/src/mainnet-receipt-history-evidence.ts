@@ -42,6 +42,7 @@ interface EvidenceObservations {
 
 interface ReceiptHistoryEvidence {
   readonly schemaVersion: string;
+  readonly capturedAt: string;
   readonly derivation: {
     readonly fromBlock: string;
     readonly throughBlock: string;
@@ -51,12 +52,21 @@ interface ReceiptHistoryEvidence {
     readonly totalMatchingLogsPerProvider: number;
   };
   readonly providers: readonly EvidenceProvider[];
+  readonly claimsNotProven: readonly string[];
 }
 
 const ENDPOINT_COMMITMENTS = new Map([
   ["official-xlayer", "0x6dc6837936cfafdb8db23141dc98177dbd4f1c79c1557d49210b9323920fb950"],
   ["official-okx", "0xfa5659df3a429653458dace179429da5792e84e14097e98fc8e5afe67fa1148c"]
 ]);
+const REQUIRED_CONFIRMATIONS = 12;
+const REQUIRED_CAPTURED_AT = "2026-08-17T21:28:06Z";
+const REQUIRED_BOUNDARY_DISCLOSURES = [
+  "Global creditworthiness or liabilities outside this OpenBell contract",
+  "Legal validity of any invoice document",
+  "A protocol default state; overdue funded invoices are not labelled defaults",
+  "Independence of wallet owners"
+] as const;
 
 const artifact = evidence as ReceiptHistoryEvidence;
 let verification: Promise<ReceiptBoundHistorySnapshot> | undefined;
@@ -102,16 +112,18 @@ const evidenceRpc = (provider: EvidenceProvider): ReadOnlyJsonRpc => ({
 export const verifyReceiptHistoryEvidenceArtifact = async (input: unknown): Promise<ReceiptBoundHistorySnapshot> => {
   const candidate = input as ReceiptHistoryEvidence;
   if (candidate?.schemaVersion !== "openbell-receipt-bound-history-observations-v1") throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SCHEMA");
+  if (candidate.capturedAt !== REQUIRED_CAPTURED_AT
+    || canonicalJson(candidate.claimsNotProven) !== canonicalJson(REQUIRED_BOUNDARY_DISCLOSURES)) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_BOUNDARY");
   if (candidate.providers.length !== 2 || new Set(candidate.providers.map(({ provider }) => provider)).size !== 2) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_PROVIDERS");
   for (const provider of candidate.providers) {
     if (provider.chainId !== "0xc4" || ENDPOINT_COMMITMENTS.get(provider.provider) !== provider.endpointCommitment) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_PROVENANCE");
     if (provider.observationCommitment !== keccak256(stringToHex(canonicalJson(provider.observations)))) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_OBSERVATION_COMMITMENT");
-    if (provider.head.number !== `0x${(BigInt(candidate.derivation.throughBlock) + BigInt(candidate.derivation.confirmations) - 1n).toString(16)}`) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_HEAD");
+    if (provider.head.number !== `0x${(BigInt(candidate.derivation.throughBlock) + BigInt(REQUIRED_CONFIRMATIONS) - 1n).toString(16)}`) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_HEAD");
   }
   if (canonicalJson(candidate.providers[0]?.head) !== canonicalJson(candidate.providers[1]?.head)) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_PROVIDER_DISAGREEMENT");
   if (canonicalJson(candidate.providers[0]?.observations) !== canonicalJson(candidate.providers[1]?.observations)) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_PROVIDER_DISAGREEMENT");
   const expectedChunks = Math.ceil((Number(BigInt(candidate.derivation.throughBlock) - BigInt(candidate.derivation.fromBlock) + 1n)) / candidate.derivation.chunkSizeBlocks);
-  if (candidate.derivation.chunkSizeBlocks !== 100 || candidate.derivation.chunksPerProvider !== expectedChunks
+  if (candidate.derivation.confirmations !== REQUIRED_CONFIRMATIONS || candidate.derivation.chunkSizeBlocks !== 100 || candidate.derivation.chunksPerProvider !== expectedChunks
     || candidate.providers.some((provider) => candidate.derivation.totalMatchingLogsPerProvider !== provider.observations.logs.length)) throw new Error("CONNECTED_RECEIPT_HISTORY_EVIDENCE_SCAN");
 
   const snapshot = await deriveReceiptBoundHistory(
@@ -120,7 +132,7 @@ export const verifyReceiptHistoryEvidenceArtifact = async (input: unknown): Prom
     {
       fromBlock: BigInt(candidate.derivation.fromBlock),
       throughBlock: BigInt(candidate.derivation.throughBlock),
-      confirmations: BigInt(candidate.derivation.confirmations),
+      confirmations: BigInt(REQUIRED_CONFIRMATIONS),
       chunkBlocks: BigInt(candidate.derivation.chunkSizeBlocks)
     }
   );
