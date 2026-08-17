@@ -107,6 +107,18 @@ test("policy refusals preserve evidence without exposing execution authority", (
   assert.equal("signingRequest" in policyRefusal, false);
   assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, executionAuthority: true }), /no execution authority/);
   assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, signingRequest: {} }), /unsupported or missing fields/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: { ...policyRefusal.modelEvidence, decision: { ...policyRefusal.modelEvidence.decision, verdict: "REJECT" } }
+  }), /contradicts the model decision/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: { ...policyRefusal.modelEvidence, decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 7_000 } }
+  }), /contradicts the model decision/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    refusal: { ...policyRefusal.refusal, message: "A different refusal explanation." }
+  }), /contradicts the model decision/);
 });
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({

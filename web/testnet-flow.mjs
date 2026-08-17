@@ -236,6 +236,14 @@ const riskReasons = new Set([
   "LONG_TENOR", "STALE_SETTLEMENT_HISTORY", "INCONSISTENT_EVIDENCE", "MODEL_UNCERTAINTY"
 ]);
 const refusalCodes = new Set(["INVALID_EVIDENCE", "DUPLICATE_INVOICE", "INVALID_TENOR", "MODEL_REJECTED", "LOW_CONFIDENCE"]);
+const refusalMessages = Object.freeze({
+  INVALID_EVIDENCE: "Both signatures and the document hash must verify.",
+  DUPLICATE_INVOICE: "The invoice already appears in the duplicate index.",
+  INVALID_TENOR: "The invoice tenor is outside the protocol envelope.",
+  MODEL_REJECTED: new Set(["The bounded advance is zero.", "The repayment would exceed the invoice face value."]),
+  LOW_CONFIDENCE: "The model confidence is below the policy floor."
+});
+const CONNECTED_MIN_CONFIDENCE_BPS = 7_000;
 
 export function validateConnectedPolicyRefusal(candidate) {
   allowedKeys(candidate, ["schemaVersion", "outcome", "executionAuthority", "refusal", "modelEvidence", "observation"], "Policy refusal");
@@ -260,6 +268,17 @@ export function validateConnectedPolicyRefusal(candidate) {
     || evidence.decision.reasons.some((reason) => !riskReasons.has(reason))
     || typeof evidence.decision.explanation !== "string" || !evidence.decision.explanation.trim() || evidence.decision.explanation.length > 600) {
     throw new Error("Policy refusal model decision is invalid.");
+  }
+  const expectedMessage = refusalMessages[candidate.refusal.code];
+  const messageMatches = expectedMessage instanceof Set
+    ? expectedMessage.has(candidate.refusal.message)
+    : candidate.refusal.message === expectedMessage;
+  const lowConfidenceMatches = candidate.refusal.code !== "LOW_CONFIDENCE"
+    || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps < CONNECTED_MIN_CONFIDENCE_BPS);
+  const boundedRejectionMatches = candidate.refusal.code !== "MODEL_REJECTED"
+    || (evidence.decision.verdict === "APPROVE" && evidence.decision.confidenceBps >= CONNECTED_MIN_CONFIDENCE_BPS);
+  if (!messageMatches || !lowConfidenceMatches || !boundedRejectionMatches) {
+    throw new Error("Policy refusal contradicts the model decision or connected policy.");
   }
   const observation = candidate.observation;
   allowedKeys(observation, ["chainId", "receivables", "settlementToken", "blockNumber", "blockHash", "blockTimestamp", "registrationTransactionHash", "status", "invoiceId", "invoiceDigest", "documentHash", "supplier", "payer", "faceValue", "issuedAt", "dueDate", "underwriter", "paused", "decisionNonceUnused", "documentHashRegistered", "invoiceDigestRegistered"], "Policy refusal observation");
