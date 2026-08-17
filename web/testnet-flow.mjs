@@ -617,7 +617,7 @@ export function validateConnectedAssessment(assessment, expectedRequest) {
   return assessment;
 }
 
-export async function buildHumanEscalation({ assessment, session: sessionCandidate, funder, advanceAmount, riskTimestamp }) {
+export async function buildHumanEscalation({ assessment, session: sessionCandidate, assessedRequestedAdvance, funder, advanceAmount, riskTimestamp }) {
   allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest", "artifactHash"], "Connected assessment");
   const { artifactHash, ...assessmentCore } = assessment;
   if (asHash(artifactHash, "Connected assessment artifact hash") !== connectedBrowserArtifactHashOf(assessmentCore)) throw new Error("Connected assessment artifact commitment does not match its evidence.");
@@ -646,7 +646,10 @@ export async function buildHumanEscalation({ assessment, session: sessionCandida
 
   const normalizedFunder = asAddress(funder, "Escalation funder");
   if (normalizedFunder === asAddress(terms.supplier, "Supplier") || normalizedFunder === asAddress(terms.payer, "Payer")) throw new Error("Funder must be distinct from supplier and payer.");
-  const requested = asUint(session.dealPackage.underwritingRequest.requestedAdvance, "Requested advance");
+  const requested = asUint(assessedRequestedAdvance, "Assessed requested advance");
+  if (requested !== asUint(session.dealPackage.underwritingRequest.requestedAdvance, "Session requested advance")) {
+    throw new Error("Invoice session requested advance does not match the committed assessment request.");
+  }
   const faceValue = asUint(terms.faceValue, "Face value");
   const requestedCap = requested * ESCALATION_MAX_REQUEST_BPS / 10_000n;
   const faceCap = faceValue * ESCALATION_MAX_FACE_BPS / 10_000n;
@@ -661,8 +664,8 @@ export async function buildHumanEscalation({ assessment, session: sessionCandida
   if (expiresAt <= timestamp) throw new Error("Invoice expires before the escalation can be signed.");
 
   const escalationReasonsHash = keccak256(encodeAbiParameters(
-    parseAbiParameters("bytes32 rejectedArtifactHash,string policy,uint16 maxFaceBps,uint16 maxRequestBps,uint16 feeBps,uint128 advanceAmount,uint128 repaymentAmount"),
-    [artifactHash, ESCALATION_POLICY, Number(ESCALATION_MAX_FACE_BPS), Number(ESCALATION_MAX_REQUEST_BPS), Number(ESCALATION_FEE_BPS), boundedAdvance, repaymentAmount]
+    parseAbiParameters("bytes32 rejectedArtifactHash,string policy,uint16 maxFaceBps,uint16 maxRequestBps,uint16 feeBps,uint128 requestedAdvance,uint128 advanceAmount,uint128 repaymentAmount"),
+    [artifactHash, ESCALATION_POLICY, Number(ESCALATION_MAX_FACE_BPS), Number(ESCALATION_MAX_REQUEST_BPS), Number(ESCALATION_FEE_BPS), requested, boundedAdvance, repaymentAmount]
   ));
   const nonce = BigInt(keccak256(encodeAbiParameters(
     parseAbiParameters("bytes32 rejectedArtifactHash,address funder,uint128 advanceAmount,uint128 repaymentAmount,uint64 riskTimestamp"),
@@ -734,8 +737,8 @@ export function humanEscalationTypedData(escalation) {
   if (expiresAt !== expectedExpiry || expiresAt <= riskTimestamp) throw new Error("Escalation expiry does not match the bounded review window.");
 
   const expectedReasonsHash = keccak256(encodeAbiParameters(
-    parseAbiParameters("bytes32 rejectedArtifactHash,string policy,uint16 maxFaceBps,uint16 maxRequestBps,uint16 feeBps,uint128 advanceAmount,uint128 repaymentAmount"),
-    [rejectedArtifactHash, ESCALATION_POLICY, Number(ESCALATION_MAX_FACE_BPS), Number(ESCALATION_MAX_REQUEST_BPS), Number(ESCALATION_FEE_BPS), advanceAmount, repaymentAmount]
+    parseAbiParameters("bytes32 rejectedArtifactHash,string policy,uint16 maxFaceBps,uint16 maxRequestBps,uint16 feeBps,uint128 requestedAdvance,uint128 advanceAmount,uint128 repaymentAmount"),
+    [rejectedArtifactHash, ESCALATION_POLICY, Number(ESCALATION_MAX_FACE_BPS), Number(ESCALATION_MAX_REQUEST_BPS), Number(ESCALATION_FEE_BPS), requestedAdvance, advanceAmount, repaymentAmount]
   ));
   if (asHash(escalation.approval.riskReasonsHash, "Escalation reasons hash") !== expectedReasonsHash) throw new Error("Escalation policy commitment changed.");
   if (asHash(escalation.approval.modelHash, "Escalation model hash") !== rejectedArtifactHash) throw new Error("Escalation no longer binds the rejected assessment.");

@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { connectedRequestHashOf, mainnetUnderwritingRequestSchema } from "../agent/src/connected-underwriting.js";
 import worker from "./index.js";
 
 const environment = {
@@ -40,8 +41,27 @@ test("site fallback remains delegated to the static asset binding", async () => 
 
 test("assessment artifact status confirms only the exact decision-store commitment", async () => {
   const invoiceId = `0x${"11".repeat(32)}`;
-  const requestHash = `0x${"22".repeat(32)}`;
   const artifactHash = `0x${"33".repeat(32)}`;
+  const storedRequest = mainnetUnderwritingRequestSchema.parse({
+    schemaVersion: "openbell-mainnet-underwriting-v1",
+    label: "XLAYER MAINNET — REAL USDG",
+    registrationTransactionHash: `0x${"44".repeat(32)}`,
+    invoiceId,
+    documentHash: `0x${"55".repeat(32)}`,
+    supplier: `0x${"66".repeat(20)}`,
+    payer: `0x${"77".repeat(20)}`,
+    funder: `0x${"88".repeat(20)}`,
+    faceValue: "100000000",
+    issuedAt: 1_786_000_000,
+    dueDate: 1_786_086_400,
+    requestedAdvance: "50000000",
+    payerHistory: { completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0, defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0 },
+    redactedContext: "Registered mainnet invoice.",
+    supplierAuthorization: `0x${"99".repeat(32)}${"00".repeat(31)}011b`,
+    realValueAcknowledged: true
+  });
+  const requestHash = connectedRequestHashOf(storedRequest);
+  const requestJson = JSON.stringify(storedRequest);
   const bound: unknown[][] = [];
   const artifactEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
@@ -49,7 +69,7 @@ test("assessment artifact status confirms only the exact decision-store commitme
       prepare: () => ({
         bind: (...values: unknown[]) => {
           bound.push(values);
-          return { first: async () => values.join(":") === [invoiceId, requestHash, artifactHash].join(":") ? { verified: 1 } : null };
+          return { first: async () => values.join(":") === [invoiceId, requestHash, artifactHash].join(":") ? { request_json: requestJson } : null };
         }
       })
     }
@@ -61,10 +81,45 @@ test("assessment artifact status confirms only the exact decision-store commitme
   });
   const verified = await worker.fetch(request(artifactHash), artifactEnvironment);
   expect(verified.status).toBe(200);
-  expect(await verified.json()).toEqual({ verified: true });
+  expect(await verified.json()).toEqual({ verified: true, requestedAdvance: "50000000" });
   const mismatch = await worker.fetch(request(`0x${"44".repeat(32)}`), artifactEnvironment);
   expect(await mismatch.json()).toEqual({ verified: false });
   expect(bound).toHaveLength(2);
+});
+
+test("assessment artifact status rejects schema-valid request drift against the committed hash", async () => {
+  const invoiceId = `0x${"11".repeat(32)}`;
+  const requestHash = `0x${"22".repeat(32)}`;
+  const artifactHash = `0x${"33".repeat(32)}`;
+  const requestJson = JSON.stringify({
+    schemaVersion: "openbell-mainnet-underwriting-v1",
+    label: "XLAYER MAINNET — REAL USDG",
+    registrationTransactionHash: `0x${"44".repeat(32)}`,
+    invoiceId,
+    documentHash: `0x${"55".repeat(32)}`,
+    supplier: `0x${"66".repeat(20)}`,
+    payer: `0x${"77".repeat(20)}`,
+    funder: `0x${"88".repeat(20)}`,
+    faceValue: "100000000",
+    issuedAt: 1_786_000_000,
+    dueDate: 1_786_086_400,
+    requestedAdvance: "90000000",
+    payerHistory: { completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0, defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0 },
+    redactedContext: "Registered mainnet invoice.",
+    supplierAuthorization: `0x${"99".repeat(32)}${"00".repeat(31)}011b`,
+    realValueAcknowledged: true
+  });
+  const driftEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ bind: () => ({ first: async () => ({ request_json: requestJson }) }) }) }
+  } as never;
+  const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/assessment-artifact-status", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://openbell.dolepee.com", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ invoiceId, requestHash, artifactHash })
+  }), driftEnvironment);
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ error: "CORRUPT_ARTIFACT_REQUEST" });
 });
 
 test("assessment artifact status rejects malformed and cross-origin probes without touching storage", async () => {

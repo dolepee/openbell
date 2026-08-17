@@ -5,6 +5,7 @@ import {
   ConnectedPolicyRefusal,
   ConnectedUnderwritingService,
   connectedArtifactHashOf,
+  connectedRequestHashOf,
   connectedUnderwritingRequestSchema,
   mainnetUnderwritingRequestSchema,
   type ConnectedDeployment
@@ -171,9 +172,28 @@ const artifactStatusResponse = async (request: Request, config: Environment): Pr
     return json({ error: "INVALID_ARTIFACT_QUERY" }, 400);
   }
   const row = await config.DB.prepare(
-    "SELECT 1 AS verified FROM connected_underwriting_completed_artifacts WHERE invoice_id = ? AND request_hash = ? AND artifact_hash = ?"
-  ).bind(candidate.invoiceId, candidate.requestHash, candidate.artifactHash).first<{ verified: number }>();
-  return json({ verified: row?.verified === 1 });
+    `SELECT decision.request_json AS request_json
+     FROM connected_underwriting_completed_artifacts AS artifact
+     INNER JOIN connected_underwriting_decisions AS decision
+       ON decision.invoice_id = artifact.invoice_id AND decision.request_hash = artifact.request_hash
+     WHERE artifact.invoice_id = ? AND artifact.request_hash = ? AND artifact.artifact_hash = ?`
+  ).bind(candidate.invoiceId, candidate.requestHash, candidate.artifactHash).first<{ request_json: string }>();
+  if (!row) return json({ verified: false });
+  let storedRequest: unknown;
+  try {
+    storedRequest = JSON.parse(row.request_json);
+  } catch {
+    return json({ error: "CORRUPT_ARTIFACT_REQUEST" }, 500);
+  }
+  const requestRecord = storedRequest as Record<string, unknown>;
+  const schema = requestRecord?.schemaVersion === CONNECTED_MAINNET.schemaVersion
+    ? mainnetUnderwritingRequestSchema : connectedUnderwritingRequestSchema;
+  const parsed = schema.safeParse(storedRequest);
+  if (!parsed.success) return json({ error: "CORRUPT_ARTIFACT_REQUEST" }, 500);
+  if (parsed.data.invoiceId !== candidate.invoiceId || connectedRequestHashOf(parsed.data) !== candidate.requestHash) {
+    return json({ error: "CORRUPT_ARTIFACT_REQUEST" }, 500);
+  }
+  return json({ verified: true, requestedAdvance: parsed.data.requestedAdvance });
 };
 
 export default {

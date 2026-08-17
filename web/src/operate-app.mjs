@@ -575,11 +575,13 @@ escalationForm?.addEventListener("submit", async (event) => {
     });
     const artifactStatus = await artifactResponse.json();
     if (!artifactResponse.ok || artifactStatus?.verified !== true) throw new Error("The rejected assessment is not committed in OpenBell's decision store.");
+    if (!/^(0|[1-9][0-9]*)$/.test(String(artifactStatus.requestedAdvance))) throw new Error("The committed assessment request amount is unavailable.");
     const latestBlock = await rpc("eth_getBlockByNumber", ["latest", false]);
     if (!latestBlock?.timestamp) throw new Error("Could not read the current X Layer block time.");
     const escalation = await buildHumanEscalation({
       assessment,
       session: invoiceSession,
+      assessedRequestedAdvance: artifactStatus.requestedAdvance,
       funder: document.querySelector("#escalation-funder").value.trim(),
       advanceAmount: decimalToBaseUnits(document.querySelector("#escalation-advance").value).toString(),
       riskTimestamp: BigInt(latestBlock.timestamp).toString()
