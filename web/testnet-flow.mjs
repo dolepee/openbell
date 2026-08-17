@@ -242,6 +242,47 @@ const refusalMessages = Object.freeze({
 });
 const CONNECTED_MIN_CONFIDENCE_BPS = 7_000;
 const CONNECTED_MAX_ADVANCE_BPS = 8_000n;
+const BANKR_MAINNET_POLICY_PROMPT = "An APPROVE verdict requires confidenceBps of at least 7000. If the evidence does not justify that confidence, return REJECT instead of a lower-confidence APPROVE. The deterministic envelope caps maximumAdvanceBps at 8000 and feeBps at 2000.";
+const bankrExplanationFor = (boundary, verdict) => boundary === "registered-mainnet"
+  ? verdict === "APPROVE" ? "The supplied registered mainnet evidence supports approval within the returned structured limits." : "The supplied registered mainnet evidence does not support approval."
+  : verdict === "APPROVE" ? "The supplied synthetic evidence supports approval within the returned structured limits." : "The supplied synthetic evidence does not support approval.";
+const bankrSchemaFor = (boundary) => ({
+  type: "object",
+  additionalProperties: false,
+  required: ["verdict", "maximumAdvanceBps", "feeBps", "confidenceBps", "reasons", "explanation"],
+  properties: {
+    verdict: { type: "string", enum: ["APPROVE", "REJECT"] },
+    maximumAdvanceBps: { type: "integer", minimum: 0, maximum: 10_000 },
+    feeBps: { type: "integer", minimum: 0, maximum: 10_000 },
+    confidenceBps: { type: "integer", minimum: 0, maximum: 10_000 },
+    reasons: {
+      type: "array", minItems: 1, maxItems: 8, items: { type: "string", enum: [
+        "DUAL_SIGNATURES_VERIFIED", "DOCUMENT_HASH_VERIFIED", "CLEAN_DUPLICATE_CHECK",
+        "LIMITED_PAYER_HISTORY", "STRONG_ON_TIME_HISTORY", "LATE_PAYMENT_HISTORY",
+        "PRIOR_DEFAULT", "HIGH_COUNTERPARTY_CONCENTRATION", "LONG_TENOR",
+        "STALE_SETTLEMENT_HISTORY", "INCONSISTENT_EVIDENCE", "MODEL_UNCERTAINTY"
+      ] }
+    },
+    explanation: { type: "string", enum: [bankrExplanationFor(boundary, "APPROVE"), bankrExplanationFor(boundary, "REJECT")] }
+  }
+});
+
+export function buildBrowserBankrRequestHash(input, boundary) {
+  const evidenceDescription = boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
+  const policyInstruction = boundary === "registered-mainnet" ? ` ${BANKR_MAINNET_POLICY_PROMPT}` : "";
+  const body = JSON.stringify({
+    model: "gpt-5.6-terra",
+    messages: [
+      { role: "system", content: `Assess only the supplied ${evidenceDescription}.${policyInstruction} Return exactly one JSON object matching the response schema. Never invent evidence.` },
+      { role: "user", content: JSON.stringify(input) }
+    ],
+    reasoning_effort: "low",
+    max_tokens: 1_200,
+    store: false,
+    response_format: { type: "json_schema", json_schema: { name: "openbell_underwriting_decision", strict: true, schema: bankrSchemaFor(boundary) } }
+  });
+  return keccak256(stringToHex(body));
+}
 
 export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
   allowedKeys(candidate, ["schemaVersion", "outcome", "executionAuthority", "refusal", "modelEvidence", "observation"], "Policy refusal");
@@ -307,6 +348,24 @@ export function validateConnectedPolicyRefusal(candidate, expectedRequest) {
     && observation.issuedAt === expectedRequest.issuedAt
     && observation.dueDate === expectedRequest.dueDate;
   if (!requestMatches) throw new Error("Policy refusal does not match the submitted assessment request.");
+  const modelInput = {
+    invoiceId: observation.invoiceId,
+    invoiceDigest: observation.invoiceDigest,
+    supplier: observation.supplier,
+    payer: observation.payer,
+    funder: expectedRequest.funder,
+    faceValue: observation.faceValue,
+    issuedAt: observation.issuedAt,
+    dueDate: observation.dueDate,
+    requestedAdvance: expectedRequest.requestedAdvance,
+    evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
+    payerHistory: expectedRequest.payerHistory,
+    redactedContext: expectedRequest.redactedContext
+  };
+  const boundary = deployment === OPENBELL_TESTNET ? "synthetic" : "registered-mainnet";
+  if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) {
+    throw new Error("Policy refusal model request hash does not match the submitted assessment request.");
+  }
   if (candidate.refusal.code === "MODEL_REJECTED") {
     const boundedAdvanceBps = BigInt(Math.min(evidence.decision.maximumAdvanceBps, Number(CONNECTED_MAX_ADVANCE_BPS)));
     const maximumAdvance = (BigInt(observation.faceValue) * boundedAdvanceBps) / 10_000n;

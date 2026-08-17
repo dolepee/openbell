@@ -13,6 +13,7 @@ import {
   buildStrictBankrRequest
 } from "../src/live-model.js";
 import type { InvoiceRiskInput } from "../src/schema.js";
+import { buildBrowserBankrRequestHash } from "../../web/testnet-flow.mjs";
 
 const input: InvoiceRiskInput = {
   invoiceId: `0x${"11".repeat(32)}`,
@@ -67,6 +68,7 @@ describe("StrictBankrUnderwritingModel", () => {
     expect(request.requestHash).toMatch(/^0x[0-9a-f]{64}$/);
     expect(BANKR_REASONING_EFFORT).toBe("low");
     expect(BANKR_MAX_OUTPUT_TOKENS).toBe(1200);
+    expect(buildBrowserBankrRequestHash(input, "synthetic")).toBe(request.requestHash);
   });
 
   it("uses a truthful registered-mainnet boundary without changing the historical testnet request", async () => {
@@ -77,6 +79,7 @@ describe("StrictBankrUnderwritingModel", () => {
     expect(body.messages[0].content).toContain("return REJECT instead of a lower-confidence APPROVE");
     expect(body.messages[0].content).not.toContain("synthetic");
     expect(body.response_format.json_schema.schema.properties.explanation.enum).toContain(BANKR_MAINNET_APPROVAL_EXPLANATION);
+    expect(buildBrowserBankrRequestHash(input, "registered-mainnet")).toBe(request.requestHash);
 
     const mainnetDecision = { ...decision, explanation: BANKR_MAINNET_APPROVAL_EXPLANATION };
     const model = new StrictBankrUnderwritingModel({

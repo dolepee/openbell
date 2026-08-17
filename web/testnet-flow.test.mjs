@@ -10,6 +10,7 @@ import {
   assertFixtureClaimAvailable,
   assertFixtureClaimCompleted,
   assertWalletContext,
+  buildBrowserBankrRequestHash,
   buildFixtureClaimStateCalls,
   buildConnectedAssessmentRequest,
   connectedDecisionTypedData,
@@ -111,8 +112,27 @@ const policyRefusalRequest = {
   payer: policyRefusal.observation.payer,
   faceValue: policyRefusal.observation.faceValue,
   issuedAt: policyRefusal.observation.issuedAt,
-  dueDate: policyRefusal.observation.dueDate
+  dueDate: policyRefusal.observation.dueDate,
+  funder: funder.address,
+  requestedAdvance: "75000000",
+  payerHistory: { completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0, defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0 },
+  redactedContext: "Synthetic X Layer testnet fixture; no real value."
 };
+const refusalModelInput = (refusal, request) => ({
+  invoiceId: refusal.observation.invoiceId,
+  invoiceDigest: refusal.observation.invoiceDigest,
+  supplier: refusal.observation.supplier,
+  payer: refusal.observation.payer,
+  funder: request.funder,
+  faceValue: refusal.observation.faceValue,
+  issuedAt: refusal.observation.issuedAt,
+  dueDate: refusal.observation.dueDate,
+  requestedAdvance: request.requestedAdvance,
+  evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
+  payerHistory: request.payerHistory,
+  redactedContext: request.redactedContext
+});
+policyRefusal.modelEvidence.requestHash = buildBrowserBankrRequestHash(refusalModelInput(policyRefusal, policyRefusalRequest), "synthetic");
 
 test("policy refusals preserve evidence without exposing execution authority", () => {
   assert.equal(validateConnectedPolicyRefusal(policyRefusal, policyRefusalRequest), policyRefusal);
@@ -148,6 +168,14 @@ test("policy refusals preserve evidence without exposing execution authority", (
   }, policyRefusalRequest), /contradicts the model decision/);
   assert.throws(() => validateConnectedPolicyRefusal(policyRefusal), /exact submitted assessment request/);
   assert.throws(() => validateConnectedPolicyRefusal(policyRefusal, { ...policyRefusalRequest, invoiceId: `0x${"ff".repeat(32)}` }), /does not match/);
+  for (const changedRequest of [
+    { ...policyRefusalRequest, funder: underwriter.address },
+    { ...policyRefusalRequest, requestedAdvance: "74000000" },
+    { ...policyRefusalRequest, payerHistory: { ...policyRefusalRequest.payerHistory, daysSinceLastSettlement: 1 } },
+    { ...policyRefusalRequest, redactedContext: "Different authorized context." }
+  ]) {
+    assert.throws(() => validateConnectedPolicyRefusal(policyRefusal, changedRequest), /model request hash does not match/);
+  }
   const roundedRefusal = {
     ...policyRefusal,
     refusal: { code: "MODEL_REJECTED", message: "The bounded advance is zero." },
@@ -157,7 +185,9 @@ test("policy refusals preserve evidence without exposing execution authority", (
     },
     observation: { ...policyRefusal.observation, faceValue: "1" }
   };
-  assert.equal(validateConnectedPolicyRefusal(roundedRefusal, { ...policyRefusalRequest, faceValue: "1" }), roundedRefusal);
+  const roundedRequest = { ...policyRefusalRequest, faceValue: "1" };
+  roundedRefusal.modelEvidence.requestHash = buildBrowserBankrRequestHash(refusalModelInput(roundedRefusal, roundedRequest), "synthetic");
+  assert.equal(validateConnectedPolicyRefusal(roundedRefusal, roundedRequest), roundedRefusal);
 });
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({
