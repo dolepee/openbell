@@ -33,10 +33,10 @@
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="/" aria-current="page">Overview</a>
           <a href="/studio/">Deal studio</a>
-          <a href="/fund/">Fund</a>
+          <a href="/proof/#mainnet">Receipts</a>
           <a href="/workspace/">Verified desk</a>
         </nav>
-        <a class="header-cta signal-nav-cta" href="/fund/">Fund one receivable <span aria-hidden="true">↗</span></a>
+        <a class="header-cta signal-nav-cta" data-funding-action href="/proof/#mainnet">Follow five receipts <span aria-hidden="true">↗</span></a>
       </div>
     </header>
 
@@ -52,7 +52,7 @@
           <h1>The model said no.<br />The human took less.<br /><em>Code held the line.</em></h1>
           <p>An unrelated supplier registered a payer-signed invoice. The genuine model refused it. A disclosed human exception cut the request in half, then X Layer advanced and repaid the exact authorized USDG.</p>
           <div class="signal-actions">
-            <a href="/fund/">Fund one receivable <span aria-hidden="true">→</span></a>
+            <a data-funding-action href="/proof/#mainnet">Follow five mainnet receipts <span aria-hidden="true">→</span></a>
             <a href="/studio/">Prepare an invoice</a>
             <a href="/proof/">Follow the receipts</a>
           </div>
@@ -148,5 +148,19 @@
       <p>Credit intelligence constrained by code.</p>
       <nav aria-label="Footer navigation"><a href="/fund/">Fund</a><a href="/studio/">Deal studio</a><a href="/mainnet/">Full desk</a><a href="/operate/">Testnet desk</a><a href="/workspace/">Verified desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
     </footer>
+    <script type="module">
+      const fundingActions = document.querySelectorAll("[data-funding-action]");
+      try {
+        const response = await fetch("/api/funding-candidate", { cache: "no-store" });
+        if (response.ok) {
+          for (const action of fundingActions) {
+            action.href = "/fund/";
+            action.childNodes[0].textContent = "Fund one receivable ";
+          }
+        }
+      } catch {
+        // Receipt links remain the safe default when live funding cannot be confirmed.
+      }
+    </script>
   </body>
 </html>
