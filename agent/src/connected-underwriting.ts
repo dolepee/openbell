@@ -483,6 +483,7 @@ export class ConnectedUnderwritingService {
             throw new Error("CONNECTED_POLICY_REFUSAL_ARTIFACT_HASH_MISMATCH");
           }
           const refusal = await validateStoredPolicyRefusal(JSON.parse(storedRefusal.resultJson), request, deployment);
+          if (row.failureCode !== refusal.refusal.code) throw new Error("CONNECTED_POLICY_REFUSAL_FAILURE_CODE_MISMATCH");
           throw new ConnectedPolicyRefusal(refusal);
         }
         throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");

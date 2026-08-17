@@ -289,6 +289,16 @@ test.each(["providerResponseId", "responseHash", "decision"] as const)("durable 
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
+test("durable refusal replay rejects a terminal failure code that disagrees with its sealed artifact", async () => {
+  const h = harness({ ...approval, confidenceBps: 6_999 });
+  await expect(h.service.authorize(request)).rejects.toBeInstanceOf(ConnectedPolicyRefusal);
+  const row = h.store.rows.get(request.invoiceId);
+  if (!row || row.status !== "FAILED") throw new Error("expected failed refusal row");
+  h.store.rows.set(request.invoiceId, { ...row, failureCode: "MODEL_REJECTED" });
+  await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_POLICY_REFUSAL_FAILURE_CODE_MISMATCH");
+  expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
+});
+
 test("refusal persistence failure does not create a terminal row without its artifact", async () => {
   const h = harness({ ...approval, confidenceBps: 6_999 });
   h.store.sealPolicyRefusal = async () => { throw new Error("D1_BATCH_FAILED"); };
