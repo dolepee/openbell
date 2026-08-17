@@ -7,6 +7,7 @@ export function validateConnectedPolicyRefusal<T>(candidate: T, expectedRequest:
 export function buildHumanEscalation(input: {
   assessment: unknown;
   session: unknown;
+  assessedRequestedAdvance: string;
   funder: `0x${string}`;
   advanceAmount: string;
   riskTimestamp: string | number | bigint;

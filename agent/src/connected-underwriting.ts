@@ -221,7 +221,7 @@ const canonicalJson = (value: unknown): string => {
   }
   return JSON.stringify(value);
 };
-const requestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
+export const connectedRequestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
 export const connectedArtifactHashOf = (value: unknown): Hex => keccak256(stringToHex(canonicalJson(value)));
 const storedArtifactHashOf = (resultJson: string): Hex => connectedArtifactHashOf(JSON.parse(resultJson));
 const parseModelEvidence = (candidate: unknown): z.infer<typeof modelEvidenceSchema> => {
@@ -470,7 +470,7 @@ export class ConnectedUnderwritingService {
     const recoveredSupplier = await recoverTypedDataAddress({ ...connectedAssessmentTypedData(unsignedRequest, deployment), signature: request.supplierAuthorization });
     if (recoveredSupplier !== request.supplier) throw new Error("CONNECTED_ASSESSMENT_WRONG_SUPPLIER_SIGNATURE");
     const requestJson = canonicalJson(request);
-    const requestHash = requestHashOf(request);
+    const requestHash = connectedRequestHashOf(request);
     const nonce = BigInt(requestHash).toString();
     const returnStored = async (row: StoredConnectedDecision): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> => {
       if (row.requestHash !== requestHash) throw new Error("CONNECTED_DECISION_REQUEST_CONFLICT");

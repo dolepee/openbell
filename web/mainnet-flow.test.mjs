@@ -24,11 +24,11 @@ const payer = privateKeyToAccount(`0x${"52".repeat(32)}`);
 const funder = privateKeyToAccount(`0x${"53".repeat(32)}`);
 const underwriter = privateKeyToAccount(`0x${"54".repeat(32)}`);
 
-const preparedMainnetDeal = () => buildUnsignedDealPackage({
+const preparedMainnetDeal = (requestedAdvance = "85") => buildUnsignedDealPackage({
   supplier: supplier.address,
   payer: payer.address,
   faceValue: "100",
-  requestedAdvance: "85",
+  requestedAdvance,
   dueDate: "2026-08-31",
   nonce: "501",
   documentHash: `0x${"ab".repeat(32)}`,
@@ -43,8 +43,8 @@ const canonicalJson = (value) => {
 };
 const artifactHashOf = (value) => keccak256(stringToHex(canonicalJson(value)));
 
-const rejectedMainnetFixture = async () => {
-  const deal = await preparedMainnetDeal();
+const rejectedMainnetFixture = async (requestedAdvance = "85") => {
+  const deal = await preparedMainnetDeal(requestedAdvance);
   const invoiceData = invoiceTypedData(deal.invoiceTerms, OPENBELL_MAINNET_CONNECTED);
   let session = await createInvoiceSession(deal);
   session = await addInvoiceSessionSignature(session, supplier.address, await supplier.signTypedData(invoiceData));
@@ -219,6 +219,7 @@ test("human escalation preserves a genuine rejection and enforces the tighter ec
   const escalation = await buildHumanEscalation({
     assessment,
     session,
+    assessedRequestedAdvance: "85000000",
     funder: funder.address,
     advanceAmount: "25000000",
     riskTimestamp: "1786900000"
@@ -240,13 +241,21 @@ test("human escalation preserves a genuine rejection and enforces the tighter ec
 
 test("human escalation rejects over-cap, altered economics, party collapse and invalid signatures", async () => {
   const { assessment, session } = await rejectedMainnetFixture();
-  await assert.rejects(buildHumanEscalation({ assessment, session, funder: funder.address, advanceAmount: "25000001", riskTimestamp: "1786900000" }), /stricter human-review cap/);
-  await assert.rejects(buildHumanEscalation({ assessment, session, funder: payer.address, advanceAmount: "1", riskTimestamp: "1786900000" }), /distinct/);
-  const escalation = await buildHumanEscalation({ assessment, session, funder: funder.address, advanceAmount: "25000000", riskTimestamp: "1786900000" });
+  const escalationInput = { assessment, session, assessedRequestedAdvance: "85000000", funder: funder.address, advanceAmount: "25000000", riskTimestamp: "1786900000" };
+  await assert.rejects(buildHumanEscalation({ ...escalationInput, advanceAmount: "25000001" }), /stricter human-review cap/);
+  await assert.rejects(buildHumanEscalation({ ...escalationInput, funder: payer.address, advanceAmount: "1" }), /distinct/);
+  const tamperedSession = structuredClone(session);
+  tamperedSession.dealPackage.underwritingRequest.requestedAdvance = "100000000";
+  await assert.rejects(buildHumanEscalation({ ...escalationInput, session: tamperedSession }), /does not match the committed assessment request/);
+  const lowRequest = await rejectedMainnetFixture("10");
+  await assert.rejects(buildHumanEscalation({ ...escalationInput, assessment: lowRequest.assessment, session: lowRequest.session, assessedRequestedAdvance: "10000000", advanceAmount: "25000000" }), /stricter human-review cap/);
+  const escalation = await buildHumanEscalation(escalationInput);
   const changedRepayment = { ...escalation, approval: { ...escalation.approval, repaymentAmount: "25250001" } };
   assert.throws(() => humanEscalationTypedData(changedRepayment), /fixed policy fee/);
   const changedCommitment = { ...escalation, approval: { ...escalation.approval, modelHash: `0x${"99".repeat(32)}` } };
   assert.throws(() => humanEscalationTypedData(changedCommitment), /rejected assessment/);
+  const changedAssessedRequest = { ...escalation, requestedAdvance: "100000000" };
+  assert.throws(() => humanEscalationTypedData(changedAssessedRequest), /policy commitment changed/);
   const changedParty = { ...escalation, underwriter: payer.address };
   assert.throws(() => humanEscalationTypedData(changedParty), /parties must be distinct/);
   const wrongSignature = await payer.signTypedData(humanEscalationTypedData(escalation));
