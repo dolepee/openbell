@@ -1,4 +1,4 @@
-import { OPENBELL_MAINNET, OPENBELL_TESTNET_TARGET, baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
+import { OPENBELL_MAINNET, OPENBELL_TESTNET_TARGET, baseUnitsToDecimal, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, generateDealNonce, sha256, validateUnsignedDealPackage } from "/deal-package.mjs";
 
 const compact = (value) => value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
 
@@ -117,6 +117,7 @@ if (dealForm) {
   const requestInput = document.querySelector("#deal-request");
   const dueInput = document.querySelector("#deal-due");
   const nonceInput = document.querySelector("#deal-nonce");
+  nonceInput.value = generateDealNonce();
   const targetInput = document.querySelector("#deal-target");
   const requestedTarget = new URL(globalThis.location.href).searchParams.get("target");
   if (requestedTarget === "mainnet" || requestedTarget === "testnet") targetInput.value = requestedTarget;

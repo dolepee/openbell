@@ -131,6 +131,16 @@ const receivablesAbi = [
   },
   {
     type: "function",
+    name: "usedPartyNonces",
+    stateMutability: "view",
+    inputs: [
+      { name: "signer", type: "address" },
+      { name: "nonce", type: "uint256" }
+    ],
+    outputs: [{ name: "used", type: "bool" }]
+  },
+  {
+    type: "function",
     name: "fund",
     stateMutability: "nonpayable",
     inputs: [
@@ -853,6 +863,7 @@ export async function validateBrowserAction(candidate) {
   let invoiceId;
   let invoiceDigest = null;
   let expiresAt = null;
+  let registration = null;
 
   if (candidate.kind === "CLAIM_FIXTURE_TOKENS") {
     if (deployment !== OPENBELL_TESTNET) throw new Error("Fixture-token claims are forbidden on mainnet.");
@@ -872,6 +883,7 @@ export async function validateBrowserAction(candidate) {
     to = deployment.receivables;
     invoiceId = terms.invoiceId;
     invoiceDigest = candidate.authorizedDigest.toLowerCase();
+    registration = Object.freeze({ supplier: terms.supplier, payer: terms.payer, nonce: terms.nonce });
     data = encodeFunctionData({ abi: receivablesAbi, functionName: "registerInvoice", args: [terms, candidate.payload.supplierSignature, candidate.payload.payerSignature] });
   } else if (candidate.kind === "ATTEST_REJECTION") {
     allowedKeys(candidate.payload, ["rejection", "underwriter", "underwriterSignature"], "Rejection payload");
@@ -937,12 +949,32 @@ export async function validateBrowserAction(candidate) {
     amount,
     invoiceId,
     invoiceDigest,
-    expiresAt
+    expiresAt,
+    registration
   });
 }
 
 export function buildInvoiceStateCall(invoiceId) {
   return encodeFunctionData({ abi: receivablesAbi, functionName: "invoices", args: [asHash(invoiceId, "Invoice ID")] });
+}
+
+export function buildPartyNonceStateCall(signer, nonce) {
+  return encodeFunctionData({
+    abi: receivablesAbi,
+    functionName: "usedPartyNonces",
+    args: [asAddress(signer, "Invoice signer"), asUint(nonce, "Invoice nonce")]
+  });
+}
+
+export function assertRegistrationNoncesAvailable(action, supplierResult, payerResult) {
+  if (action.kind !== "REGISTER_INVOICE") throw new Error("Action is not an invoice registration.");
+  const supplierUsed = decodeFunctionResult({ abi: receivablesAbi, functionName: "usedPartyNonces", data: supplierResult });
+  const payerUsed = decodeFunctionResult({ abi: receivablesAbi, functionName: "usedPartyNonces", data: payerResult });
+  if (supplierUsed || payerUsed) {
+    const party = supplierUsed && payerUsed ? "supplier and payer" : supplierUsed ? "supplier" : "payer";
+    throw new Error(`This package reuses a nonce already consumed by the ${party}. Prepare and sign a fresh package in Studio.`);
+  }
+  return true;
 }
 
 export function buildFixtureClaimStateCalls(accountCandidate) {

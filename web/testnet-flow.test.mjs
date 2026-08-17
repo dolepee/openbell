@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeAbiParameters, hashTypedData, keccak256, parseAbiParameters, stringToHex } from "viem";
+import { encodeAbiParameters, encodeFunctionResult, hashTypedData, keccak256, parseAbiParameters, stringToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   OPENBELL_TESTNET,
@@ -9,6 +9,7 @@ import {
   approvalTypedData,
   addInvoiceSessionSignature,
   assertActionAgainstInvoice,
+  assertRegistrationNoncesAvailable,
   assertFixtureClaimAvailable,
   assertFixtureClaimCompleted,
   assertWalletContext,
@@ -610,6 +611,29 @@ test("supplier and payer can complete a browser-only registration handoff", asyn
   assert.equal(registration.kind, "REGISTER_INVOICE");
   assert.equal((await validateBrowserAction(registration)).signer, supplier.address);
   await assert.rejects(() => addInvoiceSessionSignature(empty, funder.address, `0x${"11".repeat(65)}`), /neither the supplier nor the payer/);
+});
+
+test("registration preflight rejects a nonce already consumed by either signing party", async () => {
+  const dealPackage = await buildUnsignedDealPackage({
+    supplier: supplier.address,
+    payer: payer.address,
+    faceValue: "100",
+    requestedAdvance: "75",
+    dueDate: "2026-09-01",
+    nonce: "7",
+    documentHash: `0x${"ad".repeat(32)}`,
+    createdAtMs: Date.parse("2026-08-12T12:00:00.000Z"),
+    target: OPENBELL_TESTNET_TARGET
+  });
+  let session = await createInvoiceSession(dealPackage);
+  session = await addInvoiceSessionSignature(session, supplier.address, await supplier.signTypedData(invoiceTypedData(dealPackage.invoiceTerms)));
+  session = await addInvoiceSessionSignature(session, payer.address, await payer.signTypedData(invoiceTypedData(dealPackage.invoiceTerms)));
+  const action = await validateBrowserAction(await registrationActionFromSession(session));
+  const available = encodeFunctionResult({ abi: [{ type: "function", name: "usedPartyNonces", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] }], functionName: "usedPartyNonces", result: false });
+  const used = encodeFunctionResult({ abi: [{ type: "function", name: "usedPartyNonces", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] }], functionName: "usedPartyNonces", result: true });
+  assert.equal(assertRegistrationNoncesAvailable(action, available, available), true);
+  assert.throws(() => assertRegistrationNoncesAvailable(action, available, used), /already consumed by the payer/);
+  assert.throws(() => assertRegistrationNoncesAvailable(action, used, used), /supplier and payer/);
 });
 
 test("supplier assessment authority binds the confirmed registration, funder and evidence", async () => {

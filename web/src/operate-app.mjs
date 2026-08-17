@@ -4,11 +4,13 @@ import {
   OPENBELL_TESTNET,
   addInvoiceSessionSignature,
   assertActionAgainstInvoice,
+  assertRegistrationNoncesAvailable,
   assertFixtureClaimAvailable,
   assertFixtureClaimCompleted,
   assertWalletContext,
   buildFixtureClaimStateCalls,
   buildInvoiceStateCall,
+  buildPartyNonceStateCall,
   buildConnectedAssessmentRequest,
   connectedDecisionTypedData,
   createFixtureClaimAction,
@@ -355,6 +357,14 @@ executeButton?.addEventListener("click", async () => {
     } else {
       const invoiceResult = await rpc("eth_call", [{ to: ACTIVE_DEPLOYMENT.receivables, data: buildInvoiceStateCall(executingAction.invoiceId) }, "latest"]);
       assertActionAgainstInvoice(executingAction, invoiceResult, Math.floor(Date.now() / 1_000));
+      if (executingAction.kind === "REGISTER_INVOICE") {
+        const terms = executingAction.registration;
+        const [supplierNonceResult, payerNonceResult] = await Promise.all([
+          rpc("eth_call", [{ to: ACTIVE_DEPLOYMENT.receivables, data: buildPartyNonceStateCall(terms.supplier, terms.nonce) }, "latest"]),
+          rpc("eth_call", [{ to: ACTIVE_DEPLOYMENT.receivables, data: buildPartyNonceStateCall(terms.payer, terms.nonce) }, "latest"])
+        ]);
+        assertRegistrationNoncesAvailable(executingAction, supplierNonceResult, payerNonceResult);
+      }
     }
     await rpc("eth_call", [transaction, "latest"]);
     await rpc("eth_estimateGas", [transaction]);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OPENBELL_TESTNET_TARGET, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, decimalToBaseUnits, validateUnsignedDealPackage } from "./deal-package.mjs";
+import { OPENBELL_TESTNET_TARGET, buildUnsignedDealPackage, calculateDealEconomics, createPreparationGuard, decimalToBaseUnits, generateDealNonce, validateUnsignedDealPackage } from "./deal-package.mjs";
 
 const validInput = {
   supplier: "0x1111111111111111111111111111111111111111",
@@ -22,6 +22,15 @@ test("deal economics exposes the immutable pre-AI upper bound", () => {
   });
   assert.equal(calculateDealEconomics("100", "85").preAiUpperBound, 80_000_000n);
   assert.equal(decimalToBaseUnits("75.123456"), 75_123_456n);
+});
+
+test("Studio deal nonces are full-width random uint128 values instead of a shared zero default", () => {
+  const nonces = Array.from({ length: 8 }, () => generateDealNonce());
+  assert.equal(new Set(nonces).size, nonces.length);
+  for (const nonce of nonces) {
+    assert.match(nonce, /^\d+$/);
+    assert.ok(BigInt(nonce) >= 0n && BigInt(nonce) <= (1n << 128n) - 1n);
+  }
 });
 
 test("preparation guard prevents an invalidated asynchronous result from becoming current", () => {

@@ -60,6 +60,12 @@ export const sha256 = async (bytes) => {
   return `0x${[...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 };
 
+export const generateDealNonce = () => {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  return BigInt(`0x${[...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`).toString();
+};
+
 export const buildUnsignedDealPackage = async ({
   supplier,
   payer,
