@@ -10,6 +10,8 @@ settles the fixed repayment directly to the funder.
 
 **Live app:** [openbell.dolepee.com](https://openbell.dolepee.com/)
 
+**One-wallet funding:** [openbell.dolepee.com/fund](https://openbell.dolepee.com/fund/)
+
 **V2 deal studio:** [openbell.dolepee.com/studio](https://openbell.dolepee.com/studio/)
 
 The user outcome is deliberately simple:
@@ -17,6 +19,11 @@ The user outcome is deliberately simple:
 ```text
 signed invoice -> authoritative AI decision -> bounded execution -> exact USDG settlement
 ```
+
+The `/fund/` route removes the multi-party handoff from the funder's task. It loads one public,
+unexpired, underwriter-signed candidate from durable storage, verifies its signature and registered
+mainnet state in the browser, and permits only an exact USDG approval followed by the exact funding
+call. The invited funder uses one wallet and no JSON files or CLI.
 
 ## V2 deal preparation
 

@@ -199,6 +199,13 @@ const tokenAbi = [
   },
   {
     type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
     name: "FAUCET_AMOUNT",
     stateMutability: "view",
     inputs: [],
@@ -1118,6 +1125,26 @@ export function buildInvoiceStateCall(invoiceId) {
   return encodeFunctionData({ abi: receivablesAbi, functionName: "invoices", args: [asHash(invoiceId, "Invoice ID")] });
 }
 
+export function buildAllowanceStateCall(ownerCandidate, spenderCandidate = OPENBELL_MAINNET_CONNECTED.receivables) {
+  return encodeFunctionData({
+    abi: tokenAbi,
+    functionName: "allowance",
+    args: [asAddress(ownerCandidate, "Allowance owner"), asAddress(spenderCandidate, "Allowance spender")]
+  });
+}
+
+export function decodeAllowanceState(result) {
+  return decodeFunctionResult({ abi: tokenAbi, functionName: "allowance", data: result });
+}
+
+export function decodeInvoiceState(encodedResult) {
+  const [status, supplier, payer, funder, faceValue, advanceAmount, repaymentAmount, dueDate, documentHash, invoiceDigest, decisionDigest] =
+    decodeFunctionResult({ abi: receivablesAbi, functionName: "invoices", data: encodedResult });
+  return Object.freeze({
+    status: Number(status), supplier, payer, funder, faceValue, advanceAmount, repaymentAmount, dueDate, documentHash, invoiceDigest, decisionDigest
+  });
+}
+
 export function buildPartyNonceStateCall(signer, nonce) {
   return encodeFunctionData({
     abi: receivablesAbi,
@@ -1170,9 +1197,7 @@ export function assertFixtureClaimCompleted(action, { hasClaimedResult, balanceR
 export function assertActionAgainstInvoice(action, encodedResult, nowSeconds) {
   if (action.kind === "CLAIM_FIXTURE_TOKENS") throw new Error("Fixture claims do not use invoice state.");
   if (!Number.isSafeInteger(nowSeconds) || nowSeconds < 0) throw new Error("Current time is invalid.");
-  const [status, supplier, payer, funder, faceValue, advanceAmount, repaymentAmount, dueDate, documentHash, invoiceDigest] =
-    decodeFunctionResult({ abi: receivablesAbi, functionName: "invoices", data: encodedResult });
-  const record = { status: Number(status), supplier, payer, funder, faceValue, advanceAmount, repaymentAmount, dueDate, documentHash, invoiceDigest };
+  const record = decodeInvoiceState(encodedResult);
   if (action.expiresAt !== null && BigInt(nowSeconds) > action.expiresAt) throw new Error("The underwriting decision has expired.");
   if (action.kind === "REGISTER_INVOICE") {
     if (record.status !== 0) throw new Error("Invoice ID is already in use.");

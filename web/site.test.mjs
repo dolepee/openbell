@@ -60,16 +60,17 @@ test("public proof has exact semantic parity with only accepted local block-hash
   });
 });
 
-test("multi-page launch surface separates product, deal preparation, verified cases, proof, and architecture", async () => {
-  const [overview, studio, mainnet, workspace, proof, architecture] = await Promise.all([
+test("multi-page launch surface separates product, deal preparation, funding, verified cases, proof, and architecture", async () => {
+  const [overview, studio, mainnet, fund, workspace, proof, architecture] = await Promise.all([
     read("./index.html"),
     read("./studio/index.html"),
     read("./mainnet/index.html"),
+    read("./fund/index.html"),
     read("./workspace/index.html"),
     read("./proof/index.html"),
     read("./architecture/index.html")
   ]);
-  const pages = [overview, studio, mainnet, workspace, proof, architecture];
+  const pages = [overview, studio, mainnet, fund, workspace, proof, architecture];
   for (const page of pages) {
     assert.match(page, /<div class="nav-right">/);
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
@@ -77,7 +78,8 @@ test("multi-page launch surface separates product, deal preparation, verified ca
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
   assert.match(overview, /The model said no\.<br \/>The human took less\.<br \/><em>Code held the line\.<\/em>/);
   assert.match(overview, /50% of request · 25% of face value/);
-  assert.match(overview, /href="\/mainnet\/">Open live USDG desk/);
+  assert.match(overview, /href="\/fund\/">Fund one receivable/);
+  assert.doesNotMatch(overview.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "", /Testnet desk|Proof room|Architecture/);
   assert.match(overview, /href="\/operate\/">Testnet desk/);
   assert.match(overview, /5 canonical mainnet receipts/);
   assert.match(overview, /0\.02525 USDG repaid/);
@@ -94,6 +96,11 @@ test("multi-page launch surface separates product, deal preparation, verified ca
   assert.match(mainnet, /CHAIN 196/);
   assert.match(mainnet, /AI proposes\.<br \/>X Layer limits\./);
   assert.doesNotMatch(mainnet, /TESTNET FIXTURE|NO REAL VALUE|CHAIN 1952|fixture tUSDG|synthetic X Layer testnet/i);
+  assert.match(fund, /<title>Fund one receivable — OpenBell<\/title>/);
+  assert.match(fund, /No files\. No CLI\. No model prompt\. Two simulated wallet actions\./);
+  assert.match(fund, /id="approve-funding"[^>]+disabled/);
+  assert.match(fund, /id="fund-invoice"[^>]+disabled/);
+  assert.match(fund, /repayment depends on the named payer settling the invoice/);
   assert.match(workspace, /Bankr-mediated GPT-5\.6 Terra · first response/);
   assert.match(workspace, /data-invoice="approved"/);
   assert.match(workspace, /data-invoice="rejected"/);
@@ -189,7 +196,7 @@ test("public network evidence is exact, no-value, and signature-free", async () 
 });
 
 test("interactive controls use native accessible elements", async () => {
-  const [html, studio, operate, mainnet, proof, script, dealModule, testnetModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./operate/index.html"), read("./mainnet/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./testnet-flow.mjs"), read("./styles.css")]);
+  const [html, studio, operate, mainnet, fund, proof, script, dealModule, testnetModule, css] = await Promise.all([read("./workspace/index.html"), read("./studio/index.html"), read("./operate/index.html"), read("./mainnet/index.html"), read("./fund/index.html"), read("./proof/index.html"), read("./app.js"), read("./deal-package.mjs"), read("./testnet-flow.mjs"), read("./styles.css")]);
   assert.match(html, /<button[^>]+data-invoice="approved"[^>]+aria-pressed="true"/);
   assert.match(html, /<button[^>]+id="execution-next"/);
   assert.match(html, /aria-live="polite"/);
@@ -217,6 +224,8 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(mainnet, /id="escalation-workspace" hidden/);
   assert.match(mainnet, /ACCOUNTABLE ESCALATION · NO MODEL RETRY/);
   assert.match(mainnet, /will not retry or relabel the rejected model response/);
+  assert.match(fund, /id="fund-consent" type="checkbox"/);
+  assert.match(fund, /id="fund-error" role="alert" aria-live="assertive"/);
   assert.match(testnetModule, /chainId: 1952/);
   assert.match(testnetModule, /chainId: 196/);
   assert.match(testnetModule, /Fixture-token claims are forbidden on mainnet/);

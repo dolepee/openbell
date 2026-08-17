@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fund one receivable — OpenBell</title>
+    <meta name="description" content="Review and fund one bounded OpenBell receivable with canonical USDG on X Layer mainnet." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://openbell.dolepee.com/fund/" />
+    <meta name="theme-color" content="#101712" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://openbell.dolepee.com/fund/" />
+    <meta property="og:title" content="Fund one receivable — OpenBell" />
+    <meta property="og:description" content="One wallet, one bounded decision, one exact USDG advance on X Layer." />
+    <meta property="og:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/fund/app.js"></script>
+  </head>
+  <body class="fund-page">
+    <a class="skip-link" href="#main">Skip to the funding action</a>
+    <div class="status-bar" role="note"><span><i class="status-dot"></i> XLAYER MAINNET</span><span>CANONICAL USDG</span><span>ONE EXACT INVOICE</span></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
+      <div class="nav-right">
+        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/">Deal studio</a><a href="/fund/" aria-current="page">Fund</a><a href="/workspace/">Verified desk</a></nav>
+        <a class="header-cta" href="/proof/#mainnet">Verify deployment <span aria-hidden="true">↗</span></a>
+      </div>
+    </header>
+
+    <main id="main" class="fund-shell">
+      <header class="fund-hero">
+        <div><p class="overline">ONE-WALLET FUNDING</p><h1>Review.<br />Fund.<br /><em>Done.</em></h1></div>
+        <div class="fund-hero-copy"><p>OpenBell has already verified the signed invoice and bounded the authority. Your wallet can fund only the exact approved amount.</p><span>No files. No CLI. No model prompt. Two simulated wallet actions.</span></div>
+      </header>
+
+      <section class="fund-candidate" id="candidate-panel" aria-labelledby="candidate-title" aria-live="polite">
+        <div class="fund-candidate-heading">
+          <p class="overline">AVAILABLE RECEIVABLE</p>
+          <h2 id="candidate-title">Checking the live candidate…</h2>
+          <p id="candidate-summary">Reading the public authority and current X Layer state.</p>
+        </div>
+        <dl class="fund-economics">
+          <div><dt>Invoice face</dt><dd id="candidate-face">—</dd></div>
+          <div><dt>Supplier receives</dt><dd id="candidate-advance">—</dd></div>
+          <div><dt>Payer owes</dt><dd id="candidate-repayment">—</dd></div>
+          <div><dt>Due</dt><dd id="candidate-due">—</dd></div>
+        </dl>
+        <div class="fund-authority">
+          <div><span>MODEL</span><strong>REJECT</strong><small>Original result preserved</small></div>
+          <div><span>HUMAN LIMIT</span><strong id="candidate-limit">—</strong><small>Stricter than the request</small></div>
+          <div><span>CONTRACT</span><strong>80% MAX</strong><small>Immutable ceiling</small></div>
+        </div>
+      </section>
+
+      <section class="fund-action" aria-labelledby="fund-action-title">
+        <div class="fund-wallet-card">
+          <p class="overline">YOUR WALLET</p>
+          <h2 id="fund-action-title">Connect the invited funder.</h2>
+          <p id="wallet-state" role="status">Checking for a compatible browser wallet…</p>
+          <button class="button button-primary" id="connect-wallet" type="button" aria-pressed="false">Connect wallet</button>
+          <dl>
+            <div><dt>Required wallet</dt><dd><code id="required-wallet">—</code></dd></div>
+            <div><dt>USDG balance</dt><dd id="wallet-balance">—</dd></div>
+            <div><dt>Current allowance</dt><dd id="wallet-allowance">—</dd></div>
+          </dl>
+        </div>
+        <div class="fund-steps">
+          <article data-step="approve">
+            <span>01</span><div><h3>Approve the exact advance</h3><p>Allowance is limited to this invoice amount and this verified OpenBell contract.</p></div>
+            <button class="button button-secondary" id="approve-funding" type="button" disabled aria-busy="false">Approve exact USDG</button>
+          </article>
+          <article data-step="fund">
+            <span>02</span><div><h3>Fund the receivable</h3><p>The signed decision is rebuilt locally and simulated immediately before execution.</p></div>
+            <button class="button button-primary" id="fund-invoice" type="button" disabled aria-busy="false">Fund invoice</button>
+          </article>
+          <div class="form-consent"><input id="fund-consent" type="checkbox" /><label for="fund-consent">I understand this uses real USDG on X Layer mainnet and repayment depends on the named payer settling the invoice.</label></div>
+          <p class="form-error" id="fund-error" role="alert" aria-live="assertive"></p>
+        </div>
+      </section>
+
+      <section class="fund-complete" id="fund-complete" hidden tabindex="-1" aria-live="polite">
+        <div><p class="overline">MAINNET RESULT</p><h2>The supplier received the advance.</h2></div>
+        <p>OpenBell accepted only the signed amount. The invoice is now funded and the payer owes the exact displayed repayment.</p>
+        <a class="button button-secondary" id="fund-receipt" href="#" target="_blank" rel="noreferrer">Open X Layer receipt ↗</a>
+      </section>
+
+      <section class="fund-boundary">
+        <div><p class="overline">WHAT YOU ARE TRUSTING</p><h2>The payer, not the model.</h2></div>
+        <p>The model cannot move funds and its rejection remains public. A disclosed human exception authorizes a smaller amount; the contract enforces that exact signature. This prototype does not guarantee repayment, verify legal enforceability, or provide insurance.</p>
+      </section>
+    </main>
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded receivables credit on X Layer.</p><nav aria-label="Footer navigation"><a href="/mainnet/">Full desk</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a></nav></footer>
+  </body>
+</html>
