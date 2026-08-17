@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { encodeAbiParameters, hashTypedData, keccak256, parseAbiParameters, stringToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   OPENBELL_TESTNET,
+  OPENBELL_MAINNET_CONNECTED,
   FIXTURE_CLAIM_AMOUNT,
   approvalTypedData,
   addInvoiceSessionSignature,
@@ -10,6 +12,7 @@ import {
   assertFixtureClaimAvailable,
   assertFixtureClaimCompleted,
   assertWalletContext,
+  buildBrowserBankrRequestHash,
   buildFixtureClaimStateCalls,
   buildConnectedAssessmentRequest,
   connectedDecisionTypedData,
@@ -23,7 +26,9 @@ import {
   registrationActionFromSession,
   walletInvoiceTypedData,
   walletConnectedAssessmentTypedData,
-  validateBrowserAction
+  validateBrowserAction,
+  validateConnectedAssessment,
+  validateConnectedPolicyRefusal as validateConnectedPolicyRefusalArtifact
 } from "./testnet-flow.mjs";
 import { OPENBELL_TESTNET_TARGET, buildUnsignedDealPackage } from "./deal-package.mjs";
 
@@ -61,6 +66,308 @@ const assessment = {
   signingRequest: { schemaVersion: "openbell-connected-decision-signing-v1", label: OPENBELL_TESTNET.label, chainId: "1952", underwriter: underwriter.address, authorizedDigest: "", nonce: approval.nonce }
 };
 delete assessment.decision.nonce;
+
+const policyRefusal = {
+  schemaVersion: "openbell-connected-policy-refusal-v1",
+  outcome: "POLICY_REFUSAL",
+  executionAuthority: false,
+  refusal: { code: "LOW_CONFIDENCE", message: "The model confidence is below the policy floor." },
+  modelEvidence: {
+    provider: "bankr-chat-completions",
+    providerResponseId: "response-test-1",
+    requestedModel: "gpt-5.6-terra",
+    returnedModel: "gpt-5.6-terra",
+    requestHash: `0x${"12".repeat(32)}`,
+    responseHash: `0x${"13".repeat(32)}`,
+    rawResponse: "pending",
+    decision: { verdict: "APPROVE", maximumAdvanceBps: 7000, feeBps: 100, confidenceBps: 6500, reasons: ["MODEL_UNCERTAINTY"], explanation: "The supplied synthetic evidence supports approval within the returned structured limits." }
+  },
+  observation: {
+    chainId: 1952,
+    receivables: OPENBELL_TESTNET.receivables,
+    settlementToken: OPENBELL_TESTNET.settlementToken,
+    blockNumber: "12345",
+    blockHash: `0x${"14".repeat(32)}`,
+    blockTimestamp: 1786550200,
+    registrationTransactionHash: `0x${"15".repeat(32)}`,
+    status: "REGISTERED",
+    invoiceId: terms.invoiceId,
+    invoiceDigest: approval.invoiceDigest,
+    documentHash: terms.documentHash,
+    supplier: supplier.address,
+    payer: payer.address,
+    faceValue: terms.faceValue,
+    issuedAt: Number(terms.issuedAt),
+    dueDate: Number(terms.dueDate),
+    underwriter: underwriter.address,
+    paused: false,
+    decisionNonceUnused: true,
+    documentHashRegistered: true,
+    invoiceDigestRegistered: true
+  }
+};
+const rawBankrResponse = (decision, providerResponseId = "response-test-1", returnedModel = "gpt-5.6-terra") => JSON.stringify({
+  id: providerResponseId,
+  object: "chat.completion",
+  model: returnedModel,
+  choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(decision) } }]
+});
+policyRefusal.modelEvidence.rawResponse = rawBankrResponse(policyRefusal.modelEvidence.decision);
+policyRefusal.modelEvidence.responseHash = keccak256(stringToHex(policyRefusal.modelEvidence.rawResponse));
+const policyRefusalRequest = {
+  schemaVersion: "openbell-connected-underwriting-v1",
+  label: OPENBELL_TESTNET.label,
+  registrationTransactionHash: policyRefusal.observation.registrationTransactionHash,
+  invoiceId: policyRefusal.observation.invoiceId,
+  documentHash: policyRefusal.observation.documentHash,
+  supplier: policyRefusal.observation.supplier,
+  payer: policyRefusal.observation.payer,
+  faceValue: policyRefusal.observation.faceValue,
+  issuedAt: policyRefusal.observation.issuedAt,
+  dueDate: policyRefusal.observation.dueDate,
+  funder: funder.address,
+  requestedAdvance: "75000000",
+  payerHistory: { completedSettlements: 0, onTimeSettlements: 0, lateSettlements: 0, defaults: 0, concentrationBps: 0, daysSinceLastSettlement: 0 },
+  redactedContext: "Synthetic X Layer testnet fixture; no real value."
+};
+const refusalModelInput = (refusal, request) => ({
+  invoiceId: refusal.observation.invoiceId,
+  invoiceDigest: refusal.observation.invoiceDigest,
+  supplier: refusal.observation.supplier,
+  payer: refusal.observation.payer,
+  funder: request.funder,
+  faceValue: refusal.observation.faceValue,
+  issuedAt: refusal.observation.issuedAt,
+  dueDate: refusal.observation.dueDate,
+  requestedAdvance: request.requestedAdvance,
+  evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
+  payerHistory: request.payerHistory,
+  redactedContext: request.redactedContext
+});
+policyRefusal.modelEvidence.requestHash = buildBrowserBankrRequestHash(refusalModelInput(policyRefusal, policyRefusalRequest), "synthetic");
+
+const canonicalJson = (value) => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  return JSON.stringify(value);
+};
+const artifactHashOf = (value) => keccak256(stringToHex(canonicalJson(value)));
+const cohereProviderReceipt = (candidate) => {
+  const evidence = candidate.modelEvidence;
+  const rawResponse = rawBankrResponse(evidence.decision, evidence.providerResponseId, evidence.returnedModel);
+  const responseHash = keccak256(stringToHex(rawResponse));
+  if (evidence.rawResponse === rawResponse && evidence.responseHash === responseHash) return candidate;
+  return { ...candidate, modelEvidence: { ...evidence, rawResponse, responseHash } };
+};
+const validateConnectedPolicyRefusal = (candidate, expectedRequest) => {
+  const coherent = cohereProviderReceipt(candidate);
+  return validateConnectedPolicyRefusalArtifact(coherent, expectedRequest, artifactHashOf(coherent));
+};
+const sealAssessment = (assessment) => {
+  const coherent = cohereProviderReceipt(assessment);
+  return { ...coherent, artifactHash: artifactHashOf(coherent) };
+};
+const unsignedAssessmentRequest = { ...policyRefusalRequest, syntheticFixtureAcknowledged: true };
+const successfulAssessmentRequest = {
+  ...unsignedAssessmentRequest,
+  supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(unsignedAssessmentRequest))
+};
+const successfulModelDecision = {
+  ...policyRefusal.modelEvidence.decision,
+  confidenceBps: 8_000,
+  maximumAdvanceBps: 7_000
+};
+const successfulModelEvidence = {
+  ...policyRefusal.modelEvidence,
+  requestHash: buildBrowserBankrRequestHash(refusalModelInput(policyRefusal, successfulAssessmentRequest), "synthetic"),
+  rawResponse: rawBankrResponse(successfulModelDecision),
+  responseHash: keccak256(stringToHex(rawBankrResponse(successfulModelDecision))),
+  decision: successfulModelDecision
+};
+const receiptCommitment = keccak256(encodeAbiParameters(
+  parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
+  [successfulModelEvidence.provider, successfulModelEvidence.providerResponseId, successfulModelEvidence.requestedModel, successfulModelEvidence.returnedModel, successfulModelEvidence.requestHash, successfulModelEvidence.responseHash]
+));
+const successfulModelId = `bankr:gpt-5.6-terra:receipt:${receiptCommitment}`;
+const successfulRiskReasonsHash = keccak256(encodeAbiParameters(
+  parseAbiParameters("string[] reasons, string explanation"),
+  [successfulModelDecision.reasons, successfulModelDecision.explanation]
+));
+const successfulModelHash = keccak256(encodeAbiParameters(
+  parseAbiParameters("string modelId, string verdict, uint16 maximumAdvanceBps, uint16 feeBps, uint16 confidenceBps, string[] reasons, string explanation"),
+  [successfulModelId, successfulModelDecision.verdict, successfulModelDecision.maximumAdvanceBps, successfulModelDecision.feeBps, successfulModelDecision.confidenceBps, successfulModelDecision.reasons, successfulModelDecision.explanation]
+));
+const successfulNonce = BigInt(keccak256(stringToHex(canonicalJson(successfulAssessmentRequest)))).toString();
+const successfulDecision = {
+  verdict: "APPROVE",
+  invoiceId: policyRefusal.observation.invoiceId,
+  invoiceDigest: policyRefusal.observation.invoiceDigest,
+  riskTimestamp: policyRefusal.observation.blockTimestamp,
+  expiresAt: policyRefusal.observation.blockTimestamp + 1_800,
+  riskReasonsHash: successfulRiskReasonsHash,
+  modelHash: successfulModelHash,
+  reasons: successfulModelDecision.reasons,
+  explanation: successfulModelDecision.explanation,
+  modelId: successfulModelId,
+  funder: funder.address,
+  advanceAmount: "70000000",
+  repaymentAmount: "70700000"
+};
+const successfulSigningDigest = hashTypedData(approvalTypedData({
+  invoiceId: successfulDecision.invoiceId,
+  invoiceDigest: successfulDecision.invoiceDigest,
+  funder: successfulDecision.funder,
+  advanceAmount: successfulDecision.advanceAmount,
+  repaymentAmount: successfulDecision.repaymentAmount,
+  riskTimestamp: String(successfulDecision.riskTimestamp),
+  expiresAt: String(successfulDecision.expiresAt),
+  riskReasonsHash: successfulDecision.riskReasonsHash,
+  modelHash: successfulDecision.modelHash,
+  nonce: successfulNonce
+}));
+const successfulAssessmentCore = {
+  decision: successfulDecision,
+  modelEvidence: successfulModelEvidence,
+  observation: policyRefusal.observation,
+  signingRequest: {
+    schemaVersion: "openbell-connected-decision-signing-v1",
+    label: OPENBELL_TESTNET.label,
+    chainId: "1952",
+    underwriter: underwriter.address,
+    authorizedDigest: successfulSigningDigest,
+    nonce: successfulNonce
+  }
+};
+const successfulAssessment = sealAssessment(successfulAssessmentCore);
+const wrongDeploymentDigest = hashTypedData(approvalTypedData({
+  invoiceId: successfulDecision.invoiceId,
+  invoiceDigest: successfulDecision.invoiceDigest,
+  funder: successfulDecision.funder,
+  advanceAmount: successfulDecision.advanceAmount,
+  repaymentAmount: successfulDecision.repaymentAmount,
+  riskTimestamp: String(successfulDecision.riskTimestamp),
+  expiresAt: String(successfulDecision.expiresAt),
+  riskReasonsHash: successfulDecision.riskReasonsHash,
+  modelHash: successfulDecision.modelHash,
+  nonce: successfulNonce
+}, OPENBELL_MAINNET_CONNECTED));
+
+test("policy refusals preserve evidence without exposing execution authority", () => {
+  assert.equal(validateConnectedPolicyRefusal(policyRefusal, policyRefusalRequest), policyRefusal);
+  assert.throws(() => validateConnectedPolicyRefusalArtifact({
+    ...policyRefusal,
+    modelEvidence: { ...policyRefusal.modelEvidence, responseHash: `0x${"ef".repeat(32)}` }
+  }, policyRefusalRequest, artifactHashOf(policyRefusal)), /artifact commitment/);
+  assert.equal("signingRequest" in policyRefusal, false);
+  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, executionAuthority: true }, policyRefusalRequest), /no execution authority/);
+  assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, signingRequest: {} }, policyRefusalRequest), /unsupported or missing fields/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: { ...policyRefusal.modelEvidence, decision: { ...policyRefusal.modelEvidence.decision, verdict: "REJECT" } }
+  }, policyRefusalRequest), /invalid|contradicts the model decision/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: { ...policyRefusal.modelEvidence, decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 7_000 } }
+  }, policyRefusalRequest), /contradicts the model decision/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    refusal: { ...policyRefusal.refusal, message: "A different refusal explanation." }
+  }, policyRefusalRequest), /contradicts the model decision/);
+  for (const [code, message] of [
+    ["INVALID_EVIDENCE", "Both signatures and the document hash must verify."],
+    ["DUPLICATE_INVOICE", "The invoice already appears in the duplicate index."],
+    ["INVALID_TENOR", "The invoice tenor is outside the protocol envelope."]
+  ]) {
+    assert.throws(() => validateConnectedPolicyRefusal({ ...policyRefusal, refusal: { code, message } }, policyRefusalRequest), /reason is invalid/);
+  }
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    refusal: { code: "MODEL_REJECTED", message: "The bounded advance is zero." },
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 8_000, maximumAdvanceBps: 1 }
+    }
+  }, policyRefusalRequest), /contradicts the model decision/);
+  assert.throws(() => validateConnectedPolicyRefusal(policyRefusal), /exact submitted assessment request/);
+  assert.throws(() => validateConnectedPolicyRefusal(policyRefusal, { ...policyRefusalRequest, invoiceId: `0x${"ff".repeat(32)}` }), /does not match/);
+  for (const changedRequest of [
+    { ...policyRefusalRequest, funder: underwriter.address },
+    { ...policyRefusalRequest, requestedAdvance: "74000000" },
+    { ...policyRefusalRequest, payerHistory: { ...policyRefusalRequest.payerHistory, daysSinceLastSettlement: 1 } },
+    { ...policyRefusalRequest, redactedContext: "Different authorized context." }
+  ]) {
+    assert.throws(() => validateConnectedPolicyRefusal(policyRefusal, changedRequest), /model request hash does not match/);
+  }
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, explanation: "A noncanonical but nonempty explanation." }
+    }
+  }, policyRefusalRequest), /invalid|explanation does not match/);
+  assert.throws(() => validateConnectedPolicyRefusal({
+    ...policyRefusal,
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, reasons: ["PRIOR_DEFAULT"] }
+    }
+  }, policyRefusalRequest), /unsupported by the submitted evidence/);
+  const roundedRefusal = {
+    ...policyRefusal,
+    refusal: { code: "MODEL_REJECTED", message: "The bounded advance is zero." },
+    modelEvidence: {
+      ...policyRefusal.modelEvidence,
+      decision: { ...policyRefusal.modelEvidence.decision, confidenceBps: 8_000, maximumAdvanceBps: 1 }
+    },
+    observation: { ...policyRefusal.observation, faceValue: "1" }
+  };
+  const roundedRequest = { ...policyRefusalRequest, faceValue: "1" };
+  roundedRefusal.modelEvidence.requestHash = buildBrowserBankrRequestHash(refusalModelInput(roundedRefusal, roundedRequest), "synthetic");
+  assert.doesNotThrow(() => validateConnectedPolicyRefusal(roundedRefusal, roundedRequest));
+});
+
+test("successful connected assessments bind every economic input before underwriter signing", () => {
+  assert.equal(validateConnectedAssessment(successfulAssessment, successfulAssessmentRequest), successfulAssessment);
+  for (const changedRequest of [
+    { ...successfulAssessmentRequest, invoiceId: `0x${"ef".repeat(32)}` },
+    { ...successfulAssessmentRequest, funder: underwriter.address },
+    { ...successfulAssessmentRequest, requestedAdvance: "74000000" },
+    { ...successfulAssessmentRequest, payerHistory: { ...successfulAssessmentRequest.payerHistory, defaults: 1 } },
+    { ...successfulAssessmentRequest, redactedContext: "Changed model context." }
+  ]) {
+    assert.throws(() => validateConnectedAssessment(successfulAssessment, changedRequest), /does not match|request hash|nonce/);
+  }
+  for (const changedAssessment of [
+    { ...successfulAssessment, decision: { ...successfulAssessment.decision, advanceAmount: "69000000" } },
+    { ...successfulAssessment, decision: { ...successfulAssessment.decision, repaymentAmount: "70699999" } },
+    { ...successfulAssessment, modelEvidence: { ...successfulAssessment.modelEvidence, responseHash: `0x${"ef".repeat(32)}` } },
+    { ...successfulAssessment, modelEvidence: { ...successfulAssessment.modelEvidence, decision: { ...successfulAssessment.modelEvidence.decision, reasons: ["PRIOR_DEFAULT"] } } },
+    { ...successfulAssessment, signingRequest: { ...successfulAssessment.signingRequest, label: OPENBELL_MAINNET_CONNECTED.label, chainId: "196", authorizedDigest: wrongDeploymentDigest } },
+    { ...successfulAssessment, signingRequest: { ...successfulAssessment.signingRequest, nonce: "1" } }
+  ]) {
+    assert.throws(() => validateConnectedAssessment(changedAssessment, successfulAssessmentRequest), /artifact commitment/);
+  }
+  for (const changedAssessmentCore of [
+    { ...successfulAssessmentCore, decision: { ...successfulAssessmentCore.decision, advanceAmount: "69000000" } },
+    { ...successfulAssessmentCore, modelEvidence: { ...successfulAssessmentCore.modelEvidence, providerResponseId: "coherently-edited-response" } },
+    { ...successfulAssessmentCore, modelEvidence: { ...successfulAssessmentCore.modelEvidence, decision: { ...successfulAssessmentCore.modelEvidence.decision, reasons: ["PRIOR_DEFAULT"] } } },
+    { ...successfulAssessmentCore, signingRequest: { ...successfulAssessmentCore.signingRequest, label: OPENBELL_MAINNET_CONNECTED.label, chainId: "196", authorizedDigest: wrongDeploymentDigest } },
+    { ...successfulAssessmentCore, signingRequest: { ...successfulAssessmentCore.signingRequest, nonce: "1" } }
+  ]) {
+    assert.throws(() => validateConnectedAssessment(sealAssessment(changedAssessmentCore), successfulAssessmentRequest), /bounded result|nonce|unsupported by the submitted evidence|signing deployment/);
+  }
+  const rawEditedCore = {
+    ...successfulAssessmentCore,
+    modelEvidence: { ...successfulAssessmentCore.modelEvidence, rawResponse: successfulAssessmentCore.modelEvidence.rawResponse.replace("response-test-1", "edited-response") }
+  };
+  assert.throws(() => validateConnectedAssessment({ ...rawEditedCore, artifactHash: artifactHashOf(rawEditedCore) }, successfulAssessmentRequest), /raw response hash/);
+  const coherentRaw = rawBankrResponse(successfulAssessmentCore.modelEvidence.decision, "edited-response");
+  const coherentlyEditedRawCore = {
+    ...successfulAssessmentCore,
+    modelEvidence: { ...successfulAssessmentCore.modelEvidence, rawResponse: coherentRaw, responseHash: keccak256(stringToHex(coherentRaw)) }
+  };
+  assert.throws(() => validateConnectedAssessment({ ...coherentlyEditedRawCore, artifactHash: artifactHashOf(coherentlyEditedRawCore) }, successfulAssessmentRequest), /raw response does not match/);
+});
 
 const wrap = (kind, signer, authorizedDigest, payload) => ({
   schemaVersion: "openbell-testnet-browser-action-v1",

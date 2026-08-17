@@ -9,7 +9,7 @@ import {
   type Hex
 } from "viem";
 import { z } from "zod";
-import { underwriteInvoice } from "./underwriter.js";
+import { UnderwritingRefusal, underwriteInvoice } from "./underwriter.js";
 import {
   BANKR_APPROVAL_EXPLANATION,
   BANKR_MAINNET_APPROVAL_EXPLANATION,
@@ -50,6 +50,7 @@ export type ConnectedDeployment = typeof CONNECTED_TESTNET | typeof CONNECTED_MA
 const address = z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform((value) => getAddress(value));
 const bytes32 = z.string().regex(/^0x[a-fA-F0-9]{64}$/).transform((value) => value.toLowerCase() as Hex);
 const uintString = z.string().regex(/^(0|[1-9][0-9]*)$/);
+const positiveUintString = z.string().regex(/^[1-9][0-9]*$/);
 const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 const signature = z.string().regex(/^0x[a-fA-F0-9]{130}$/).superRefine((value, context) => {
   const s = BigInt(`0x${value.slice(66, 130)}`);
@@ -79,7 +80,7 @@ const requestFields = {
   faceValue: uintString,
   issuedAt: z.number().int().nonnegative(),
   dueDate: z.number().int().positive(),
-  requestedAdvance: uintString,
+  requestedAdvance: positiveUintString,
   payerHistory: historySchema,
   redactedContext: z.string().trim().min(1).max(2_000),
   supplierAuthorization: signature
@@ -149,8 +150,11 @@ export interface ConnectedDecisionStore {
   load(invoiceId: Hex): Promise<StoredConnectedDecision | null>;
   claim(invoiceId: Hex, requestHash: Hex, requestJson: string): Promise<{ claimed: boolean; row: StoredConnectedDecision }>;
   beginModel(invoiceId: Hex, requestHash: Hex): Promise<void>;
-  complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void>;
+  complete(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void>;
+  loadCompletedArtifactHash(invoiceId: Hex, requestHash: Hex): Promise<Hex | null>;
   fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void>;
+  sealPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex, failureCode: string): Promise<void>;
+  loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null>;
   reserveDailyModelCall(day: string, maximum: number): Promise<boolean>;
 }
 
@@ -161,8 +165,23 @@ const modelEvidenceSchema = z.object({
   returnedModel: z.literal("gpt-5.6-terra"),
   requestHash: bytes32,
   responseHash: bytes32,
+  rawResponse: z.string().min(1).max(64 * 1_024),
   decision: modelDecisionSchema.strict()
-}).strict();
+}).strict().superRefine((evidence, context) => {
+  if (keccak256(stringToHex(evidence.rawResponse)) !== evidence.responseHash) {
+    context.addIssue({ code: "custom", message: "CONNECTED_MODEL_RAW_RESPONSE_HASH_MISMATCH" });
+    return;
+  }
+  try {
+    const envelope = JSON.parse(evidence.rawResponse) as { id?: unknown; model?: unknown; choices?: Array<{ message?: { content?: unknown } }> };
+    const rawDecision = JSON.parse(String(envelope.choices?.[0]?.message?.content));
+    if (envelope.id !== evidence.providerResponseId || envelope.model !== evidence.returnedModel || canonicalJson(rawDecision) !== canonicalJson(evidence.decision)) {
+      context.addIssue({ code: "custom", message: "CONNECTED_MODEL_RAW_RESPONSE_RECEIPT_MISMATCH" });
+    }
+  } catch {
+    context.addIssue({ code: "custom", message: "CONNECTED_MODEL_RAW_RESPONSE_INVALID" });
+  }
+});
 const registeredObservationSchema = z.object({
   chainId: z.number().int().positive(),
   receivables: address,
@@ -203,6 +222,15 @@ const canonicalJson = (value: unknown): string => {
   return JSON.stringify(value);
 };
 const requestHashOf = (request: ConnectedUnderwritingRequest): Hex => keccak256(stringToHex(canonicalJson(request)));
+export const connectedArtifactHashOf = (value: unknown): Hex => keccak256(stringToHex(canonicalJson(value)));
+const storedArtifactHashOf = (resultJson: string): Hex => connectedArtifactHashOf(JSON.parse(resultJson));
+const parseModelEvidence = (candidate: unknown): z.infer<typeof modelEvidenceSchema> => {
+  try {
+    return modelEvidenceSchema.parse(candidate);
+  } catch {
+    throw new Error("CONNECTED_MODEL_RECEIPT_INVALID");
+  }
+};
 const failureCode = (error: unknown): string => error instanceof Error ? error.message.slice(0, 160) : "CONNECTED_UNDERWRITING_FAILED";
 const unsupportedZeroHistoryReasons = new Set([
   "STRONG_ON_TIME_HISTORY",
@@ -364,6 +392,69 @@ function buildUnsignedAssessmentResult(decision: BoundedDecision, observation: R
   };
 }
 
+const policyRefusalEvidenceSchema = z.object({
+  schemaVersion: z.literal("openbell-connected-policy-refusal-v1"),
+  outcome: z.literal("POLICY_REFUSAL"),
+  executionAuthority: z.literal(false),
+  refusal: z.object({ code: z.enum(["MODEL_REJECTED", "LOW_CONFIDENCE"]), message: z.string().min(1) }).strict(),
+  modelEvidence: modelEvidenceSchema,
+  observation: registeredObservationSchema
+}).strict();
+export type ConnectedPolicyRefusalEvidence = z.infer<typeof policyRefusalEvidenceSchema>;
+
+export class ConnectedPolicyRefusal extends Error {
+  constructor(readonly evidence: ConnectedPolicyRefusalEvidence, readonly artifactHash: Hex) {
+    super("CONNECTED_POLICY_REFUSAL");
+    this.name = "ConnectedPolicyRefusal";
+  }
+}
+
+class ConnectedPolicyRefusalPersistenceError extends Error {
+  constructor() {
+    super("CONNECTED_POLICY_REFUSAL_PERSISTENCE_FAILED");
+    this.name = "ConnectedPolicyRefusalPersistenceError";
+  }
+}
+
+const buildPolicyRefusalEvidence = (
+  refusal: UnderwritingRefusal,
+  modelEvidence: z.infer<typeof modelEvidenceSchema>,
+  observation: RegisteredInvoiceObservation
+): ConnectedPolicyRefusalEvidence => policyRefusalEvidenceSchema.parse({
+  schemaVersion: "openbell-connected-policy-refusal-v1",
+  outcome: "POLICY_REFUSAL",
+  executionAuthority: false,
+  refusal: { code: refusal.code, message: refusal.message },
+  modelEvidence,
+  observation
+});
+
+const validateStoredPolicyRefusal = async (
+  candidate: unknown,
+  request: ConnectedUnderwritingRequest,
+  deployment: ConnectedDeployment
+): Promise<ConnectedPolicyRefusalEvidence> => {
+  const refusal = policyRefusalEvidenceSchema.parse(candidate);
+  const observation = refusal.observation as RegisteredInvoiceObservation;
+  assertObservation(request, observation, deployment);
+  const input = riskInputFrom(request, observation);
+  committedModelId(input, refusal.modelEvidence, deployment);
+  try {
+    await underwriteInvoice({
+      input,
+      model: { modelId: committedModelId(input, refusal.modelEvidence, deployment), decide: async () => refusal.modelEvidence.decision },
+      policy: policyFor(deployment),
+      now: observation.blockTimestamp
+    });
+  } catch (error) {
+    if (error instanceof UnderwritingRefusal && error.code === refusal.refusal.code && error.message === refusal.refusal.message) {
+      return refusal;
+    }
+    throw new Error("CONNECTED_POLICY_REFUSAL_CORRUPT");
+  }
+  throw new Error("CONNECTED_POLICY_REFUSAL_CREATED_EXECUTION_AUTHORITY");
+};
+
 export class ConnectedUnderwritingService {
   constructor(readonly dependencies: {
     observer: ConnectedInvoiceObserver;
@@ -384,12 +475,14 @@ export class ConnectedUnderwritingService {
     const returnStored = async (row: StoredConnectedDecision): Promise<ReturnType<typeof buildUnsignedAssessmentResult>> => {
       if (row.requestHash !== requestHash) throw new Error("CONNECTED_DECISION_REQUEST_CONFLICT");
       if (row.status === "COMPLETE" && row.resultJson) {
+        const storedArtifactHash = await this.dependencies.store.loadCompletedArtifactHash(request.invoiceId, requestHash);
+        if (storedArtifactHash === null || storedArtifactHashOf(row.resultJson) !== storedArtifactHash) throw new Error("CONNECTED_DECISION_ARTIFACT_HASH_MISMATCH");
         const parsed: unknown = JSON.parse(row.resultJson);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         const record = parsed as Record<string, unknown>;
         if (Object.keys(record).sort().join(",") !== "decision,modelEvidence,observation,signingRequest") throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         const decision = boundedDecisionSchema.parse(record.decision);
-        const modelEvidence = modelEvidenceSchema.parse(record.modelEvidence);
+        const modelEvidence = parseModelEvidence(record.modelEvidence);
         const storedObservation = registeredObservationSchema.parse(record.observation) as RegisteredInvoiceObservation;
         assertObservation(request, storedObservation, deployment);
         const storedInput = riskInputFrom(request, storedObservation);
@@ -409,7 +502,18 @@ export class ConnectedUnderwritingService {
         if (canonicalJson(rebuilt) !== canonicalJson(parsed)) throw new Error("CONNECTED_DECISION_CORRUPT_RESULT");
         return rebuilt;
       }
-      if (row.status === "FAILED") throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
+      if (row.status === "FAILED") {
+        const storedRefusal = await this.dependencies.store.loadPolicyRefusal(request.invoiceId, requestHash);
+        if (storedRefusal !== null) {
+          if (storedArtifactHashOf(storedRefusal.resultJson) !== storedRefusal.artifactHash) {
+            throw new Error("CONNECTED_POLICY_REFUSAL_ARTIFACT_HASH_MISMATCH");
+          }
+          const refusal = await validateStoredPolicyRefusal(JSON.parse(storedRefusal.resultJson), request, deployment);
+          if (row.failureCode !== refusal.refusal.code) throw new Error("CONNECTED_POLICY_REFUSAL_FAILURE_CODE_MISMATCH");
+          throw new ConnectedPolicyRefusal(refusal, storedRefusal.artifactHash);
+        }
+        throw new Error(row.failureCode ?? "CONNECTED_DECISION_PREVIOUSLY_FAILED");
+      }
       throw new Error("CONNECTED_DECISION_IN_PROGRESS_OR_RECONCILIATION_REQUIRED");
     };
     const claim = await this.dependencies.store.claim(request.invoiceId, requestHash, requestJson);
@@ -425,7 +529,7 @@ export class ConnectedUnderwritingService {
       await this.dependencies.store.beginModel(request.invoiceId, requestHash);
       const model = this.dependencies.modelFactory();
       const modelDecision = modelDecisionSchema.strict().parse(await model.decide(input));
-      const modelEvidence = modelEvidenceSchema.parse((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
+      const modelEvidence = parseModelEvidence((model as UnderwritingModel & { readonly lastReceipt?: unknown }).lastReceipt);
       if (canonicalJson(modelEvidence.decision) !== canonicalJson(modelDecision)) throw new Error("CONNECTED_MODEL_RECEIPT_DECISION_MISMATCH");
       assertModelReasonsSupported(input, modelDecision, deployment);
       const postModelObservation = await this.dependencies.observer.inspect(request, nonce);
@@ -436,18 +540,33 @@ export class ConnectedUnderwritingService {
         throw new Error("CONNECTED_OBSERVATION_REORG_OR_REGRESSION");
       }
       const postModelInput = riskInputFrom(request, postModelObservation);
-      const decision = await underwriteInvoice({
-        input: postModelInput,
-        model: { modelId: committedModelId(postModelInput, modelEvidence, deployment), decide: async () => modelDecision },
-        policy: policyFor(deployment),
-        now: postModelObservation.blockTimestamp
-      });
+      let decision: BoundedDecision;
+      try {
+        decision = await underwriteInvoice({
+          input: postModelInput,
+          model: { modelId: committedModelId(postModelInput, modelEvidence, deployment), decide: async () => modelDecision },
+          policy: policyFor(deployment),
+          now: postModelObservation.blockTimestamp
+        });
+      } catch (error) {
+        if (!(error instanceof UnderwritingRefusal)) throw error;
+        const refusal = buildPolicyRefusalEvidence(error, modelEvidence, postModelObservation);
+        const refusalJson = JSON.stringify(refusal);
+        const refusalArtifactHash = storedArtifactHashOf(refusalJson);
+        try {
+          await this.dependencies.store.sealPolicyRefusal(request.invoiceId, requestHash, refusalJson, refusalArtifactHash, error.code);
+        } catch {
+          throw new ConnectedPolicyRefusalPersistenceError();
+        }
+        throw new ConnectedPolicyRefusal(refusal, refusalArtifactHash);
+      }
       const { digest } = typedDecision(decision, nonce, deployment);
       const result = buildUnsignedAssessmentResult(decision, postModelObservation, nonce, digest, modelEvidence, deployment);
       const resultJson = JSON.stringify(result);
-      await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson);
+      await this.dependencies.store.complete(request.invoiceId, requestHash, resultJson, storedArtifactHashOf(resultJson));
       return result;
     } catch (error) {
+      if (error instanceof ConnectedPolicyRefusal || error instanceof ConnectedPolicyRefusalPersistenceError) throw error;
       await this.dependencies.store.fail(request.invoiceId, requestHash, failureCode(error));
       throw error;
     }

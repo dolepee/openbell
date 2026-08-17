@@ -2,7 +2,9 @@ import { TwoProviderConnectedInvoiceObserver, type ReadOnlyJsonRpc } from "../ag
 import {
   CONNECTED_MAINNET,
   CONNECTED_TESTNET,
+  ConnectedPolicyRefusal,
   ConnectedUnderwritingService,
+  connectedArtifactHashOf,
   connectedUnderwritingRequestSchema,
   mainnetUnderwritingRequestSchema,
   type ConnectedDeployment
@@ -28,6 +30,14 @@ const officialMainnetProviders = [
 const MAX_REQUEST_BYTES = 16 * 1_024;
 const RPC_TIMEOUT_MS = 12_000;
 const RPC_MAX_RESPONSE_BYTES = 512 * 1_024;
+const decisionStores = new WeakMap<D1DatabaseLike, D1ConnectedDecisionStore>();
+const decisionStoreFor = (database: D1DatabaseLike): D1ConnectedDecisionStore => {
+  const existing = decisionStores.get(database);
+  if (existing) return existing;
+  const created = new D1ConnectedDecisionStore(database);
+  decisionStores.set(database, created);
+  return created;
+};
 
 const boundedText = async (response: Response, maximum: number, errorCode: string): Promise<string> => {
   const declared = response.headers.get("content-length");
@@ -123,12 +133,16 @@ const underwritingResponse = async (request: Request, config: Environment, deplo
     ) as unknown as readonly [OfficialReadOnlyRpc, OfficialReadOnlyRpc], deployment);
     const service = new ConnectedUnderwritingService({
       observer,
-      store: new D1ConnectedDecisionStore(config.DB),
+      store: decisionStoreFor(config.DB),
       modelFactory: () => model,
       deployment
     });
-    return json(await service.authorize(body));
+    const assessment = await service.authorize(body);
+    return json({ ...assessment, artifactHash: connectedArtifactHashOf(assessment) });
   } catch (error) {
+    if (error instanceof ConnectedPolicyRefusal) {
+      return json({ error: error.message, policyRefusal: error.evidence, policyRefusalArtifactHash: error.artifactHash }, 422);
+    }
     const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "CONNECTED_UNDERWRITING_FAILED";
     const status = code.includes("IN_PROGRESS") ? 409 : code.includes("BUDGET") ? 429 : 422;
     return json({ error: code }, status);

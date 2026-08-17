@@ -1,5 +1,15 @@
 import type { Hex } from "viem";
-import { connectedDailyBudgetTableSql, connectedDecisionTableSql } from "../../db/schema.js";
+import {
+  archiveLegacyConnectedDecisionsSql,
+  CONNECTED_ARTIFACT_MIGRATION_KEY,
+  connectedCompletedArtifactTableSql,
+  connectedDailyBudgetTableSql,
+  connectedDecisionTableSql,
+  connectedLegacyCompletedDecisionTableSql,
+  connectedPolicyRefusalTableSql,
+  connectedSchemaStateTableSql,
+  retireLegacyConnectedDecisionsSql
+} from "../../db/schema.js";
 import type { ConnectedDecisionStore, StoredConnectedDecision } from "./connected-underwriting.js";
 
 interface D1RunResult { readonly success?: boolean; readonly meta?: { readonly changes?: number } }
@@ -8,7 +18,10 @@ interface D1Statement {
   run(): Promise<D1RunResult>;
   first<T>(): Promise<T | null>;
 }
-export interface D1DatabaseLike { prepare(sql: string): D1Statement }
+export interface D1DatabaseLike {
+  prepare(sql: string): D1Statement;
+  batch(statements: D1Statement[]): Promise<D1RunResult[]>;
+}
 
 interface DecisionRow {
   readonly request_hash: string;
@@ -39,6 +52,41 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (result.success === false) throw new Error("CONNECTED_STORE_SCHEMA_FAILED");
     const budgetResult = await this.database.prepare(connectedDailyBudgetTableSql).run();
     if (budgetResult.success === false) throw new Error("CONNECTED_STORE_BUDGET_SCHEMA_FAILED");
+    const refusalResult = await this.database.prepare(connectedPolicyRefusalTableSql).run();
+    if (refusalResult.success === false) throw new Error("CONNECTED_STORE_REFUSAL_SCHEMA_FAILED");
+    const completedArtifactResult = await this.database.prepare(connectedCompletedArtifactTableSql).run();
+    if (completedArtifactResult.success === false) throw new Error("CONNECTED_STORE_COMPLETED_ARTIFACT_SCHEMA_FAILED");
+    const legacyResult = await this.database.prepare(connectedLegacyCompletedDecisionTableSql).run();
+    if (legacyResult.success === false) throw new Error("CONNECTED_STORE_LEGACY_SCHEMA_FAILED");
+    const schemaStateResult = await this.database.prepare(connectedSchemaStateTableSql).run();
+    if (schemaStateResult.success === false) throw new Error("CONNECTED_STORE_SCHEMA_STATE_FAILED");
+    const migrationMarker = await this.database.prepare(
+      "SELECT value FROM connected_underwriting_schema_state WHERE key = ?"
+    ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY).first<{ value: string }>();
+    if (migrationMarker === null) {
+      const migrationOwner = `running:${crypto.randomUUID()}`;
+      const legacyMigration = await this.database.batch([
+        this.database.prepare(
+          "INSERT OR IGNORE INTO connected_underwriting_schema_state (key, value) VALUES (?, ?)"
+        ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner),
+        this.database.prepare(`${archiveLegacyConnectedDecisionsSql}
+  AND EXISTS (SELECT 1 FROM connected_underwriting_schema_state WHERE key = ? AND value = ?)`)
+          .bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner),
+        this.database.prepare(`${retireLegacyConnectedDecisionsSql}
+  AND EXISTS (SELECT 1 FROM connected_underwriting_schema_state WHERE key = ? AND value = ?)`)
+          .bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner),
+        this.database.prepare(
+          "UPDATE connected_underwriting_schema_state SET value = 'complete' WHERE key = ? AND value = ?"
+        ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY, migrationOwner)
+      ]);
+      if (legacyMigration.length !== 4 || legacyMigration.some((result) => result.success === false)) throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_FAILED");
+      const completedMarker = await this.database.prepare(
+        "SELECT value FROM connected_underwriting_schema_state WHERE key = ?"
+      ).bind(CONNECTED_ARTIFACT_MIGRATION_KEY).first<{ value: string }>();
+      if (completedMarker?.value !== "complete") throw new Error("CONNECTED_STORE_LEGACY_MIGRATION_INCOMPLETE");
+    } else if (migrationMarker.value !== "complete") {
+      throw new Error("CONNECTED_STORE_INVALID_SCHEMA_STATE");
+    }
     this.#initialized = true;
   }
 
@@ -89,12 +137,28 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
     if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_BEGIN_MODEL_CONFLICT");
   }
 
-  async complete(invoiceId: Hex, requestHash: Hex, resultJson: string): Promise<void> {
+  async complete(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex): Promise<void> {
     await this.#initialize();
-    const result = await this.database.prepare(
-      "UPDATE connected_underwriting_decisions SET status = 'COMPLETE', result_json = ?, updated_at = ? WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT'"
-    ).bind(resultJson, this.now(), invoiceId, requestHash).run();
-    if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_COMPLETE_CONFLICT");
+    const timestamp = this.now();
+    const results = await this.database.batch([
+      this.database.prepare(
+        "INSERT INTO connected_underwriting_completed_artifacts (invoice_id, request_hash, artifact_hash, created_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
+      ).bind(invoiceId, requestHash, artifactHash, timestamp, invoiceId, requestHash),
+      this.database.prepare(
+        "UPDATE connected_underwriting_decisions SET status = 'COMPLETE', result_json = ?, updated_at = ? WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT'"
+      ).bind(resultJson, timestamp, invoiceId, requestHash)
+    ]);
+    if (results.length !== 2 || results[0]?.meta?.changes !== 1 || results[1]?.meta?.changes !== 1) throw new Error("CONNECTED_STORE_COMPLETE_CONFLICT");
+  }
+
+  async loadCompletedArtifactHash(invoiceId: Hex, requestHash: Hex): Promise<Hex | null> {
+    await this.#initialize();
+    const row = await this.database.prepare(
+      "SELECT artifact_hash FROM connected_underwriting_completed_artifacts WHERE invoice_id = ? AND request_hash = ?"
+    ).bind(invoiceId, requestHash).first<{ artifact_hash: string }>();
+    if (!row) return null;
+    if (!/^0x[0-9a-f]{64}$/.test(row.artifact_hash)) throw new Error("CONNECTED_STORE_CORRUPT_COMPLETED_ARTIFACT_HASH");
+    return row.artifact_hash as Hex;
   }
 
   async fail(invoiceId: Hex, requestHash: Hex, failureCode: string): Promise<void> {
@@ -103,6 +167,33 @@ export class D1ConnectedDecisionStore implements ConnectedDecisionStore {
       "UPDATE connected_underwriting_decisions SET status = 'FAILED', failure_code = ?, updated_at = ? WHERE invoice_id = ? AND request_hash = ? AND status IN ('CLAIMED', 'MODEL_IN_FLIGHT')"
     ).bind(failureCode, this.now(), invoiceId, requestHash).run();
     if (result.meta?.changes !== 1) throw new Error("CONNECTED_STORE_FAIL_CONFLICT");
+  }
+
+  async sealPolicyRefusal(invoiceId: Hex, requestHash: Hex, resultJson: string, artifactHash: Hex, failureCode: string): Promise<void> {
+    await this.#initialize();
+    const timestamp = this.now();
+    const results = await this.database.batch([
+      this.database.prepare(
+        "INSERT INTO connected_underwriting_policy_refusals (invoice_id, request_hash, result_json, artifact_hash, created_at) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM connected_underwriting_decisions WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT')"
+      ).bind(invoiceId, requestHash, resultJson, artifactHash, timestamp, invoiceId, requestHash),
+      this.database.prepare(
+        "UPDATE connected_underwriting_decisions SET status = 'FAILED', failure_code = ?, updated_at = ? WHERE invoice_id = ? AND request_hash = ? AND status = 'MODEL_IN_FLIGHT'"
+      ).bind(failureCode, timestamp, invoiceId, requestHash)
+    ]);
+    if (results.length !== 2) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
+    const inserted = results[0]!;
+    const failed = results[1]!;
+    if (inserted.meta?.changes !== 1 || failed.meta?.changes !== 1) throw new Error("CONNECTED_STORE_REFUSAL_CONFLICT");
+  }
+
+  async loadPolicyRefusal(invoiceId: Hex, requestHash: Hex): Promise<{ resultJson: string; artifactHash: Hex } | null> {
+    await this.#initialize();
+    const row = await this.database.prepare(
+      "SELECT result_json, artifact_hash FROM connected_underwriting_policy_refusals WHERE invoice_id = ? AND request_hash = ?"
+    ).bind(invoiceId, requestHash).first<{ result_json: string; artifact_hash: string }>();
+    if (!row) return null;
+    if (!/^0x[0-9a-f]{64}$/.test(row.artifact_hash)) throw new Error("CONNECTED_STORE_CORRUPT_REFUSAL_HASH");
+    return { resultJson: row.result_json, artifactHash: row.artifact_hash as Hex };
   }
 
   async reserveDailyModelCall(day: string, maximum: number): Promise<boolean> {
