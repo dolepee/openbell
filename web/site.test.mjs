@@ -78,7 +78,9 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /<title>OpenBell — AI-bounded receivables on X Layer<\/title>/);
   assert.match(overview, /The model said no\.<br \/>The human took less\.<br \/><em>Code held the line\.<\/em>/);
   assert.match(overview, /50% of request · 25% of face value/);
-  assert.match(overview, /href="\/fund\/">Fund one receivable/);
+  assert.match(overview, /data-funding-action href="\/proof\/#mainnet">Follow five mainnet receipts/);
+  assert.match(overview, /fetch\("\/api\/funding-candidate", \{ cache: "no-store" \}\)/);
+  assert.match(overview, /action\.href = "\/fund\/"/);
   assert.doesNotMatch(overview.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "", /Testnet desk|Proof room|Architecture/);
   assert.match(overview, /href="\/operate\/">Testnet desk/);
   assert.match(overview, /5 canonical mainnet receipts/);

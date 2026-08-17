@@ -213,8 +213,25 @@ const fundingCandidateResponse = async (request: Request, config: Environment): 
       if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("INVALID_FUNDING_CANDIDATE");
       const record = candidate as Record<string, unknown>;
       if (record.schemaVersion !== "openbell-mainnet-funding-candidate-v1" || record.status !== "OPEN") throw new Error("INVALID_FUNDING_CANDIDATE");
+      const candidateInvoice = record.invoice;
+      if (!candidateInvoice || typeof candidateInvoice !== "object" || Array.isArray(candidateInvoice)) throw new Error("INVALID_FUNDING_CANDIDATE");
+      const invoiceId = (candidateInvoice as Record<string, unknown>).invoiceId;
+      if (typeof invoiceId !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(invoiceId)) throw new Error("INVALID_FUNDING_CANDIDATE");
+      const call = { to: CONNECTED_MAINNET.receivables, data: buildInvoiceStateCall(invoiceId) };
+      const states = await Promise.all(officialMainnetProviders.map(({ label, endpoint }) =>
+        new OfficialReadOnlyRpc(label, endpoint).request("eth_call", [call, "latest"])
+      ));
+      if (typeof states[0] !== "string" || typeof states[1] !== "string" || states[0].toLowerCase() !== states[1].toLowerCase()) {
+        return json({ error: "FUNDING_CANDIDATE_STATE_UNAVAILABLE" }, 503);
+      }
+      if (decodeInvoiceState(states[0] as `0x${string}`).status !== 1) {
+        return json({ error: "NO_OPEN_FUNDING_CANDIDATE" }, 404);
+      }
       return json(candidate);
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && /^(?:CONNECTED_RPC_|FUNDING_CANDIDATE_PROVIDER_)/.test(error.message)) {
+        return json({ error: "FUNDING_CANDIDATE_STATE_UNAVAILABLE" }, 503);
+      }
       return json({ error: "CORRUPT_FUNDING_CANDIDATE" }, 500);
     }
   }
