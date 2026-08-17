@@ -16,7 +16,10 @@ const invoiceState = (status: number) => encodeAbiParameters(
   [status, `0x${"11".repeat(20)}`, `0x${"22".repeat(20)}`, `0x${"33".repeat(20)}`, 100_000n, 0n, 0n, 1_800_000_000n, `0x${"44".repeat(32)}`, `0x${"55".repeat(32)}`, `0x${"00".repeat(32)}`]
 );
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 test("connected endpoint rejects non-POST requests before dependencies", async () => {
   const response = await worker.fetch(new Request(api), environment);
@@ -160,7 +163,7 @@ test("funding candidate endpoint returns only the current open D1 candidate", as
   vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(1))));
   const candidateEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
-    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_900_000_000 }) }) }
   } as never;
   const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
   expect(response.status).toBe(200);
@@ -178,9 +181,50 @@ test("funding candidate endpoint hides a row after its invoice leaves REGISTERED
   vi.stubGlobal("fetch", vi.fn(async () => jsonRpcResponse(invoiceState(2))));
   const candidateEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
-    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate) }) }) }
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_900_000_000 }) }) }
   } as never;
   const response = await worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: "NO_OPEN_FUNDING_CANDIDATE" });
+});
+
+test("funding candidate endpoint rechecks expiry after current state verification", async () => {
+  vi.useFakeTimers();
+  const requestStartedAt = 1_800_000_000_000;
+  vi.setSystemTime(requestStartedAt);
+  const candidate = {
+    schemaVersion: "openbell-mainnet-funding-candidate-v1",
+    status: "OPEN",
+    title: "One bounded supplier advance",
+    invoice: { invoiceId: `0x${"10".repeat(32)}` }
+  };
+  let rpcCalls = 0;
+  let resolveSecondRpc!: (response: Response) => void;
+  const secondRpc = new Promise<Response>((resolve) => {
+    resolveSecondRpc = resolve;
+  });
+  vi.stubGlobal("fetch", vi.fn(() => {
+    rpcCalls += 1;
+    return rpcCalls === 1
+      ? Promise.resolve(jsonRpcResponse(invoiceState(1)))
+      : secondRpc;
+  }));
+  const candidateEnvironment = {
+    ASSETS: { fetch: async () => new Response("asset") },
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify(candidate), expires_at: 1_800_000_001 }) }) }
+  } as never;
+  const responsePromise = worker.fetch(new Request("https://openbell.dolepee.com/api/funding-candidate"), candidateEnvironment);
+  let responseSettled = false;
+  void responsePromise.then(() => {
+    responseSettled = true;
+  });
+  for (let attempt = 0; attempt < 10 && rpcCalls < 2; attempt += 1) await Promise.resolve();
+  expect(rpcCalls).toBe(2);
+  vi.setSystemTime(requestStartedAt + 2_000);
+  for (let attempt = 0; attempt < 10; attempt += 1) await Promise.resolve();
+  expect(responseSettled).toBe(false);
+  resolveSecondRpc(jsonRpcResponse(invoiceState(1)));
+  const response = await responsePromise;
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ error: "NO_OPEN_FUNDING_CANDIDATE" });
 });
@@ -197,7 +241,7 @@ test("funding candidate endpoint fails closed for missing, malformed, and non-GE
 
   const corruptEnvironment = {
     ASSETS: { fetch: async () => new Response("asset") },
-    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify({ schemaVersion: "wrong", status: "OPEN" }) }) }) }
+    DB: { prepare: () => ({ first: async () => ({ candidate_json: JSON.stringify({ schemaVersion: "wrong", status: "OPEN" }), expires_at: 1_900_000_000 }) }) }
   } as never;
   const corrupt = await worker.fetch(new Request(endpoint), corruptEnvironment);
   expect(corrupt.status).toBe(500);
