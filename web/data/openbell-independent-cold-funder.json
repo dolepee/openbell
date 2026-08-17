@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "openbell-independent-cold-funder-verification-v1",
+  "observationsSha256": "0xf6f45a45015ee00c75b9159c837d49de994b2a498329142b0026821354045969",
+  "chainId": "196",
+  "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+  "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+  "invoiceId": "0x02f989cca9d53aa2f9078a7c3f34290a16913706a265caa7465dc447f0dc1508",
+  "invoiceDigest": "0x5933c7c05cb68e6973dc065d6df2102af5564a3db172042a72799a43b52b9127",
+  "decisionDigest": "0x00bef15e4503fc69d35d2d4040d63aeb4452b305af7c7a5a25167ff315986135",
+  "rejectedArtifactHash": "0xe52035efbe431f0b7c7cc59b37d403e9ec1e6ae53b6bf457d91933f941038a3c",
+  "funder": "0x2Ef3530496b22B2E87F1E5702e4D1FD6b3D05244",
+  "supplier": "0x950d3A417dbBA923b775f2BFd146163961842Bd4",
+  "payer": "0xFc2426CDbe672B0D92aC8399a16E88422AC5b737",
+  "faceValue": "20000",
+  "advanceAmount": "5000",
+  "repaymentAmount": "5050",
+  "finalStatus": "FUNDED",
+  "fundingTransactionHash": "0xa9068afbd10fec26550883b7d52018623d7b184ad8cbdb310099a547526e030a",
+  "providerResults": [
+    {
+      "provider": "official-xlayer",
+      "head": "68218867",
+      "headHash": "0x3db5f0ee0ae145d66f5ba2bf47d9fda511c0db972a01f7407178c525cd59412d",
+      "confirmations": "662"
+    },
+    {
+      "provider": "official-okx",
+      "head": "68218871",
+      "headHash": "0x788d02b5eb4f94d247b94ee8abc3e13e4c2620236aa8ec6d61eaecd58df53568",
+      "confirmations": "666"
+    }
+  ],
+  "minimumObservedConfirmations": "662",
+  "canonicalInclusionVerified": true,
+  "exactFundingDeltaVerified": true,
+  "residualAllowanceZero": true,
+  "decisionDigestVerified": true,
+  "providerAgreement": true,
+  "endpointProvenanceCommitted": true,
+  "testerIndependence": "USER_ATTESTED_NOT_ONCHAIN_VERIFIABLE"
+}

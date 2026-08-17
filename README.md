@@ -66,6 +66,11 @@ founder-operated, and the underwriter signature was produced by the disclosed pr
 This proves the product path and real token movement; it does not independently establish the
 offchain invoice's legal validity or market demand.
 
+A second unrelated tester then completed the dedicated one-wallet `/fund/` journey without a file
+or CLI. Wallet `0x2Ef353...05244` funded invoice `0x02f989...1508` with exactly `0.005 USDG`
+in transaction `0xa9068a...030a`. The chain proves the distinct wallet, exact transfer and
+`REGISTERED -> FUNDED` transition; the tester's independence is an offchain attestation.
+
 - Mainnet OpenBell Receivables: [`0xc4Ef249b80a6a034198C226278c51b0a903840dd`](https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd)
 - Mainnet deployment transaction: [`0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e`](https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e)
 - Mainnet deployment block: `67764503`
@@ -76,6 +81,8 @@ offchain invoice's legal validity or market demand.
 - Deterministic observation verification: [`evidence/openbell-xlayer-mainnet-observation-verification.json`](evidence/openbell-xlayer-mainnet-observation-verification.json), derived by `node scripts/verify-mainnet-observations.mjs`
 - Mainnet lifecycle observations: [`evidence/openbell-xlayer-mainnet-lifecycle-observations.json`](evidence/openbell-xlayer-mainnet-lifecycle-observations.json), SHA-256 `8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd`
 - Mainnet lifecycle verification: [`evidence/openbell-xlayer-mainnet-lifecycle-verification.json`](evidence/openbell-xlayer-mainnet-lifecycle-verification.json), derived by `node scripts/verify-mainnet-lifecycle.mjs`
+- Independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `f6f45a45015ee00c75b9159c837d49de994b2a498329142b0026821354045969`
+- Deterministic cold-funder verification: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json), derived by `node scripts/verify-cold-funder.mjs`
 
 The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
 getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
