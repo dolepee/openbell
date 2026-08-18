@@ -561,10 +561,20 @@ export class ConnectedUnderwritingService {
       }
       throw new Error("CONNECTED_DECISION_IN_PROGRESS_OR_RECONCILIATION_REQUIRED");
     };
+    // A caller-supplied transaction hash is untrusted. For a new invoice, verify it
+    // against both RPC providers before creating the durable one-shot claim. This
+    // keeps a malformed or unrelated transaction from permanently consuming the
+    // invoice's assessment slot while preserving atomic claim handling for races.
+    const existing = await this.dependencies.store.load(request.invoiceId);
+    let verifiedObservation: RegisteredInvoiceObservation | undefined;
+    if (existing === null) {
+      verifiedObservation = await this.dependencies.observer.inspect(request, nonce);
+      assertObservation(request, verifiedObservation, deployment);
+    }
     const claim = await this.dependencies.store.claim(request.invoiceId, requestHash, requestJson);
     if (!claim.claimed) return returnStored(claim.row);
     try {
-      const observation = await this.dependencies.observer.inspect(request, nonce);
+      const observation = verifiedObservation ?? await this.dependencies.observer.inspect(request, nonce);
       assertObservation(request, observation, deployment);
       const input = riskInputFrom(request, observation);
       const budgetDay = new Date(observation.blockTimestamp * 1_000).toISOString().slice(0, 10);
