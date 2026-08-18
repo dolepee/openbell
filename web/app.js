@@ -230,6 +230,7 @@ if (dealForm) {
     dueInput.value = futureDueDate();
     nonceInput.value = generateDealNonce();
     documentInput.value = "";
+    documentHashInput.value = "";
     const sampleDocument = document.querySelector("#sample-document").textContent;
     try {
       const sampleDocumentHash = await sha256(new TextEncoder().encode(sampleDocument));
