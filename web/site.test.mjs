@@ -85,6 +85,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /AI reads confirmed X Layer history, not a supplier's story/);
   assert.match(overview, /Prepare an invoice/);
   assert.match(overview, /href="\/studio\/#try"/);
+  assert.ok(overview.indexOf('class="result-visual"') < overview.indexOf('class="judge-hero-copy"'), "mobile visual and focus order must agree");
   assert.doesNotMatch(overview.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "", /Testnet desk|Proof room|Architecture/);
   assert.match(overview, /href="\/proof\/#mainnet">Evidence/);
   assert.match(overview, /Five successful receipts/);
