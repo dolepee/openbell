@@ -231,14 +231,14 @@ if (dealForm) {
     nonceInput.value = generateDealNonce();
     documentInput.value = "";
     documentHashInput.value = "";
+    renderTargetLabels();
+    updateStudioMath();
     const sampleDocument = document.querySelector("#sample-document").textContent;
     try {
       const sampleDocumentHash = await sha256(new TextEncoder().encode(sampleDocument));
       if (!studioOperationGuard.isCurrent(sampleRevision)) return;
       documentHashInput.value = sampleDocumentHash;
       consentInput.checked = true;
-      renderTargetLabels();
-      updateStudioMath();
       submitted = true;
       dealForm.requestSubmit();
     } catch {

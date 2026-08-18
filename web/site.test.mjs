@@ -234,6 +234,7 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /if \(!studioOperationGuard\.isCurrent\(sampleRevision\)\) return/);
   assert.match(script, /const sampleDocumentHash = await sha256/);
   assert.match(script, /documentInput\.value = "";\s+documentHashInput\.value = ""/);
+  assert.match(script, /documentHashInput\.value = "";\s+renderTargetLabels\(\);\s+updateStudioMath\(\)/);
   assert.match(script, /documentHashInput\.value = sampleDocumentHash/);
   assert.match(script, /if \(samplePreparation\) resetSampleControl\(\)/);
   assert.match(script, /if \(revision !== null && activeSampleRevision !== revision\) return false/);
