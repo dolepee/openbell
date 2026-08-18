@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "openbell-receipt-bound-rejection-evidence-v1",
+  "chainId": 196,
+  "invoiceId": "0x6d177caeb3adee09f2f0a6f2b2325d1b96ddc3fdc98393c35e0c013aa0c4db66",
+  "registrationTransactionHash": "0xbe0d089756385f2d81beedd1bcc9b344b3a1ac38e59e3c91af239c272d7a4466",
+  "observation": {
+    "status": "REGISTERED",
+    "blockNumber": "68268720",
+    "blockHash": "0xe8e798357c79cec491746b0f9fbcf60a56e4b1dbeec27d2524d553de4ef4b38a",
+    "observedAt": "2026-08-18T07:22:36Z"
+  },
+  "receiptHistoryCommitment": "0x42be4b2330dd65653d9e4a9de9f03175ef8daf46b7fed2c75fba4ca1c9464e1a",
+  "model": {
+    "provider": "bankr-chat-completions",
+    "requestedModel": "gpt-5.6-terra",
+    "returnedModel": "gpt-5.6-terra",
+    "providerResponseId": "chatcmpl-5ASLMWsszzvG55edEO0a_",
+    "requestHash": "0xe671f6be695bb8e372e72e8a7a3aaec8f885747979df1441fe74dec95028a5db",
+    "responseHash": "0xf72250a4db63785d0fc1f862eb57b8f61d88ef8418106938d3b9506b0dd91d35"
+  },
+  "decision": {
+    "verdict": "REJECT",
+    "reasons": [
+      "DUAL_SIGNATURES_VERIFIED",
+      "DOCUMENT_HASH_VERIFIED",
+      "CLEAN_DUPLICATE_CHECK",
+      "LIMITED_PAYER_HISTORY",
+      "HIGH_COUNTERPARTY_CONCENTRATION",
+      "MODEL_UNCERTAINTY"
+    ],
+    "explanation": "Confirmed OpenBell receipts on X Layer do not support approval.",
+    "riskReasonsHash": "0x34f08ed7e18474240ef828e82381bb73b152f3b9500f09bab79441e2ed9cf32d",
+    "modelHash": "0xf1a5aa8ab4a5a37de7e08bf58febda489cef118dfa88d9d3cc2b77d67295c276"
+  },
+  "artifactHash": "0x1f98be9a08bb06a405c44c9199e459cb4a3b707686b9e5538f525e9d9d253eab",
+  "assertions": {
+    "firstResponseFinal": true,
+    "receiptBoundEvidenceOnly": true,
+    "rawProviderResponsePublished": false,
+    "supplierAuthorizationPublished": false,
+    "underwriterSignaturePresent": false,
+    "executionAuthorityCreated": false,
+    "retried": false,
+    "humanEscalated": false,
+    "funded": false,
+    "settled": false
+  }
+}
+
