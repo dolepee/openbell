@@ -131,7 +131,11 @@ test("assessment artifact status confirms only the exact decision-store commitme
   });
   const verified = await worker.fetch(request(artifactHash), artifactEnvironment);
   expect(verified.status).toBe(200);
-  expect(await verified.json()).toEqual({ verified: true, requestedAdvance: "50000000" });
+  expect(await verified.json()).toEqual({
+    verified: true,
+    requestedAdvance: "50000000",
+    requestSchemaVersion: "openbell-mainnet-underwriting-v1"
+  });
   const mismatch = await worker.fetch(request(`0x${"44".repeat(32)}`), artifactEnvironment);
   expect(await mismatch.json()).toEqual({ verified: false });
   expect(bound).toHaveLength(2);

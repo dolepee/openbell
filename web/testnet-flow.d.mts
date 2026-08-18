@@ -1,6 +1,6 @@
 export function buildBrowserBankrRequestHash(
   input: import("../agent/src/schema.js").InvoiceRiskInput,
-  boundary: "synthetic" | "registered-mainnet"
+  boundary: "synthetic" | "registered-mainnet" | "receipt-bound-mainnet"
 ): `0x${string}`;
 export function validateConnectedAssessment<T>(candidate: T, expectedRequest: unknown): T;
 export function validateConnectedPolicyRefusal<T>(candidate: T, expectedRequest: unknown, expectedArtifactHash: unknown): T;
@@ -8,6 +8,7 @@ export function buildHumanEscalation(input: {
   assessment: unknown;
   session: unknown;
   assessedRequestedAdvance: string;
+  assessedSchemaVersion: "openbell-mainnet-underwriting-v1" | "openbell-mainnet-receipt-bound-underwriting-v1";
   funder: `0x${string}`;
   advanceAmount: string;
   riskTimestamp: string | number | bigint;
