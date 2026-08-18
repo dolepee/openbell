@@ -85,6 +85,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /href="\/operate\/">Testnet desk/);
   assert.match(overview, /5 canonical mainnet receipts/);
   assert.match(overview, /0\.02525 USDG repaid/);
+  assert.match(overview, /REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY/);
   assert.match(studio, /BROWSER-ONLY PREPARATION/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
@@ -115,6 +116,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(proof, /0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253/);
   assert.match(proof, /0x1ea5…0036/);
   assert.match(proof, /Independent audit or explorer source verification/);
+  assert.match(proof, /RECEIPT-BOUND MAINNET INVOICE/);
+  assert.match(proof, /Receipt-bound rejection evidence/);
   assert.match(proof, /RECORDED AI/);
   assert.match(proof, /NO LIVE MODEL/);
   assert.match(architecture, /AI proposes.<br \/>The contract disposes/);
