@@ -108,6 +108,21 @@ const clearCreditMemo = () => {
   if (creditMemo) creditMemo.hidden = true;
   if (reviewEmpty) reviewEmpty.hidden = false;
 };
+const sampleButton = document.querySelector("#load-sample");
+const sampleStatus = document.querySelector("#sample-status");
+let samplePreparation = false;
+const resetSampleControl = ({
+  label = "Build no-value sample",
+  status = "No wallet, signature, model request, or transaction."
+} = {}) => {
+  samplePreparation = false;
+  if (sampleButton) {
+    sampleButton.disabled = false;
+    sampleButton.setAttribute("aria-busy", "false");
+    sampleButton.querySelector("span").textContent = label;
+  }
+  if (sampleStatus) sampleStatus.textContent = status;
+};
 
 const dealForm = document.querySelector("#deal-form");
 if (dealForm) {
@@ -131,10 +146,7 @@ if (dealForm) {
   const packageInvoiceId = document.querySelector("#package-invoice-id");
   const packageDocumentHash = document.querySelector("#package-document-hash");
   const downloadPackage = document.querySelector("#download-package");
-  const sampleButton = document.querySelector("#load-sample");
-  const sampleStatus = document.querySelector("#sample-status");
   let preparedPackage = null;
-  let samplePreparation = false;
 
   const futureDueDate = () => {
     const dueDate = new Date();
@@ -155,13 +167,8 @@ if (dealForm) {
     delete document.querySelector('[data-readiness="terms"]').dataset.complete;
     delete document.querySelector('[data-readiness="document"]').dataset.complete;
     clearCreditMemo();
-    sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
-    if (samplePreparation) {
-      samplePreparation = false;
-      sampleButton.disabled = false;
-      sampleButton.setAttribute("aria-busy", "false");
-      sampleButton.querySelector("span").textContent = "Build no-value sample";
-    }
+    if (samplePreparation) resetSampleControl();
+    else sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
   };
 
   const renderTargetLabels = () => {
@@ -198,6 +205,7 @@ if (dealForm) {
 
   sampleButton?.addEventListener("click", async () => {
     const sampleRevision = studioOperationGuard.begin();
+    let submitted = false;
     samplePreparation = true;
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
@@ -212,12 +220,27 @@ if (dealForm) {
     nonceInput.value = generateDealNonce();
     documentInput.value = "";
     const sampleDocument = document.querySelector("#sample-document").textContent;
-    documentHashInput.value = await sha256(new TextEncoder().encode(sampleDocument));
-    if (!studioOperationGuard.isCurrent(sampleRevision)) return;
-    consentInput.checked = true;
-    renderTargetLabels();
-    updateStudioMath();
-    dealForm.requestSubmit();
+    try {
+      const sampleDocumentHash = await sha256(new TextEncoder().encode(sampleDocument));
+      if (!studioOperationGuard.isCurrent(sampleRevision)) return;
+      documentHashInput.value = sampleDocumentHash;
+      consentInput.checked = true;
+      renderTargetLabels();
+      updateStudioMath();
+      submitted = true;
+      dealForm.requestSubmit();
+    } catch {
+      if (studioOperationGuard.isCurrent(sampleRevision)) {
+        sampleStatus.textContent = "The sample commitment could not be prepared in this browser.";
+      }
+    } finally {
+      if (!submitted && samplePreparation) {
+        const status = studioOperationGuard.isCurrent(sampleRevision)
+          ? sampleStatus.textContent
+          : "No wallet, signature, model request, or transaction.";
+        resetSampleControl({ status });
+      }
+    }
   });
 
   dealForm.addEventListener("submit", async (event) => {
@@ -269,10 +292,10 @@ if (dealForm) {
     } finally {
       if (studioOperationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
       if (samplePreparation) {
-        samplePreparation = false;
-        sampleButton.disabled = false;
-        sampleButton.setAttribute("aria-busy", "false");
-        sampleButton.querySelector("span").textContent = "Build another sample";
+        resetSampleControl({
+          label: "Build another sample",
+          status: sampleStatus.textContent
+        });
       }
     }
   });
@@ -315,6 +338,7 @@ if (reviewForm) {
   const reviewFile = document.querySelector("#review-file");
   const reviewError = document.querySelector("#review-error");
   reviewFile.addEventListener("change", () => {
+    if (samplePreparation) resetSampleControl();
     studioOperationGuard.invalidate();
     dealForm?.setAttribute("aria-busy", "false");
     reviewForm.setAttribute("aria-busy", "false");
@@ -324,6 +348,7 @@ if (reviewForm) {
   });
   reviewForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (samplePreparation) resetSampleControl();
     const reviewRevision = studioOperationGuard.begin();
     dealForm?.setAttribute("aria-busy", "false");
     reviewForm.setAttribute("aria-busy", "true");
