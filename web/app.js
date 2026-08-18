@@ -131,7 +131,10 @@ if (dealForm) {
   const packageInvoiceId = document.querySelector("#package-invoice-id");
   const packageDocumentHash = document.querySelector("#package-document-hash");
   const downloadPackage = document.querySelector("#download-package");
+  const sampleButton = document.querySelector("#load-sample");
+  const sampleStatus = document.querySelector("#sample-status");
   let preparedPackage = null;
+  let samplePreparation = false;
 
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 30);
@@ -179,6 +182,26 @@ if (dealForm) {
   documentInput.addEventListener("change", invalidatePreparedPackage);
   consentInput.addEventListener("change", invalidatePreparedPackage);
 
+  sampleButton?.addEventListener("click", () => {
+    samplePreparation = true;
+    sampleButton.disabled = true;
+    sampleButton.setAttribute("aria-busy", "true");
+    sampleButton.querySelector("span").textContent = "Building sample…";
+    sampleStatus.textContent = "Running the real no-value preparation path locally in this browser.";
+    targetInput.value = "testnet";
+    supplierInput.value = "0x1111111111111111111111111111111111111111";
+    payerInput.value = "0x2222222222222222222222222222222222222222";
+    faceInput.value = "100";
+    requestInput.value = "75";
+    nonceInput.value = generateDealNonce();
+    documentInput.value = "";
+    documentHashInput.value = "0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f";
+    consentInput.checked = true;
+    renderTargetLabels();
+    renderStudioMath();
+    dealForm.requestSubmit();
+  });
+
   dealForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const preparationRevision = studioOperationGuard.begin();
@@ -219,12 +242,20 @@ if (dealForm) {
       document.querySelector('[data-readiness="terms"]').dataset.complete = "true";
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
       renderCreditMemo(preparedPackage);
+      if (samplePreparation) sampleStatus.textContent = "Sample package prepared. Inspect the credit memo or download the unsigned JSON.";
     } catch (error) {
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
       errorOutput.textContent = error instanceof Error ? error.message : "Unable to prepare the deal package.";
       packageState.textContent = "DRAFT";
+      if (samplePreparation) sampleStatus.textContent = "The sample could not be prepared. Review the form error below.";
     } finally {
       if (studioOperationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
+      if (samplePreparation) {
+        samplePreparation = false;
+        sampleButton.disabled = false;
+        sampleButton.setAttribute("aria-busy", "false");
+        sampleButton.querySelector("span").textContent = "Build another sample";
+      }
     }
   });
 

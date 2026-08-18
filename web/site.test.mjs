@@ -82,6 +82,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /Human exception ceiling<\/span><strong>0\.02500<\/strong>/);
   assert.match(overview, /Repaid to funder<\/span><strong>0\.02525 USDG<\/strong>/);
   assert.match(overview, /AI reads confirmed X Layer history, not a supplier's story/);
+  assert.match(overview, /Try OpenBell without a wallet/);
+  assert.match(overview, /href="\/studio\/#try"/);
   assert.doesNotMatch(overview.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "", /Testnet desk|Proof room|Architecture/);
   assert.match(overview, /href="\/operate\/">Testnet/);
   assert.match(overview, /Five successful receipts/);
@@ -91,6 +93,9 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
   assert.match(studio, /AI assessment and both-party signatures happen after this boundary/);
+  assert.match(studio, /ONE-CLICK PRODUCT TRIAL/);
+  assert.match(studio, /id="load-sample"/);
+  assert.match(studio, /No wallet, signature, model request, or transaction/);
   assert.match(mainnet, /data-network="mainnet"/);
   assert.match(mainnet, /<title>Live USDG desk — OpenBell<\/title>/);
   assert.match(mainnet, /canonical USDG on X Layer mainnet/);
@@ -130,7 +135,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
     assert.match(page, /property="og:url" content="https:\/\/openbell\.dolepee\.com\//);
     assert.match(page, /property="og:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
     assert.match(page, /name="twitter:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
-    assert.match(page, /href="\/studio\/"/);
+    assert.match(page, /href="\/studio\/(?:#try)?"/);
     assert.match(page, /href="\/mainnet\/"/);
     const primaryNavigation = page.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "";
     assert.doesNotMatch(primaryNavigation, /Proof room|Architecture|Verified desk|Testnet desk|Connected desk/);
@@ -216,6 +221,10 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(studio, /<option value="testnet">X Layer testnet fixture · no real value<\/option>/);
   assert.match(studio, /<input id="deal-document"[^>]+type="file"/);
   assert.match(studio, /<button[^>]+id="download-package"[^>]+disabled/);
+  assert.match(studio, /<button[^>]+id="load-sample"[^>]+type="button"/);
+  assert.match(script, /targetInput\.value = "testnet"/);
+  assert.match(script, /dealForm\.requestSubmit\(\)/);
+  assert.match(script, /0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f/);
   assert.match(operate, /XLAYER TESTNET FIXTURE/);
   assert.match(operate, /Three accounts\. One guided testnet journey\./);
   assert.match(operate, /supplier, payer, and funder addresses must be distinct/);
