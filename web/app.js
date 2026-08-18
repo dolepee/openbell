@@ -155,7 +155,13 @@ if (dealForm) {
     delete document.querySelector('[data-readiness="terms"]').dataset.complete;
     delete document.querySelector('[data-readiness="document"]').dataset.complete;
     clearCreditMemo();
-    if (!samplePreparation) sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
+    sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
+    if (samplePreparation) {
+      samplePreparation = false;
+      sampleButton.disabled = false;
+      sampleButton.setAttribute("aria-busy", "false");
+      sampleButton.querySelector("span").textContent = "Build no-value sample";
+    }
   };
 
   const renderTargetLabels = () => {
@@ -164,7 +170,7 @@ if (dealForm) {
     requestSymbol.textContent = target.settlementTokenSymbol;
   };
 
-  const renderStudioMath = () => {
+  const updateStudioMath = () => {
     try {
       const economics = calculateDealEconomics(faceInput.value, requestInput.value);
       document.querySelector("#studio-face").textContent = baseUnitsToDecimal(economics.faceValue);
@@ -174,6 +180,10 @@ if (dealForm) {
     } catch {
       document.querySelector("#studio-upper-bound").textContent = "—";
     }
+  };
+
+  const renderStudioMath = () => {
+    updateStudioMath();
     invalidatePreparedPackage();
   };
 
@@ -187,6 +197,7 @@ if (dealForm) {
   consentInput.addEventListener("change", invalidatePreparedPackage);
 
   sampleButton?.addEventListener("click", async () => {
+    const sampleRevision = studioOperationGuard.begin();
     samplePreparation = true;
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
@@ -202,9 +213,10 @@ if (dealForm) {
     documentInput.value = "";
     const sampleDocument = document.querySelector("#sample-document").textContent;
     documentHashInput.value = await sha256(new TextEncoder().encode(sampleDocument));
+    if (!studioOperationGuard.isCurrent(sampleRevision)) return;
     consentInput.checked = true;
     renderTargetLabels();
-    renderStudioMath();
+    updateStudioMath();
     dealForm.requestSubmit();
   });
 

@@ -227,7 +227,9 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /dueInput\.value = futureDueDate\(\)/);
   assert.match(script, /dealForm\.requestSubmit\(\)/);
   assert.match(script, /await sha256\(new TextEncoder\(\)\.encode\(sampleDocument\)\)/);
-  assert.match(script, /if \(!samplePreparation\) sampleStatus\.textContent = "No wallet, signature, model request, or transaction\."/);
+  assert.match(script, /sampleStatus\.textContent = "No wallet, signature, model request, or transaction\."/);
+  assert.match(script, /const sampleRevision = studioOperationGuard\.begin\(\)/);
+  assert.match(script, /if \(!studioOperationGuard\.isCurrent\(sampleRevision\)\) return/);
   assert.doesNotMatch(script, /0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f/);
   assert.match(operate, /XLAYER TESTNET FIXTURE/);
   assert.match(operate, /Three accounts\. One guided testnet journey\./);
