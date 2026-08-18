@@ -3,28 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenBell — AI-bounded receivables on X Layer</title>
-    <meta name="description" content="OpenBell turns signed receivables into request-funded credit with genuine AI decisions bounded by immutable contract limits on X Layer." />
+    <title>OpenBell — Bounded invoice funding on X Layer</title>
+    <meta name="description" content="OpenBell turns payer-signed invoices into bounded USDG funding. AI can approve less or refuse, while X Layer moves only the exact authorized amount." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://openbell.dolepee.com/" />
-    <meta name="theme-color" content="#0b120d" />
+    <meta name="theme-color" content="#101712" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://openbell.dolepee.com/" />
-    <meta property="og:title" content="OpenBell — AI-bounded receivables on X Layer" />
-    <meta property="og:description" content="A genuine AI refusal, a bounded human exception, and exact canonical USDG settlement on X Layer mainnet." />
+    <meta property="og:title" content="OpenBell — Bounded invoice funding on X Layer" />
+    <meta property="og:description" content="A genuine AI refusal, a disclosed human exception, and exact canonical USDG settlement on X Layer mainnet." />
     <meta property="og:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="675" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="OpenBell — AI-bounded receivables on X Layer" />
-    <meta name="twitter:description" content="A genuine AI refusal, a bounded human exception, and exact canonical USDG settlement on X Layer mainnet." />
+    <meta name="twitter:title" content="OpenBell — Bounded invoice funding on X Layer" />
+    <meta name="twitter:description" content="AI can approve less or refuse. X Layer moves only the exact authorized USDG amount." />
     <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
     <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body data-page="overview" class="signal-home">
+  <body data-page="overview" class="judge-home">
     <a class="skip-link" href="#main">Skip to the product</a>
-    <header class="topbar signal-nav">
+    <header class="topbar judge-nav">
       <a class="brand" href="/" aria-label="OpenBell overview">
         <img src="/public/openbell-mark.svg" width="34" height="34" alt="" />
         <span>OpenBell</span>
@@ -33,157 +33,127 @@
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="/" aria-current="page">Overview</a>
           <a href="/studio/">Deal studio</a>
-          <a href="#receipt-history">Receipt history</a>
+          <a href="/mainnet/">Live desk</a>
         </nav>
-        <a class="header-cta signal-nav-cta" data-funding-action href="/proof/#mainnet">Follow five receipts <span aria-hidden="true">↗</span></a>
+        <a class="header-cta judge-nav-cta" href="#result">Inspect settled result <span aria-hidden="true">↓</span></a>
       </div>
     </header>
 
     <main id="main">
-      <section class="signal-hero">
-        <div class="signal-orbit orbit-one" aria-hidden="true"></div>
-        <div class="signal-orbit orbit-two" aria-hidden="true"></div>
-        <div class="signal-orbit orbit-three" aria-hidden="true"></div>
-
-        <div class="hero-status"><span><i></i> X LAYER MAINNET</span><b>DEPLOYED · CHAIN 196</b></div>
-        <div class="signal-copy">
-          <p class="signal-eyebrow">REAL USDG · X LAYER MAINNET · SETTLED</p>
-          <h1>The model said no.<br />The human took less.<br /><em>Code held the line.</em></h1>
-          <p>An unrelated supplier registered a payer-signed invoice. The genuine model refused it. A disclosed human exception cut the request in half, then X Layer advanced and repaid the exact authorized USDG.</p>
-          <div class="signal-actions">
-            <a data-funding-action href="/proof/#mainnet">Follow five mainnet receipts <span aria-hidden="true">→</span></a>
-            <a href="/studio/">Prepare an invoice</a>
-            <a href="/proof/">Follow the receipts</a>
+      <section class="judge-hero" aria-labelledby="hero-title">
+        <div class="judge-hero-copy">
+          <div class="product-status"><span><i></i> X Layer mainnet</span><b>Canonical USDG · settled</b></div>
+          <p class="judge-kicker">REQUEST-FUNDED RECEIVABLES</p>
+          <h1 id="hero-title">Bounded invoice funding on X Layer.</h1>
+          <p class="judge-intro">OpenBell turns a payer-signed invoice into exact USDG funding. AI may approve less or refuse, but it never holds funds and it cannot exceed the signed request or immutable contract limit.</p>
+          <div class="judge-actions">
+            <a class="judge-button judge-button-primary" href="/mainnet/">Open the live desk <span aria-hidden="true">→</span></a>
+            <a class="judge-button judge-button-secondary" href="#result">Inspect the settled invoice <span aria-hidden="true">↓</span></a>
           </div>
+          <ul class="hero-assurances" aria-label="Product assurances">
+            <li>Dual-signed invoice</li>
+            <li>First model response is final</li>
+            <li>Exact USDG movement</li>
+          </ul>
         </div>
 
-        <div class="decision-trace" aria-label="Verified decision trace">
-          <div class="trace-head"><span>OB / DECISION TRACE</span><b><i></i> SETTLED</b></div>
-          <ol>
-            <li><span>REQUEST</span><strong>0.05</strong><small>USDG advance</small></li>
-            <li><span>MODEL</span><strong>NO</strong><small>authoritative refusal</small></li>
-            <li><span>HUMAN</span><strong>0.025</strong><small>signed exception</small></li>
-            <li class="trace-result"><span>FUNDED</span><strong>0.025</strong><small>canonical USDG</small></li>
-          </ol>
-          <div class="trace-settlement"><span>PAID BACK</span><strong>0.02525</strong><small>FINAL STATE · SETTLED</small></div>
-        </div>
-
-        <div class="hero-proofline">
-          <span>1 genuine mainnet refusal</span>
-          <span>5 canonical mainnet receipts</span>
-          <span>0.02525 USDG repaid</span>
-          <a href="https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd">Mainnet contract ↗</a>
-        </div>
+        <article class="result-console" aria-label="Verified mainnet decision and settlement">
+          <header><span>MAINNET RESULT · INVOICE 0x97b5…67d88</span><b><i></i> SETTLED</b></header>
+          <div class="console-row"><span>Supplier request</span><strong>0.05000</strong><small>USDG</small></div>
+          <div class="console-row console-reject"><span>Genuine AI decision</span><strong>REJECT</strong><small>NO RETRY</small></div>
+          <div class="console-row console-exception"><span>Human exception ceiling</span><strong>0.02500</strong><small>USDG</small></div>
+          <div class="console-row"><span>Contract execution</span><strong>0.02500</strong><small>USDG FUNDED</small></div>
+          <footer><span>Repaid to funder</span><strong>0.02525 USDG</strong><a href="/proof/#mainnet">Verify five receipts ↗</a></footer>
+        </article>
       </section>
 
-      <section class="limit-theatre" aria-labelledby="limit-theatre-title">
-        <div class="theatre-intro">
-          <p>THE EXCEPTION IS BOUNDED TOO</p>
-          <h2 id="limit-theatre-title">Refusal remains<br />part of the<br />record.</h2>
-          <span>A human may accept accountability after an AI refusal, but cannot erase it or exceed the stricter escalation ceiling.</span>
-        </div>
-        <div class="limit-numbers" aria-label="Effective advance limit calculation">
-          <div class="number-request"><small>REQUESTED ADVANCE</small><strong>0.05</strong><i>USDG</i></div>
-          <div class="number-model"><small>GENUINE MODEL</small><strong>NO</strong><i>RETRY</i></div>
-          <div class="number-code"><small>ESCALATION CEILING</small><strong>0.025</strong><i>USDG</i></div>
-          <div class="number-answer"><small>EXECUTED</small><strong>0.025</strong><i>USDG</i><span>50% of request · 25% of face value</span></div>
-        </div>
+      <section class="truth-rail" aria-label="Verified product facts">
+        <div><span>Network</span><strong>X Layer</strong><small>Chain 196</small></div>
+        <div><span>Settlement asset</span><strong>USDG</strong><small>Canonical mainnet token</small></div>
+        <div><span>Model outcome</span><strong>REJECT</strong><small>Hash-bound · no retry</small></div>
+        <div><span>Terminal state</span><strong>SETTLED</strong><small>Five successful receipts</small></div>
       </section>
 
-      <section class="receipt-intelligence" id="receipt-history" aria-labelledby="receipt-intelligence-title">
-        <div class="receipt-intelligence-lead">
-          <p>RECEIPT-BOUND UNDERWRITING</p>
-          <h2 id="receipt-intelligence-title">AI reads X Layer receipts.<br />Not supplier claims.</h2>
-          <span>OpenBell derives payer history from confirmed contract events across both official X Layer RPCs. The supplier signs the exact checkpoint and commitment before one model request can begin.</span>
-          <div class="receipt-intelligence-links">
-            <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-baseline.json">Inspect checkpoint <span aria-hidden="true">↗</span></a>
-            <a href="https://github.com/dolepee/openbell/blob/main/evidence/openbell-receipt-bound-history-observations.json">Recompute evidence <span aria-hidden="true">↗</span></a>
-            <a href="/data/openbell-receipt-bound-rejection.json">Inspect genuine decision <span aria-hidden="true">↗</span></a>
-          </div>
+      <section class="product-section" id="how-it-works" aria-labelledby="workflow-title">
+        <header class="compact-section-heading">
+          <p class="judge-kicker">THE PRODUCT LOOP</p>
+          <h2 id="workflow-title">From signed invoice to exact settlement.</h2>
+          <p>OpenBell separates who supplies information, who evaluates risk, and who can move money. No participant can silently assume another role.</p>
+        </header>
+        <ol class="product-steps">
+          <li><span>01</span><div><h3>Sign the receivable</h3><p>Supplier and payer sign the same invoice terms and document hash through EIP-712.</p></div></li>
+          <li><span>02</span><div><h3>Assess confirmed history</h3><p>The model receives receipt-derived X Layer history, not supplier-declared performance.</p></div></li>
+          <li><span>03</span><div><h3>Fund exact terms</h3><p>A funder advances only the smallest amount authorized by the request, model, and contract.</p></div></li>
+          <li><span>04</span><div><h3>Settle directly</h3><p>The payer repays the fixed amount to the recorded funder and the invoice reaches SETTLED.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="mainnet-result" id="result" aria-labelledby="result-title">
+        <header class="result-heading">
+          <div><p class="judge-kicker">ONE REAL MAINNET LIFECYCLE</p><h2 id="result-title">The refusal stayed visible. The smaller amount moved.</h2></div>
+          <p>The model emitted no executable approval. A disclosed human exception accepted accountability at a stricter ceiling, without replacing or relabelling the original refusal.</p>
+        </header>
+        <div class="authority-strip" aria-label="Decision authority">
+          <div><span>Requested</span><strong>0.05000</strong><small>USDG</small></div>
+          <div class="authority-model"><span>AI authority</span><strong>NO</strong><small>AUTHORITATIVE REFUSAL</small></div>
+          <div class="authority-human"><span>Human accountability</span><strong>0.02500</strong><small>MAXIMUM USDG</small></div>
+          <div class="authority-contract"><span>Executed by code</span><strong>0.02500</strong><small>EXACT USDG</small></div>
         </div>
-        <div class="receipt-intelligence-data" aria-label="Confirmed receipt history checkpoint">
-          <header><span>CHAIN 196 / CONFIRMED CHECKPOINT</span><b><i></i> 2 RPCs AGREE</b></header>
+        <ol class="receipt-ledger" aria-label="X Layer mainnet receipt trail">
+          <li><span>01</span><div><b>Register dual-signed invoice</b><small>External supplier submitted the payer-signed receivable.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948">Receipt ↗</a></li>
+          <li><span>02</span><div><b>Authorize exact funding</b><small>Allowance limited to 0.025 USDG.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f">Receipt ↗</a></li>
+          <li><span>03</span><div><b>Advance 0.025 USDG</b><small>Supplier received the exact authorized amount.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a">Receipt ↗</a></li>
+          <li><span>04</span><div><b>Authorize exact repayment</b><small>Allowance limited to 0.02525 USDG.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb">Receipt ↗</a></li>
+          <li class="receipt-final"><span>05</span><div><b>Settle 0.02525 USDG</b><small>Funder repaid; invoice reached terminal state SETTLED.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5">Receipt ↗</a></li>
+        </ol>
+      </section>
+
+      <section class="intelligence-section" id="receipt-history" aria-labelledby="intelligence-title">
+        <div class="intelligence-copy">
+          <p class="judge-kicker">RECEIPT-BOUND UNDERWRITING</p>
+          <h2 id="intelligence-title">AI reads confirmed X Layer history, not a supplier's story.</h2>
+          <p>Two official X Layer RPCs independently confirm the pinned history before the supplier can authorize one model request. If they disagree, underwriting stops before model budget is consumed.</p>
+          <div class="inline-links"><a href="/data/openbell-receipt-bound-rejection.json">Inspect genuine decision ↗</a><a href="https://github.com/dolepee/openbell/tree/main/evidence">Recompute evidence ↗</a></div>
+        </div>
+        <div class="history-console" aria-label="Confirmed receipt history">
+          <header><span>CHAIN 196 · CONFIRMED CHECKPOINT</span><b><i></i> TWO RPCs AGREE</b></header>
           <dl>
-            <div><dt>Completed settlements</dt><dd>1</dd><small>1 on time · 0 late</small></div>
-            <div><dt>Open funded invoices</dt><dd>0</dd><small>0 overdue · not labelled defaults</small></div>
-            <div><dt>Counterparty concentration</dt><dd>71.42%</dd><small>Derived from registered face value</small></div>
-            <div><dt>Confirmed through</dt><dd>68,230,450</dd><small>X Layer mainnet block</small></div>
+            <div><dt>Settlements</dt><dd><strong>1</strong><small>1 on time · 0 late</small></dd></div>
+            <div><dt>Open funded</dt><dd><strong>0</strong><small>0 overdue · not defaults</small></dd></div>
+            <div><dt>Concentration</dt><dd><strong>71.42%</strong><small>Registered face value</small></dd></div>
+            <div><dt>Confirmed block</dt><dd><strong>68,230,450</strong><small>Permanent pinned snapshot</small></dd></div>
           </dl>
-          <footer><span>HISTORY COMMITMENT</span><code>0x42be4b2330dd65653d9e4a9de9f03175ef8daf46b7fed2c75fba4ca1c9464e1a</code></footer>
           <footer><span>GENUINE RESULT</span><code>REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY</code></footer>
         </div>
       </section>
 
-      <section class="decision-duet" aria-labelledby="decision-duet-title">
-        <header>
-          <p>ONE DECISION · TWO ACCOUNTABILITY PATHS</p>
-          <h2 id="decision-duet-title">Refusal did not become fiction.</h2>
+      <section class="authority-section" aria-labelledby="authority-title">
+        <header class="compact-section-heading">
+          <p class="judge-kicker">BOUNDED AUTHORITY</p>
+          <h2 id="authority-title">Intelligence evaluates. Signatures authorize. Code enforces.</h2>
         </header>
-        <div class="duet-stage">
-          <article class="duet-reject">
-            <div class="duet-number">01</div>
-            <p>GENUINE MAINNET ASSESSMENT</p>
-            <h3>Reject.</h3>
-            <blockquote>The authoritative model response emitted no approval terms. It was hash-bound and never retried.</blockquote>
-            <footer><span>MODEL AUTHORITY</span><strong>REFUSE · NEVER FUND</strong></footer>
-          </article>
-          <article class="duet-approve">
-            <div class="duet-number">02</div>
-            <p>DISCLOSED HUMAN ESCALATION</p>
-            <h3>Accept less,<br />take responsibility.</h3>
-            <blockquote>The human signed the original refusal artifact and accepted only 0.025 USDG, half the supplier's request.</blockquote>
-            <footer><span>ONCHAIN RESULT</span><strong>FUNDED 0.025 · SETTLED 0.02525</strong></footer>
-          </article>
+        <div class="authority-grid">
+          <article><span>Supplier + payer</span><h3>Bind the invoice.</h3><p>Both parties sign identical terms. The document stays offchain; its hash is bound to the deal.</p></article>
+          <article><span>AI underwriter</span><h3>Tighten or refuse.</h3><p>The model can lower an advance, increase the permitted fee, or reject. It cannot move funds.</p></article>
+          <article><span>Human exception</span><h3>Accept less, visibly.</h3><p>After refusal, a disclosed operator may sign stricter terms while preserving the rejected artifact.</p></article>
+          <article><span>X Layer contract</span><h3>Enforce the minimum.</h3><p>Execution resolves to the smallest signed and permitted amount, with exact token accounting.</p></article>
         </div>
-        <p class="duet-disclosure">Bankr-mediated GPT-5.6 Terra · first response authoritative · no retry · external supplier registration · founder-operated payer and funder</p>
       </section>
 
-      <section class="proof-river" aria-labelledby="proof-river-title">
-        <div class="river-heading">
-          <p>THE RECEIPT TRAIL</p>
-          <h2 id="proof-river-title">Five mainnet receipts.<br />One exact settlement.</h2>
-          <a href="/proof/#mainnet">Enter the proof room <span aria-hidden="true">↗</span></a>
+      <section class="product-entry" aria-labelledby="entry-title">
+        <div><p class="judge-kicker">USE OPENBELL</p><h2 id="entry-title">Prepare, operate, or verify.</h2><p>Start with a document hash and invoice terms, continue an exact multi-party session, or inspect the completed mainnet result without connecting a wallet.</p></div>
+        <div class="entry-actions">
+          <a href="/studio/"><span>Prepare an invoice</span><small>Browser-only · no wallet required</small><b>→</b></a>
+          <a href="/mainnet/"><span>Open the live desk</span><small>Chain 196 · canonical USDG</small><b>→</b></a>
+          <a href="/proof/#mainnet"><span>Verify the result</span><small>Receipts, balances, and boundaries</small><b>→</b></a>
         </div>
-        <ol class="river-flow">
-          <li><i></i><span>01</span><div><b>Register signed invoice</b><small>External supplier submits</small></div></li>
-          <li><i></i><span>02</span><div><b>Authorize exact funding</b><small>Allowance 0.025 USDG</small></div></li>
-          <li><i></i><span>03</span><div><b>Advance 0.025 USDG</b><small>Supplier receives exact amount</small></div></li>
-          <li><i></i><span>04</span><div><b>Authorize exact repayment</b><small>Allowance 0.02525 USDG</small></div></li>
-          <li class="river-final"><i></i><span>05</span><div><b>Settle 0.02525 USDG</b><small>Terminal state SETTLED</small></div></li>
-        </ol>
-      </section>
-
-      <section class="deployment-seal">
-        <div class="seal-mark" aria-hidden="true"><span>196</span></div>
-        <div class="seal-copy"><p>MAINNET DEPLOYMENT SEAL</p><h2>Built for X Layer.<br />Deployed on X Layer.</h2><span>Contract runtime, immutable configuration, roles, EIP-712 domain, transaction inclusion, and canonical block observations are publicly preserved.</span></div>
-        <dl>
-          <div><dt>CONTRACT</dt><dd><code>0xc4Ef249b…840dd</code></dd></div>
-          <div><dt>DEPLOYMENT TX</dt><dd><code>0x328c80d5…f413e</code></dd></div>
-          <div><dt>RUNTIME</dt><dd><code>13,027 bytes</code></dd></div>
-          <div><dt>MAINNET RESULT</dt><dd>0.025 funded · 0.02525 settled</dd></div>
-        </dl>
-        <a href="/proof/#mainnet">Verify every field <span aria-hidden="true">→</span></a>
       </section>
     </main>
 
-    <footer class="site-footer signal-footer">
+    <footer class="site-footer judge-footer">
       <div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div>
-      <p>Credit intelligence constrained by code.</p>
-      <nav aria-label="Footer navigation"><a href="/fund/">Fund</a><a href="/studio/">Deal studio</a><a href="/mainnet/">Full desk</a><a href="/operate/">Testnet desk</a><a href="/workspace/">Verified desk</a><a href="#receipt-history">Receipt history</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
+      <p>Bounded invoice funding on X Layer.</p>
+      <nav aria-label="Footer navigation"><a href="/studio/">Deal studio</a><a href="/mainnet/">Live desk</a><a href="/fund/">Fund</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="/operate/">Testnet</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
     </footer>
-    <script type="module">
-      const fundingActions = document.querySelectorAll("[data-funding-action]");
-      try {
-        const response = await fetch("/api/funding-candidate", { cache: "no-store" });
-        if (response.ok) {
-          for (const action of fundingActions) {
-            action.href = "/fund/";
-            action.childNodes[0].textContent = "Fund one receivable ";
-          }
-        }
-      } catch {
-        // Receipt links remain the safe default when live funding cannot be confirmed.
-      }
-    </script>
   </body>
 </html>

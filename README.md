@@ -1,253 +1,175 @@
 # OpenBell
 
-**Turn a payer-signed invoice into bounded USDG funding.**
+**Bounded invoice funding on X Layer.**
 
-OpenBell is a request-funded receivables protocol on X Layer. A supplier and payer sign one
-canonical invoice, a genuine AI underwriter approves bounded terms or refuses, and deterministic
-contract limits decide what can move. A disclosed human exception can accept accountability after
-a refusal only at stricter limits and without erasing the original model artifact. The payer later
-settles the fixed repayment directly to the funder.
+OpenBell turns a payer-signed invoice into exact USDG funding. A genuine AI underwriter may approve
+less or refuse, but it never holds funds and cannot exceed the signed request or immutable contract
+limit. X Layer enforces the final terms and preserves the funding and settlement trail.
 
-**Live app:** [openbell.dolepee.com](https://openbell.dolepee.com/)
+[Live app](https://openbell.dolepee.com/) · [Deal studio](https://openbell.dolepee.com/studio/) ·
+[Live desk](https://openbell.dolepee.com/mainnet/) · [Proof room](https://openbell.dolepee.com/proof/)
 
-**One-wallet funding:** [openbell.dolepee.com/fund](https://openbell.dolepee.com/fund/)
+![OpenBell product overview](web/public/openbell-og.png)
 
-**V2 deal studio:** [openbell.dolepee.com/studio](https://openbell.dolepee.com/studio/)
+## Mainnet result
 
-The user outcome is deliberately simple:
+One complete canonical-USDG lifecycle reached `SETTLED` on X Layer mainnet:
 
-```text
-signed invoice -> authoritative AI decision -> bounded execution -> exact USDG settlement
-```
+| Stage | Result |
+| --- | --- |
+| Supplier request | `0.05 USDG` |
+| Genuine model decision | `REJECT` · first response · no retry |
+| Disclosed human exception | Maximum `0.025 USDG` |
+| Contract execution | Exactly `0.025 USDG` funded |
+| Final settlement | Exactly `0.02525 USDG` repaid |
 
-The `/fund/` route removes the multi-party handoff from the funder's task. It loads one public,
-unexpired, underwriter-signed candidate from durable storage, verifies its signature and registered
-mainnet state in the browser, and permits only an exact USDG approval followed by the exact funding
-call. The invited funder uses one wallet and no JSON files or CLI.
+The human exception did not replace or relabel the model refusal. It committed to the original
+rejected artifact and could authorize only the stricter of 25% of face value or 50% of the original
+request.
 
-## V2 deal preparation
+### Five X Layer receipts
 
-OpenBell V2 begins before underwriting. The browser-only deal studio lets a supplier prepare invoice
-terms, hash the underlying document locally, see the immutable 80% advance ceiling, and export a
-deterministic unsigned package for downstream EIP-712 encoding and review.
+| # | Action | Mainnet transaction |
+| --- | --- | --- |
+| 1 | Register dual-signed invoice | [`0x4d3363…67948`](https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948) |
+| 2 | Authorize exactly `0.025 USDG` | [`0x822b0f…4412f`](https://www.okx.com/web3/explorer/xlayer/tx/0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f) |
+| 3 | Fund exactly `0.025 USDG` | [`0xf17ef4…ab35a`](https://www.okx.com/web3/explorer/xlayer/tx/0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a) |
+| 4 | Authorize exactly `0.02525 USDG` | [`0x8fda8d…de6fb`](https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb) |
+| 5 | Settle exactly `0.02525 USDG` | [`0xdd8e68…658e5`](https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5) |
 
-The studio never uploads the document, connects a wallet, calls a model, produces signatures,
-constructs calldata, authorizes a transaction, or promises financing. Its pre-AI upper bound is
-only `min(requested advance, immutable contract maximum)`. Genuine risk assessment may lower that
-amount or reject the invoice, and supplier plus payer authority remains mandatory.
-
-## Connected testnet desk
-
-The product includes a connected, no-value X Layer testnet journey at `/operate/`:
-
-- supplier and payer sign the same numeric-chain EIP-712 invoice in a browser handoff;
-- the supplier registers the exact invoice after a fresh simulation;
-- one supplier-authorized underwriting request is independently checked against both official
-  X Layer testnet RPCs before any model call;
-- supplier-declared payer performance is rejected; fresh connected assessments use zero imported
-  history until historical claims can be independently derived from confirmed receipts;
-- the genuine first Bankr-mediated GPT-5.6 Terra response is durably sealed with its request and
-  response hashes—there is no recorded fallback or retry;
-- the current onchain underwriter signs only the bounded decision digest; and
-- funder and payer wallets can review, simulate, and execute only reconstructed, zero-value action
-  packages against the labelled fixture contracts.
-
-The service has a durable five-call daily ceiling, exact-request replay, confirmed-block rechecks,
-and local reconstruction of cached model/signature results. This route remains
-`XLAYER TESTNET FIXTURE — NO REAL VALUE`; it is retained for reproducible testing and is separate
-from the canonical-USDG mainnet evidence below.
-
-## Current status
-
-OpenBell is in pre-alpha development for BuildX AI Season. The contract is deployed on X Layer
-mainnet and one complete canonical-USDG lifecycle has reached `SETTLED`. An unrelated supplier
-signed and registered the invoice through the public browser workflow. The payer and funder were
-founder-operated, and the underwriter signature was produced by the disclosed project operator.
-This proves the product path and real token movement; it does not independently establish the
-offchain invoice's legal validity or market demand.
-
-A second unrelated tester then completed the dedicated one-wallet `/fund/` journey without a file
-or CLI. Wallet `0x2Ef353...05244` funded invoice `0x02f989...1508` with exactly `0.005 USDG`
-in transaction `0xa9068a...030a`. The chain proves the distinct wallet, exact transfer and
-`REGISTERED -> FUNDED` transition; the tester's independence is an offchain attestation.
-
-- Mainnet OpenBell Receivables: [`0xc4Ef249b80a6a034198C226278c51b0a903840dd`](https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd)
-- Mainnet deployment transaction: [`0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e`](https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e)
-- Mainnet deployment block: `67764503`
-- Mainnet runtime hash: `0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798`
-- Public deployment evidence: [`evidence/openbell-xlayer-mainnet-deployment.json`](evidence/openbell-xlayer-mainnet-deployment.json)
-- Reproducible sanitized verification record: [`evidence/openbell-xlayer-mainnet-verification-record.json`](evidence/openbell-xlayer-mainnet-verification-record.json), SHA-256 `d5b69eb5e453fd691e7d9265ed7ce14ef81b2b19fb9ed1bf50dd4ac80670eec8`
-- Sanitized two-provider observations: [`evidence/openbell-xlayer-mainnet-observations.json`](evidence/openbell-xlayer-mainnet-observations.json), SHA-256 `e8e750a45a206664b0e85db3496482232556f4b2d0a23db9073c8f4e71b77dd9`. Each source is bound to a fixed official-endpoint SHA-256 commitment; endpoint provenance is committed, not independently attested.
-- Deterministic observation verification: [`evidence/openbell-xlayer-mainnet-observation-verification.json`](evidence/openbell-xlayer-mainnet-observation-verification.json), derived by `node scripts/verify-mainnet-observations.mjs`
-- Sanitized mainnet lifecycle observations: [`evidence/openbell-xlayer-mainnet-lifecycle-observations.json`](evidence/openbell-xlayer-mainnet-lifecycle-observations.json), SHA-256 `2f8d95f0ee211a720577ce57afef04f7d7a8af63e017c11cf25eec3981468489`
-- Mainnet lifecycle verification: [`evidence/openbell-xlayer-mainnet-lifecycle-verification.json`](evidence/openbell-xlayer-mainnet-lifecycle-verification.json), derived by `node scripts/verify-mainnet-lifecycle.mjs`
-- Sanitized independent cold-funder observations: [`evidence/openbell-independent-cold-funder-observations.json`](evidence/openbell-independent-cold-funder-observations.json), SHA-256 `a68a8b7d2727ea4be5bd2dc43cd46fc4281816206866fc41322b11bcfe8bab17`
-- Deterministic cold-funder verification: [`evidence/openbell-independent-cold-funder.json`](evidence/openbell-independent-cold-funder.json), derived by `node scripts/verify-cold-funder.mjs`
-- Receipt-bound payer-history checkpoint: [`evidence/openbell-receipt-bound-history-baseline.json`](evidence/openbell-receipt-bound-history-baseline.json), derived independently across both official X Layer RPCs through block `68230450`
-- Sanitized receipt-history observations: [`evidence/openbell-receipt-bound-history-observations.json`](evidence/openbell-receipt-bound-history-observations.json), covering the complete `4,660`-chunk scan per provider, canonical event logs, pinned invoice state and block timestamps
-- Deterministic history verification: `npm run verify:receipt-history-evidence` recomputes every economic metric and the final history commitment from those observations; the production worker runs the same verifier before model budget can be consumed
-
-The zero-value CREATE passed two-provider transaction, receipt, canonical-block, runtime, immutable,
-getter, role, policy, typehash and EIP-712-domain checks after more than 12 confirmations. Explorer
-source publication and an independent third-party audit remain separate, incomplete claims.
-The earlier `0xac31d5ee…f020` value is retained only as a sealed private-source manifest commitment; it is not
-described as a public manifest. The sanitized record above is the public, byte-reproducible preimage.
-
-### Receipt-bound underwriting
-
-The mainnet underwriting path no longer accepts supplier-declared payment history. It derives one
-confirmed OpenBell history checkpoint, requires byte-identical observations from both official RPCs,
-binds the checkpoint commitment into the supplier's EIP-712 request, and rechecks the pinned block
-before any model budget is consumed. The checkpoint is a permanent, explicitly bounded historical
-snapshot through block `68230450`; it does not claim to include later activity and does not expire merely
-because judging happens later. The model receives confirmed settlements, funded-state counts,
-and concentration only. OpenBell has no protocol default state, so overdue funding is never relabelled
-as a default and cannot support a `PRIOR_DEFAULT` reason.
-
-### Canonical-USDG mainnet lifecycle
-
-Invoice `0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88`
-had a face value of `0.10 USDG` and requested a `0.05 USDG` advance. The genuine first model
-assessment returned `REJECT` and was not retried. A disclosed human escalation bound the original
-rejected-artifact hash and authorized stricter terms: `0.025 USDG` advanced and `0.02525 USDG`
-repaid.
-
-- Register: [`0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948`](https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948)
-- Exact funding allowance: [`0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f`](https://www.okx.com/web3/explorer/xlayer/tx/0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f)
-- Fund `0.025 USDG`: [`0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a`](https://www.okx.com/web3/explorer/xlayer/tx/0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a)
-- Exact repayment allowance: [`0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb`](https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb)
-- Settle `0.02525 USDG`: [`0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5`](https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5)
-
-The public verifier checks both official RPCs, canonical transaction inclusion, committed calldata,
-receipt success, final invoice state, historical supplier/funder/payer balance deltas, and zero
-remaining token allowances. Raw signature-bearing calldata is excluded; each transaction retains
-its fixed hash, selector, byte length, and irreversible calldata commitment. Endpoint provenance is
-committed but not independently attested, and the current public evidence contains no raw
-signatures, signed transactions, credentials, or wallet secrets.
-
-### No-value testnet fixture
-
-- Fixture tUSDG: [`0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703`](https://www.okx.com/web3/explorer/xlayer-test/address/0x7E7a189a8CE288E9581Ba3CDf14ac3D4a1624703)
-- OpenBell Receivables: [`0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18`](https://www.okx.com/web3/explorer/xlayer-test/address/0x7eb9C2418ec935d43E6761e462eAA5388BD6ca18)
-- Chain: X Layer Testnet `1952`
-- Boundary: `XLAYER TESTNET FIXTURE — NO REAL VALUE`
-
-Both zero-value CREATE receipts passed two-provider canonical-block, runtime, getter, role, policy,
-typehash and EIP-712-domain checks after more than 12 confirmations. Explorer source publication and
-an independent third-party audit remain separate, incomplete claims.
-
-The completed nine-transaction fixture journey (including the two earlier faucet claims) passed
-the same two-provider canonical/reorg gate after at least 12 confirmations. It proves a genuine
-prior-default decision ending `REJECTED` with zero token movement, followed by a fresh invoice that
-funded exactly 75 fixture tUSDG and settled exactly 75.75 fixture tUSDG to final state `SETTLED`.
-These are testnet receipts for a labelled no-value asset, not real receivables or canonical USDG.
-
-The first testnet path uses a separately labelled, no-value fixture token so the complete journey is
-obtainable without implying canonical-asset availability. A second optional script targets Paxos's
-canonical X Layer test USDG at `0xF0863D7A29a55d0c4263c11bFac754312ff078DF`; the current fork test
-uses local state allocation and proves contract compatibility, not that an operator wallet can
-obtain that token. The mainnet script is separately configured for canonical USDG at
-`0x4ae46a509F6b1D9056937BA4500cb143933D2dc8`, which is also the settlement-token binding of the
-verified mainnet deployment and the token used by the completed lifecycle above.
-
-## Why the AI is bounded
-
-The underwriter may tighten an advance, increase the required fee within the disclosed ceiling, or
-reject an invoice. It cannot bypass both-party signatures, alter the invoice hash, exceed the hard
-advance or fee caps, reuse stale risk data, or fund an invoice twice.
-
-In the mainnet lifecycle, the model refused and emitted no executable approval. The human
-escalation did not relabel that output: its signed digest committed to the rejected artifact and
-could authorize at most the stricter of 25% of face value and 50% of the original request. The
-executed `0.025 USDG` advance reached both limits exactly.
-
-The first genuine model evidence is now frozen with zero retries. Bankr-mediated GPT-5.6 Terra
-rejected the synthetic prior-default payer. For the stronger payer it proposed an 85% maximum and a
-1% fee. The requested advance was only 75%, and the contract's immutable maximum remained 80%, so
-the honest deterministic result is:
+## Product loop
 
 ```text
-min(requested 75, model ceiling 85, immutable contract ceiling 80) = 75 funded
-75 + 1% = 75.75 due
+signed invoice
+    -> receipt-bound AI assessment
+    -> smallest authorized USDG advance
+    -> direct payer settlement
 ```
 
-Those genuine responses and hashes are committed in
-[`evidence/openbell-bankr-model-evidence.json`](evidence/openbell-bankr-model-evidence.json). They
-are real Bankr-mediated model evidence. The corresponding no-value testnet lifecycle has now been
-executed and independently refetched through both configured official RPC providers. The older
-70/73.5 local journey below remains recorded-model evidence only and is not presented as the live
-model result.
+1. **Sign the receivable.** Supplier and payer sign identical invoice terms and a local document
+   hash through EIP-712.
+2. **Assess confirmed history.** OpenBell derives payer history from confirmed X Layer contract
+   events across both official RPCs. Supplier-declared performance is not accepted.
+3. **Fund exact terms.** A funder advances only the smallest amount allowed by the request, model,
+   and immutable contract ceiling.
+4. **Settle directly.** The payer repays the fixed amount to the recorded funder and the invoice
+   reaches terminal state `SETTLED`.
 
-## V1 scope
+## Why the AI is load-bearing
 
-- Canonical invoice registration signed by both supplier and payer
-- Structured AI approval or rejection bound to the invoice digest
-- Exact, request-specific USDG funding
-- Exact payer settlement to the recorded funder
-- Duplicate, replay, stale-data, wrong-party and fee-on-transfer rejection
-- Pause of new originations without blocking funded invoice settlement
+The model produces one structured, invoice-bound decision. It may:
 
-OpenBell V1 has no pool, token, auction, secondary market, governance, collections engine, partial
-funding, partial repayment, or document-storage system. Only a document hash is placed onchain.
+- lower the permitted advance;
+- increase the required fee within the contract ceiling; or
+- refuse and emit no executable terms.
 
-## Contracts
+The first valid response is authoritative and is not retried or substituted. The model cannot change
+the signed invoice, custody funds, bypass party signatures, exceed contract ceilings, or execute a
+transaction.
 
-The contract is under `contracts/src/OpenBellReceivables.sol`. It uses EIP-712 domain separation,
-ERC-1271-compatible signature checks, exact ERC-20 balance-delta accounting, replay protection,
-reentrancy protection, immutable risk ceilings, rotatable underwriting authority, and originations-
-only pause semantics.
+The mainnet assessment used a receipt-derived checkpoint through X Layer block `68,230,450`:
 
-Run locally:
+- `1` completed settlement, on time;
+- `0` open funded invoices;
+- `71.42%` counterparty concentration; and
+- byte-identical observations from both official X Layer RPCs.
+
+That limited, concentrated history produced the genuine result:
+
+```text
+REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY
+```
+
+[Inspect the sanitized decision](evidence/openbell-receipt-bound-rejection.json) ·
+[Inspect the checkpoint](evidence/openbell-receipt-bound-history-baseline.json)
+
+## Why X Layer is load-bearing
+
+X Layer is not only the deployment destination. The chain provides the facts the model evaluates and
+enforces the economic boundary afterward:
+
+- confirmed OpenBell receipts become the underwriting history;
+- chain ID `196` and the deployed EIP-712 domain bind every signature;
+- canonical USDG is transferred with exact balance-delta accounting;
+- invoice state prevents duplicate funding and stale execution; and
+- public receipts prove the advance, repayment, and terminal state.
+
+Remove X Layer and OpenBell loses both its receipt-derived risk history and its settlement authority.
+
+## Try OpenBell
+
+| Surface | Purpose | Wallet required |
+| --- | --- | --- |
+| [`/studio/`](https://openbell.dolepee.com/studio/) | Prepare invoice terms, hash a document locally, and export an unsigned package | No |
+| [`/mainnet/`](https://openbell.dolepee.com/mainnet/) | Continue the supplier, payer, underwriter, funder, or settlement workflow | Only for the relevant role |
+| [`/fund/`](https://openbell.dolepee.com/fund/) | Complete one exact invited funding action when a verified candidate is available | Funder only |
+| [`/proof/`](https://openbell.dolepee.com/proof/) | Inspect deployment, model, lifecycle, and evidence boundaries | No |
+
+The dedicated one-wallet funding route has also been completed by an unrelated tester without a file,
+CLI, or founder transaction for that action. Wallet `0x2Ef353…05244` funded exactly `0.005 USDG` in
+[`0xa9068a…e030a`](https://www.okx.com/web3/explorer/xlayer/tx/0xa9068afbd10fec26550883b7d52018623d7b184ad8cbdb310099a547526e030a).
+Independence is an offchain attestation; the wallet, transfer, and `REGISTERED -> FUNDED` transition
+are onchain-verifiable. This does not claim independent completion of every role in the full lifecycle.
+
+## Deployment
+
+| Field | Value |
+| --- | --- |
+| Network | X Layer mainnet · chain `196` |
+| Contract | [`0xc4Ef249b80a6a034198C226278c51b0a903840dd`](https://www.okx.com/web3/explorer/xlayer/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd) |
+| Settlement token | Canonical USDG · `0x4ae46a509F6b1D9056937BA4500cb143933D2dc8` |
+| Deployment transaction | [`0x328c80…af413e`](https://www.okx.com/web3/explorer/xlayer/tx/0x328c80d5c4e5a7a13c3143f1f3c5667f83823c3ebdfbd3ca1d9c07b7f3af413e) |
+| Deployment block | `67,764,503` |
+| Runtime hash | `0x3aa05fd1a2f966e99324c8c24dc3ee67e2f4c11a4f3c8de0da25fc1f7e8a9798` |
+
+The contract is non-custodial and request-funded. It has no pool, protocol token, auction, secondary
+market, governance system, collections engine, partial funding, or partial repayment. Only a document
+hash is placed onchain.
+
+## Security boundary
+
+`OpenBellReceivables.sol` uses:
+
+- EIP-712 domain separation and ERC-1271-compatible signature checks;
+- exact ERC-20 balance-delta accounting;
+- replay, duplicate-funding, stale-decision, and wrong-party protection;
+- reentrancy protection;
+- immutable advance and fee ceilings;
+- rotatable underwriting authority; and
+- an originations-only pause that does not block settlement of funded invoices.
+
+OpenBell proves signed terms, bounded decisions, exact token movement, and contract state. It does not
+prove legal validity of an offchain invoice, guarantee repayment, establish broad market demand, or
+claim that every lifecycle role was independently operated.
+
+## Run locally
+
+Requirements: Node.js, npm, and Foundry.
 
 ```bash
-forge fmt --check
-forge build
-forge test
-npm run e2e:fixture
+npm ci
+npm run check
 ```
 
-`npm run e2e:fixture` starts its own chain-ID-1952 Anvil, deploys the labelled fixture token and
-contract, records one prior-default rejection, then proves an older, separate recorded-model
-journey:
-
-```text
-100 face value -> 75 requested -> contract allows 80 -> recorded model caps 70
-70 fixture USDG funded -> 73.5 settled -> SETTLED
-```
-
-The command writes an ignored local manifest under `.openbell/`. Its transaction hashes are local
-Anvil receipts—not X Layer explorer proof—and its 70/73.5 decision is an older recorded fixture, not
-the genuine live-model result described above.
-
-The product surface is a dependency-free static site generated from that exact manifest:
+For the local website:
 
 ```bash
 npm run web:check
 npm run web:serve
 ```
 
-Open `http://127.0.0.1:4187` for local development. The published canonical site is
-[`https://openbell.dolepee.com/`](https://openbell.dolepee.com/).
+Open `http://127.0.0.1:4187`.
 
-The fixture-first deployment script can be rehearsed without an RPC or broadcast:
+## Evidence
 
-```bash
-OPENBELL_DEPLOYER=0x... \
-OPENBELL_OWNER=0x... \
-OPENBELL_UNDERWRITER=0x... \
-npm run deploy:fixture:testnet:dry-run
-```
+- [Mainnet deployment record](evidence/openbell-xlayer-mainnet-deployment.json)
+- [Reproducible deployment verification](evidence/openbell-xlayer-mainnet-verification-record.json)
+- [Mainnet lifecycle observations](evidence/openbell-xlayer-mainnet-lifecycle-observations.json)
+- [Deterministic lifecycle verification](evidence/openbell-xlayer-mainnet-lifecycle-verification.json)
+- [Receipt-bound history observations](evidence/openbell-receipt-bound-history-observations.json)
+- [Receipt-bound genuine rejection](evidence/openbell-receipt-bound-rejection.json)
+- [Independent one-wallet funder observations](evidence/openbell-independent-cold-funder-observations.json)
+- [Deterministic one-wallet funder verification](evidence/openbell-independent-cold-funder.json)
 
-It requires chain ID 1952, explicit nonzero roles with a distinct owner and underwriter, deploys the
-labelled fixture token before OpenBell, and seals the token, protocol configuration, and EIP-712
-domain through post-deploy assertions. The command itself remains only an offline rehearsal. The
-accompanying read-only verifier rebuilds a clean source checkpoint offline, binds exact initcode and
-CREATE addresses, and requires 12-confirmation receipts, canonical block rechecks,
-source-compatible runtimes, and exact getters. That verifier produced the two testnet addresses
-listed above; candidate generation still refuses a dirty worktree.
-
-## Product boundary
-
-OpenBell does not claim to invent invoice financing. Its focus is a narrow X Layer-native flow in
-which an inspectable AI decision is cryptographically bound to exact financing terms and the chain
-proves funding and settlement without pooled lender accounting.
+The labelled X Layer testnet fixture remains available for reproducible testing under `/operate/` and
+in the evidence archive. It is explicitly separate from the canonical-USDG mainnet lifecycle above.
