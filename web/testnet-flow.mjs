@@ -398,6 +398,9 @@ const assertConnectedModelReasonsSupported = (modelInput, evidence) => {
   if (!hasVerifiedHistory && evidence.decision.reasons.some((reason) => unsupportedZeroHistoryReasons.has(reason))) {
     throw new Error("Connected model reason is unsupported by the submitted evidence.");
   }
+  if (modelInput.payerHistory.defaults === 0 && evidence.decision.reasons.includes("PRIOR_DEFAULT")) {
+    throw new Error("Connected model reason is unsupported by the submitted evidence.");
+  }
 };
 
 const bindConnectedResponseToRequest = (observation, expectedRequest, deployment) => {

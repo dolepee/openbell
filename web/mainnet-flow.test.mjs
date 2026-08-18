@@ -51,6 +51,24 @@ const preparedMainnetDeal = (requestedAdvance = "85") => buildUnsignedDealPackag
   target: OPENBELL_MAINNET
 });
 
+const connectedEvidenceCommitmentsForTest = (evidence) => {
+  const receiptCommitment = keccak256(encodeAbiParameters(
+    parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
+    [evidence.provider, evidence.providerResponseId, evidence.requestedModel, evidence.returnedModel, evidence.requestHash, evidence.responseHash]
+  ));
+  const modelId = `bankr:${evidence.requestedModel}:receipt:${receiptCommitment}`;
+  return {
+    modelHash: keccak256(encodeAbiParameters(
+      parseAbiParameters("string modelId, string verdict, uint16 maximumAdvanceBps, uint16 feeBps, uint16 confidenceBps, string[] reasons, string explanation"),
+      [modelId, evidence.decision.verdict, evidence.decision.maximumAdvanceBps, evidence.decision.feeBps, evidence.decision.confidenceBps, evidence.decision.reasons, evidence.decision.explanation]
+    )),
+    riskReasonsHash: keccak256(encodeAbiParameters(
+      parseAbiParameters("string[] reasons, string explanation"),
+      [evidence.decision.reasons, evidence.decision.explanation]
+    ))
+  };
+};
+
 test("mainnet supplier authority binds the exact receipt checkpoint and neutral evidence boundary", async () => {
   const deal = await preparedMainnetDeal("60");
   let session = await createInvoiceSession(deal);
@@ -149,6 +167,36 @@ test("receipt-bound mainnet decisions validate against the exact server evidence
   const assessment = { ...core, artifactHash: artifactHashOf(core) };
   assert.equal(validateConnectedAssessment(assessment, authorized), assessment);
   assert.throws(() => validateConnectedAssessment(assessment, { ...authorized, receiptBoundHistory: { ...receiptBoundHistory, throughBlock: "68230451" } }), /request hash|nonce/);
+
+  const unsupportedDefaultDecision = { ...modelDecision, reasons: ["DUAL_SIGNATURES_VERIFIED", "PRIOR_DEFAULT"] };
+  const unsupportedDefaultRawResponse = JSON.stringify({
+    ...JSON.parse(rawResponse),
+    choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(unsupportedDefaultDecision) } }]
+  });
+  const unsupportedDefaultEvidence = {
+    ...evidence,
+    rawResponse: unsupportedDefaultRawResponse,
+    responseHash: keccak256(stringToHex(unsupportedDefaultRawResponse)),
+    decision: unsupportedDefaultDecision
+  };
+  const unsupportedDefaultCommitments = connectedEvidenceCommitmentsForTest(unsupportedDefaultEvidence);
+  const unsupportedDefaultCore = {
+    ...core,
+    decision: {
+      ...core.decision,
+      riskReasonsHash: unsupportedDefaultCommitments.riskReasonsHash,
+      modelHash: unsupportedDefaultCommitments.modelHash,
+      reasons: unsupportedDefaultDecision.reasons
+    },
+    modelEvidence: unsupportedDefaultEvidence
+  };
+  assert.throws(
+    () => validateConnectedAssessment(
+      { ...unsupportedDefaultCore, artifactHash: artifactHashOf(unsupportedDefaultCore) },
+      authorized
+    ),
+    /unsupported by the submitted evidence/
+  );
 });
 
 const canonicalJson = (value) => {
