@@ -9,6 +9,7 @@ import {
   addInvoiceSessionSignature,
   approvalTypedData,
   assertWalletContext,
+  buildBrowserBankrRequestHash,
   buildConnectedAssessmentRequest,
   connectedAssessmentTypedData,
   buildHumanEscalation,
@@ -20,6 +21,7 @@ import {
   rejectionTypedData,
   registrationActionFromSession,
   validateBrowserAction,
+  validateConnectedAssessment,
   walletInvoiceTypedData
 } from "./testnet-flow.mjs";
 
@@ -68,6 +70,85 @@ test("mainnet supplier authority binds the exact receipt checkpoint and neutral 
   const authorized = await buildConnectedAssessmentRequest({ session, registrationTransactionHash: unsigned.registrationTransactionHash, funder: funder.address, payerHistory, receiptBoundHistory, redactedContext, supplierAuthorization: signature });
   assert.equal(authorized.receiptBoundHistory.historyCommitment, receiptBoundHistory.historyCommitment);
   await assert.rejects(() => buildConnectedAssessmentRequest({ session, registrationTransactionHash: unsigned.registrationTransactionHash, funder: funder.address, payerHistory, receiptBoundHistory: { ...receiptBoundHistory, throughBlock: "68230451" }, redactedContext, supplierAuthorization: signature }), /wrong signer|Signature recovered/);
+});
+
+test("receipt-bound mainnet decisions validate against the exact server evidence boundary", async () => {
+  const deal = await preparedMainnetDeal("60");
+  let session = await createInvoiceSession(deal);
+  session = await addInvoiceSessionSignature(session, supplier.address, await supplier.signTypedData(invoiceTypedData(deal.invoiceTerms, OPENBELL_MAINNET_CONNECTED)));
+  session = await addInvoiceSessionSignature(session, payer.address, await payer.signTypedData(invoiceTypedData(deal.invoiceTerms, OPENBELL_MAINNET_CONNECTED)));
+  const receiptBoundHistory = {
+    schemaVersion: "openbell-receipt-bound-history-v1", chainId: 196, receivables: OPENBELL_MAINNET_CONNECTED.receivables, payer: payer.address,
+    fromBlock: "67764503", throughBlock: "68230450", throughBlockHash: `0x${"ab".repeat(32)}`,
+    completedSettlements: 1, onTimeSettlements: 1, lateSettlements: 0, activeFunded: 0, overdueFunded: 0,
+    counterpartyConcentrationBps: 7142, daysSinceLastSettlement: 0, invoiceIds: [`0x${"cd".repeat(32)}`], historyCommitment: `0x${"ef".repeat(32)}`
+  };
+  const payerHistory = { completedSettlements: 1, onTimeSettlements: 1, lateSettlements: 0, defaults: 0, concentrationBps: 7142, daysSinceLastSettlement: 0 };
+  const redactedContext = "No offchain payer-performance claims were supplied. History is limited to confirmed OpenBell receipts on X Layer.";
+  const registrationTransactionHash = `0x${"12".repeat(32)}`;
+  const unsigned = await buildConnectedAssessmentRequest({ session, registrationTransactionHash, funder: funder.address, payerHistory, receiptBoundHistory, redactedContext });
+  const authorized = await buildConnectedAssessmentRequest({
+    session, registrationTransactionHash, funder: funder.address, payerHistory, receiptBoundHistory, redactedContext,
+    supplierAuthorization: await supplier.signTypedData(connectedAssessmentTypedData(unsigned))
+  });
+  const riskTimestamp = Number(deal.invoiceTerms.issuedAt) + 120;
+  const observation = {
+    chainId: 196, receivables: OPENBELL_MAINNET_CONNECTED.receivables, settlementToken: OPENBELL_MAINNET_CONNECTED.settlementToken,
+    blockNumber: "68000000", blockHash: `0x${"13".repeat(32)}`, blockTimestamp: riskTimestamp, registrationTransactionHash,
+    status: "REGISTERED", invoiceId: deal.invoiceTerms.invoiceId, invoiceDigest: session.authorizedDigest, documentHash: deal.invoiceTerms.documentHash,
+    supplier: supplier.address, payer: payer.address, faceValue: deal.invoiceTerms.faceValue, issuedAt: Number(deal.invoiceTerms.issuedAt),
+    dueDate: Number(deal.invoiceTerms.dueDate), underwriter: underwriter.address, paused: false, decisionNonceUnused: true,
+    documentHashRegistered: true, invoiceDigestRegistered: true
+  };
+  const modelInput = {
+    invoiceId: observation.invoiceId, invoiceDigest: observation.invoiceDigest, supplier: observation.supplier, payer: observation.payer,
+    funder: authorized.funder, faceValue: observation.faceValue, issuedAt: observation.issuedAt, dueDate: observation.dueDate,
+    requestedAdvance: authorized.requestedAdvance,
+    evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
+    payerHistory, receiptBoundHistory, redactedContext
+  };
+  const modelDecision = {
+    verdict: "REJECT", maximumAdvanceBps: 0, feeBps: 0, confidenceBps: 8_200,
+    reasons: ["DUAL_SIGNATURES_VERIFIED", "STRONG_ON_TIME_HISTORY", "MODEL_UNCERTAINTY"],
+    explanation: "Confirmed OpenBell receipts on X Layer do not support approval."
+  };
+  const rawResponse = JSON.stringify({
+    id: "receipt-bound-rejection", object: "chat.completion", model: "gpt-5.6-terra",
+    choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(modelDecision) } }]
+  });
+  const evidence = {
+    provider: "bankr-chat-completions", providerResponseId: "receipt-bound-rejection", requestedModel: "gpt-5.6-terra", returnedModel: "gpt-5.6-terra",
+    requestHash: buildBrowserBankrRequestHash(modelInput, "receipt-bound-mainnet"), responseHash: keccak256(stringToHex(rawResponse)), rawResponse, decision: modelDecision
+  };
+  const receiptCommitment = keccak256(encodeAbiParameters(
+    parseAbiParameters("string provider, string providerResponseId, string requestedModel, string returnedModel, bytes32 requestHash, bytes32 responseHash"),
+    [evidence.provider, evidence.providerResponseId, evidence.requestedModel, evidence.returnedModel, evidence.requestHash, evidence.responseHash]
+  ));
+  const modelId = `bankr:gpt-5.6-terra:receipt:${receiptCommitment}`;
+  const modelHash = keccak256(encodeAbiParameters(
+    parseAbiParameters("string modelId, string verdict, uint16 maximumAdvanceBps, uint16 feeBps, uint16 confidenceBps, string[] reasons, string explanation"),
+    [modelId, modelDecision.verdict, modelDecision.maximumAdvanceBps, modelDecision.feeBps, modelDecision.confidenceBps, modelDecision.reasons, modelDecision.explanation]
+  ));
+  const riskReasonsHash = keccak256(encodeAbiParameters(parseAbiParameters("string[] reasons, string explanation"), [modelDecision.reasons, modelDecision.explanation]));
+  const nonce = BigInt(keccak256(stringToHex(canonicalJson(authorized)))).toString();
+  const decision = {
+    verdict: "REJECT", invoiceId: observation.invoiceId, invoiceDigest: observation.invoiceDigest, riskTimestamp,
+    expiresAt: riskTimestamp + 1800, riskReasonsHash, modelHash, reasons: modelDecision.reasons, explanation: modelDecision.explanation, modelId
+  };
+  const rejection = {
+    invoiceId: decision.invoiceId, invoiceDigest: decision.invoiceDigest, riskTimestamp: String(decision.riskTimestamp), expiresAt: String(decision.expiresAt),
+    riskReasonsHash, modelHash, nonce
+  };
+  const core = {
+    decision, modelEvidence: evidence, observation,
+    signingRequest: {
+      schemaVersion: "openbell-connected-decision-signing-v1", label: OPENBELL_MAINNET_CONNECTED.label, chainId: "196", underwriter: underwriter.address,
+      authorizedDigest: hashTypedData(rejectionTypedData(rejection, OPENBELL_MAINNET_CONNECTED)), nonce
+    }
+  };
+  const assessment = { ...core, artifactHash: artifactHashOf(core) };
+  assert.equal(validateConnectedAssessment(assessment, authorized), assessment);
+  assert.throws(() => validateConnectedAssessment(assessment, { ...authorized, receiptBoundHistory: { ...receiptBoundHistory, throughBlock: "68230451" } }), /request hash|nonce/);
 });
 
 const canonicalJson = (value) => {

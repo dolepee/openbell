@@ -277,9 +277,12 @@ const ESCALATION_MAX_REQUEST_BPS = 5_000n;
 const ESCALATION_FEE_BPS = 100n;
 const ESCALATION_POLICY = "HUMAN_REVIEW_AFTER_MODEL_REJECTION_V1";
 const BANKR_MAINNET_POLICY_PROMPT = "An APPROVE verdict requires confidenceBps of at least 7000. If the evidence does not justify that confidence, return REJECT instead of a lower-confidence APPROVE. The deterministic envelope caps maximumAdvanceBps at 8000 and feeBps at 2000.";
-const bankrExplanationFor = (boundary, verdict) => boundary === "registered-mainnet"
-  ? verdict === "APPROVE" ? "The supplied registered mainnet evidence supports approval within the returned structured limits." : "The supplied registered mainnet evidence does not support approval."
-  : verdict === "APPROVE" ? "The supplied synthetic evidence supports approval within the returned structured limits." : "The supplied synthetic evidence does not support approval.";
+const RECEIPT_BOUND_MAINNET_SCHEMA = "openbell-mainnet-receipt-bound-underwriting-v1";
+const bankrExplanationFor = (boundary, verdict) => boundary === "receipt-bound-mainnet"
+  ? verdict === "APPROVE" ? "Confirmed OpenBell receipts on X Layer support approval within the returned structured limits." : "Confirmed OpenBell receipts on X Layer do not support approval."
+  : boundary === "registered-mainnet"
+    ? verdict === "APPROVE" ? "The supplied registered mainnet evidence supports approval within the returned structured limits." : "The supplied registered mainnet evidence does not support approval."
+    : verdict === "APPROVE" ? "The supplied synthetic evidence supports approval within the returned structured limits." : "The supplied synthetic evidence does not support approval.";
 const bankrSchemaFor = (boundary) => ({
   type: "object",
   additionalProperties: false,
@@ -302,8 +305,10 @@ const bankrSchemaFor = (boundary) => ({
 });
 
 export function buildBrowserBankrRequestHash(input, boundary) {
-  const evidenceDescription = boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
-  const policyInstruction = boundary === "registered-mainnet" ? ` ${BANKR_MAINNET_POLICY_PROMPT}` : "";
+  const evidenceDescription = boundary === "receipt-bound-mainnet"
+    ? "registered invoice evidence and confirmed OpenBell receipts on X Layer; overdue funded invoices are not protocol defaults"
+    : boundary === "registered-mainnet" ? "registered mainnet invoice evidence" : "synthetic invoice evidence";
+  const policyInstruction = boundary === "synthetic" ? "" : ` ${BANKR_MAINNET_POLICY_PROMPT}`;
   const body = JSON.stringify({
     model: "gpt-5.6-terra",
     messages: [
@@ -380,8 +385,13 @@ const connectedModelInput = (observation, expectedRequest) => ({
   requestedAdvance: expectedRequest.requestedAdvance,
   evidence: { supplierSignatureValid: true, payerSignatureValid: true, duplicateInvoiceFound: false, documentHashMatches: true },
   payerHistory: expectedRequest.payerHistory,
+  ...(expectedRequest.receiptBoundHistory ? { receiptBoundHistory: expectedRequest.receiptBoundHistory } : {}),
   redactedContext: expectedRequest.redactedContext
 });
+
+const connectedEvidenceBoundary = (expectedRequest, deployment) => deployment === OPENBELL_TESTNET
+  ? "synthetic"
+  : expectedRequest?.schemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA ? "receipt-bound-mainnet" : "registered-mainnet";
 
 const assertConnectedModelReasonsSupported = (modelInput, evidence) => {
   const hasVerifiedHistory = Object.values(modelInput.payerHistory).some((value) => value !== 0);
@@ -394,7 +404,9 @@ const bindConnectedResponseToRequest = (observation, expectedRequest, deployment
   if (!expectedRequest || typeof expectedRequest !== "object" || Array.isArray(expectedRequest)) {
     throw new Error("Connected response requires the exact submitted assessment request.");
   }
-  const expectedSchema = deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : "openbell-mainnet-underwriting-v1";
+  const expectedSchema = deployment === OPENBELL_TESTNET
+    ? "openbell-connected-underwriting-v1"
+    : expectedRequest?.receiptBoundHistory ? RECEIPT_BOUND_MAINNET_SCHEMA : "openbell-mainnet-underwriting-v1";
   const requestMatches = expectedRequest.schemaVersion === expectedSchema
     && expectedRequest.label === deployment.label
     && String(observation.registrationTransactionHash).toLowerCase() === String(expectedRequest.registrationTransactionHash).toLowerCase()
@@ -419,7 +431,9 @@ export function validateConnectedPolicyRefusal(candidate, expectedRequest, expec
   if (!refusalCodes.has(candidate.refusal.code) || typeof candidate.refusal.message !== "string" || !candidate.refusal.message.trim()) {
     throw new Error("Policy refusal reason is invalid.");
   }
-  const boundary = candidate.observation?.chainId === OPENBELL_MAINNET_CONNECTED.chainId ? "registered-mainnet" : "synthetic";
+  const observation = candidate.observation;
+  const deployment = validateConnectedObservation(observation);
+  const boundary = connectedEvidenceBoundary(expectedRequest, deployment);
   const evidence = validateConnectedModelEvidence(candidate.modelEvidence, boundary);
   const expectedMessage = refusalMessages[candidate.refusal.code];
   const messageMatches = expectedMessage instanceof Set
@@ -430,10 +444,7 @@ export function validateConnectedPolicyRefusal(candidate, expectedRequest, expec
   if (!messageMatches || !lowConfidenceMatches) {
     throw new Error("Policy refusal contradicts the model decision or connected policy.");
   }
-  const observation = candidate.observation;
-  const deployment = validateConnectedObservation(observation);
   const modelInput = bindConnectedResponseToRequest(observation, expectedRequest, deployment);
-  if ((deployment === OPENBELL_MAINNET_CONNECTED ? "registered-mainnet" : "synthetic") !== boundary) throw new Error("Policy refusal evidence boundary changed.");
   assertConnectedModelReasonsSupported(modelInput, evidence);
   if (buildBrowserBankrRequestHash(modelInput, boundary) !== evidence.requestHash) {
     throw new Error("Policy refusal model request hash does not match the submitted assessment request.");
@@ -581,7 +592,7 @@ export function validateConnectedAssessment(assessment, expectedRequest) {
   const { artifactHash, ...assessmentCore } = assessment;
   if (asHash(artifactHash, "Connected assessment artifact hash") !== connectedBrowserArtifactHashOf(assessmentCore)) throw new Error("Connected assessment artifact commitment does not match its evidence.");
   const deployment = validateConnectedObservation(assessmentCore.observation);
-  const boundary = deployment === OPENBELL_MAINNET_CONNECTED ? "registered-mainnet" : "synthetic";
+  const boundary = connectedEvidenceBoundary(expectedRequest, deployment);
   const evidence = validateConnectedModelEvidence(assessmentCore.modelEvidence, boundary);
   const modelInput = bindConnectedResponseToRequest(assessmentCore.observation, expectedRequest, deployment);
   assertConnectedModelReasonsSupported(modelInput, evidence);
@@ -902,7 +913,7 @@ export async function buildConnectedAssessmentRequest({ session: sessionCandidat
   const context = String(redactedContext).trim();
   if (!context || context.length > 2_000) throw new Error("Redacted context must contain 1 to 2,000 characters.");
   const unsigned = {
-    schemaVersion: deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : receiptBoundHistory ? "openbell-mainnet-receipt-bound-underwriting-v1" : "openbell-mainnet-underwriting-v1",
+    schemaVersion: deployment === OPENBELL_TESTNET ? "openbell-connected-underwriting-v1" : receiptBoundHistory ? RECEIPT_BOUND_MAINNET_SCHEMA : "openbell-mainnet-underwriting-v1",
     label: deployment.label,
     registrationTransactionHash: asHash(registrationTransactionHash, "Registration transaction hash"),
     invoiceId: terms.invoiceId,
