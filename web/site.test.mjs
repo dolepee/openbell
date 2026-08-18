@@ -96,6 +96,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(studio, /ONE-CLICK PRODUCT TRIAL/);
   assert.match(studio, /id="load-sample"/);
   assert.match(studio, /No wallet, signature, model request, or transaction/);
+  assert.match(studio, /id="sample-document">OpenBell no-value sample invoice/);
   assert.match(mainnet, /data-network="mainnet"/);
   assert.match(mainnet, /<title>Live USDG desk — OpenBell<\/title>/);
   assert.match(mainnet, /canonical USDG on X Layer mainnet/);
@@ -223,8 +224,11 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(studio, /<button[^>]+id="download-package"[^>]+disabled/);
   assert.match(studio, /<button[^>]+id="load-sample"[^>]+type="button"/);
   assert.match(script, /targetInput\.value = "testnet"/);
+  assert.match(script, /dueInput\.value = futureDueDate\(\)/);
   assert.match(script, /dealForm\.requestSubmit\(\)/);
-  assert.match(script, /0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f/);
+  assert.match(script, /await sha256\(new TextEncoder\(\)\.encode\(sampleDocument\)\)/);
+  assert.match(script, /if \(!samplePreparation\) sampleStatus\.textContent = "No wallet, signature, model request, or transaction\."/);
+  assert.doesNotMatch(script, /0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f/);
   assert.match(operate, /XLAYER TESTNET FIXTURE/);
   assert.match(operate, /Three accounts\. One guided testnet journey\./);
   assert.match(operate, /supplier, payer, and funder addresses must be distinct/);

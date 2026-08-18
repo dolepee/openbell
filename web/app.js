@@ -136,9 +136,12 @@ if (dealForm) {
   let preparedPackage = null;
   let samplePreparation = false;
 
-  const tomorrow = new Date();
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 30);
-  dueInput.value = tomorrow.toISOString().slice(0, 10);
+  const futureDueDate = () => {
+    const dueDate = new Date();
+    dueDate.setUTCDate(dueDate.getUTCDate() + 30);
+    return dueDate.toISOString().slice(0, 10);
+  };
+  dueInput.value = futureDueDate();
 
   const invalidatePreparedPackage = () => {
     studioOperationGuard.invalidate();
@@ -152,6 +155,7 @@ if (dealForm) {
     delete document.querySelector('[data-readiness="terms"]').dataset.complete;
     delete document.querySelector('[data-readiness="document"]').dataset.complete;
     clearCreditMemo();
+    if (!samplePreparation) sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
   };
 
   const renderTargetLabels = () => {
@@ -182,7 +186,7 @@ if (dealForm) {
   documentInput.addEventListener("change", invalidatePreparedPackage);
   consentInput.addEventListener("change", invalidatePreparedPackage);
 
-  sampleButton?.addEventListener("click", () => {
+  sampleButton?.addEventListener("click", async () => {
     samplePreparation = true;
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
@@ -193,9 +197,11 @@ if (dealForm) {
     payerInput.value = "0x2222222222222222222222222222222222222222";
     faceInput.value = "100";
     requestInput.value = "75";
+    dueInput.value = futureDueDate();
     nonceInput.value = generateDealNonce();
     documentInput.value = "";
-    documentHashInput.value = "0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f";
+    const sampleDocument = document.querySelector("#sample-document").textContent;
+    documentHashInput.value = await sha256(new TextEncoder().encode(sampleDocument));
     consentInput.checked = true;
     renderTargetLabels();
     renderStudioMath();

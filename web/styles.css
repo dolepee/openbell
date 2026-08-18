@@ -226,6 +226,8 @@ code { font-family: var(--mono); }
 .studio-trial .button:hover { color: var(--ink); background: white; }
 .studio-trial .button:disabled { opacity: .7; }
 .studio-trial #sample-status { max-width: 290px; font: 650 10px var(--mono); }
+.studio-trial .sample-document-label { color: white; font: 650 10px/1.6 var(--mono); }
+.studio-trial .sample-document-label code { color: var(--acid); overflow-wrap: anywhere; }
 .studio-grid { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(360px, 1.05fr) minmax(280px, .68fr); min-height: 780px; border: 1px solid var(--ink); background: var(--paper-2); box-shadow: var(--shadow); }
 .deal-form, .deal-boundary, .package-panel { min-width: 0; }
 .deal-form, .package-panel { padding: 0 24px 28px; }
