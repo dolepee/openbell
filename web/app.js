@@ -111,17 +111,22 @@ const clearCreditMemo = () => {
 const sampleButton = document.querySelector("#load-sample");
 const sampleStatus = document.querySelector("#sample-status");
 let samplePreparation = false;
+let activeSampleRevision = null;
 const resetSampleControl = ({
   label = "Build no-value sample",
-  status = "No wallet, signature, model request, or transaction."
+  status = "No wallet, signature, model request, or transaction.",
+  revision = null
 } = {}) => {
+  if (revision !== null && activeSampleRevision !== revision) return false;
   samplePreparation = false;
+  activeSampleRevision = null;
   if (sampleButton) {
     sampleButton.disabled = false;
     sampleButton.setAttribute("aria-busy", "false");
     sampleButton.querySelector("span").textContent = label;
   }
   if (sampleStatus) sampleStatus.textContent = status;
+  return true;
 };
 
 const dealForm = document.querySelector("#deal-form");
@@ -207,6 +212,7 @@ if (dealForm) {
     const sampleRevision = studioOperationGuard.begin();
     let submitted = false;
     samplePreparation = true;
+    activeSampleRevision = sampleRevision;
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
     sampleButton.querySelector("span").textContent = "Building sample…";
@@ -238,13 +244,14 @@ if (dealForm) {
         const status = studioOperationGuard.isCurrent(sampleRevision)
           ? sampleStatus.textContent
           : "No wallet, signature, model request, or transaction.";
-        resetSampleControl({ status });
+        resetSampleControl({ status, revision: sampleRevision });
       }
     }
   });
 
   dealForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const sampleOwnerRevision = samplePreparation ? activeSampleRevision : null;
     const preparationRevision = studioOperationGuard.begin();
     dealForm.setAttribute("aria-busy", "true");
     reviewForm?.setAttribute("aria-busy", "false");
@@ -283,18 +290,23 @@ if (dealForm) {
       document.querySelector('[data-readiness="terms"]').dataset.complete = "true";
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
       renderCreditMemo(preparedPackage);
-      if (samplePreparation) sampleStatus.textContent = "Sample package prepared. Inspect the credit memo or download the unsigned JSON.";
+      if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
+        sampleStatus.textContent = "Sample package prepared. Inspect the credit memo or download the unsigned JSON.";
+      }
     } catch (error) {
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
       errorOutput.textContent = error instanceof Error ? error.message : "Unable to prepare the deal package.";
       packageState.textContent = "DRAFT";
-      if (samplePreparation) sampleStatus.textContent = "The sample could not be prepared. Review the form error below.";
+      if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
+        sampleStatus.textContent = "The sample could not be prepared. Review the form error below.";
+      }
     } finally {
       if (studioOperationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
-      if (samplePreparation) {
+      if (sampleOwnerRevision !== null) {
         resetSampleControl({
           label: "Build another sample",
-          status: sampleStatus.textContent
+          status: sampleStatus.textContent,
+          revision: sampleOwnerRevision
         });
       }
     }
