@@ -108,6 +108,26 @@ const clearCreditMemo = () => {
   if (creditMemo) creditMemo.hidden = true;
   if (reviewEmpty) reviewEmpty.hidden = false;
 };
+const sampleButton = document.querySelector("#load-sample");
+const sampleStatus = document.querySelector("#sample-status");
+let samplePreparation = false;
+let activeSampleRevision = null;
+const resetSampleControl = ({
+  label = "Build no-value sample",
+  status = "No wallet, signature, model request, or transaction.",
+  revision = null
+} = {}) => {
+  if (revision !== null && activeSampleRevision !== revision) return false;
+  samplePreparation = false;
+  activeSampleRevision = null;
+  if (sampleButton) {
+    sampleButton.disabled = false;
+    sampleButton.setAttribute("aria-busy", "false");
+    sampleButton.querySelector("span").textContent = label;
+  }
+  if (sampleStatus) sampleStatus.textContent = status;
+  return true;
+};
 
 const dealForm = document.querySelector("#deal-form");
 if (dealForm) {
@@ -133,12 +153,14 @@ if (dealForm) {
   const downloadPackage = document.querySelector("#download-package");
   let preparedPackage = null;
 
-  const tomorrow = new Date();
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 30);
-  dueInput.value = tomorrow.toISOString().slice(0, 10);
+  const futureDueDate = () => {
+    const dueDate = new Date();
+    dueDate.setUTCDate(dueDate.getUTCDate() + 30);
+    return dueDate.toISOString().slice(0, 10);
+  };
+  dueInput.value = futureDueDate();
 
-  const invalidatePreparedPackage = () => {
-    studioOperationGuard.invalidate();
+  const clearPreparedPackageState = () => {
     dealForm.setAttribute("aria-busy", "false");
     reviewForm?.setAttribute("aria-busy", "false");
     preparedPackage = null;
@@ -151,13 +173,20 @@ if (dealForm) {
     clearCreditMemo();
   };
 
+  const invalidatePreparedPackage = () => {
+    studioOperationGuard.invalidate();
+    clearPreparedPackageState();
+    if (samplePreparation) resetSampleControl();
+    else sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
+  };
+
   const renderTargetLabels = () => {
     const target = targetInput.value === "testnet" ? OPENBELL_TESTNET_TARGET : OPENBELL_MAINNET;
     faceSymbol.textContent = target.settlementTokenSymbol;
     requestSymbol.textContent = target.settlementTokenSymbol;
   };
 
-  const renderStudioMath = () => {
+  const updateStudioMath = () => {
     try {
       const economics = calculateDealEconomics(faceInput.value, requestInput.value);
       document.querySelector("#studio-face").textContent = baseUnitsToDecimal(economics.faceValue);
@@ -167,6 +196,10 @@ if (dealForm) {
     } catch {
       document.querySelector("#studio-upper-bound").textContent = "—";
     }
+  };
+
+  const renderStudioMath = () => {
+    updateStudioMath();
     invalidatePreparedPackage();
   };
 
@@ -179,8 +212,52 @@ if (dealForm) {
   documentInput.addEventListener("change", invalidatePreparedPackage);
   consentInput.addEventListener("change", invalidatePreparedPackage);
 
+  sampleButton?.addEventListener("click", async () => {
+    const sampleRevision = studioOperationGuard.begin();
+    let submitted = false;
+    samplePreparation = true;
+    activeSampleRevision = sampleRevision;
+    clearPreparedPackageState();
+    sampleButton.disabled = true;
+    sampleButton.setAttribute("aria-busy", "true");
+    sampleButton.querySelector("span").textContent = "Building sample…";
+    sampleStatus.textContent = "Running the real no-value preparation path locally in this browser.";
+    targetInput.value = "testnet";
+    supplierInput.value = "0x1111111111111111111111111111111111111111";
+    payerInput.value = "0x2222222222222222222222222222222222222222";
+    faceInput.value = "100";
+    requestInput.value = "75";
+    dueInput.value = futureDueDate();
+    nonceInput.value = generateDealNonce();
+    documentInput.value = "";
+    documentHashInput.value = "";
+    renderTargetLabels();
+    updateStudioMath();
+    const sampleDocument = document.querySelector("#sample-document").textContent;
+    try {
+      const sampleDocumentHash = await sha256(new TextEncoder().encode(sampleDocument));
+      if (!studioOperationGuard.isCurrent(sampleRevision)) return;
+      documentHashInput.value = sampleDocumentHash;
+      consentInput.checked = true;
+      submitted = true;
+      dealForm.requestSubmit();
+    } catch {
+      if (studioOperationGuard.isCurrent(sampleRevision)) {
+        sampleStatus.textContent = "The sample commitment could not be prepared in this browser.";
+      }
+    } finally {
+      if (!submitted && samplePreparation) {
+        const status = studioOperationGuard.isCurrent(sampleRevision)
+          ? sampleStatus.textContent
+          : "No wallet, signature, model request, or transaction.";
+        resetSampleControl({ status, revision: sampleRevision });
+      }
+    }
+  });
+
   dealForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const sampleOwnerRevision = samplePreparation ? activeSampleRevision : null;
     const preparationRevision = studioOperationGuard.begin();
     dealForm.setAttribute("aria-busy", "true");
     reviewForm?.setAttribute("aria-busy", "false");
@@ -219,12 +296,25 @@ if (dealForm) {
       document.querySelector('[data-readiness="terms"]').dataset.complete = "true";
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
       renderCreditMemo(preparedPackage);
+      if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
+        sampleStatus.textContent = "Sample package prepared. Inspect the credit memo or download the unsigned JSON.";
+      }
     } catch (error) {
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
       errorOutput.textContent = error instanceof Error ? error.message : "Unable to prepare the deal package.";
       packageState.textContent = "DRAFT";
+      if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
+        sampleStatus.textContent = "The sample could not be prepared. Review the form error below.";
+      }
     } finally {
       if (studioOperationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
+      if (sampleOwnerRevision !== null && studioOperationGuard.isCurrent(preparationRevision)) {
+        resetSampleControl({
+          label: "Build another sample",
+          status: sampleStatus.textContent,
+          revision: sampleOwnerRevision
+        });
+      }
     }
   });
 
@@ -266,6 +356,7 @@ if (reviewForm) {
   const reviewFile = document.querySelector("#review-file");
   const reviewError = document.querySelector("#review-error");
   reviewFile.addEventListener("change", () => {
+    if (samplePreparation) resetSampleControl();
     studioOperationGuard.invalidate();
     dealForm?.setAttribute("aria-busy", "false");
     reviewForm.setAttribute("aria-busy", "false");
@@ -275,6 +366,7 @@ if (reviewForm) {
   });
   reviewForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (samplePreparation) resetSampleControl();
     const reviewRevision = studioOperationGuard.begin();
     dealForm?.setAttribute("aria-busy", "false");
     reviewForm.setAttribute("aria-busy", "true");

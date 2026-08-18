@@ -19,7 +19,7 @@
     <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
     <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/app.js?v=20260818-user-trial"></script>
   </head>
   <body data-page="studio" class="studio-page">
     <a class="skip-link" href="#main">Skip to the deal studio</a>
@@ -27,7 +27,7 @@
     <header class="topbar">
       <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
       <div class="nav-right">
-        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/" aria-current="page">Deal studio</a><a href="/mainnet/">Live desk</a></nav>
+        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/" aria-current="page">Try OpenBell</a><a href="/mainnet/">Live desk</a></nav>
         <a class="header-cta" href="/proof/#mainnet">Inspect settled result <span aria-hidden="true">↗</span></a>
       </div>
     </header>
@@ -37,6 +37,11 @@
         <div><p class="overline">OPENBELL · DEAL PREPARATION</p><h1>Prepare the invoice. See the limit first.</h1></div>
         <p>Prepare a deterministic, unsigned receivables package without connecting a wallet or uploading the underlying document. AI assessment and both-party signatures happen after this boundary.</p>
       </header>
+
+      <section class="studio-trial" id="try" aria-labelledby="trial-title">
+        <div><p class="overline">ONE-CLICK PRODUCT TRIAL</p><h2 id="trial-title">Build a real OpenBell package before connecting anything.</h2><p>Use a clearly labelled no-value sample to run the actual preparation engine, calculate the immutable limit, and produce an inspectable invoice package and credit memo.</p><p class="sample-document-label">Committed sample bytes: <code id="sample-document">OpenBell no-value sample invoice</code></p></div>
+        <div><button class="button button-primary" id="load-sample" type="button" aria-describedby="sample-status"><span>Build no-value sample</span><span aria-hidden="true">→</span></button><p id="sample-status" role="status" aria-live="polite">No wallet, signature, model request, or transaction.</p></div>
+      </section>
 
       <div class="studio-grid">
         <form class="deal-form" id="deal-form" novalidate>
@@ -137,6 +142,6 @@
       </section>
     </main>
 
-    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded invoice funding on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/">Deal studio</a><a href="/mainnet/">Live desk</a><a href="/fund/">Fund</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="/operate/">Testnet</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav></footer>
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded invoice funding on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/#try">Try OpenBell</a><a href="/mainnet/">Live desk</a><a href="/fund/">Fund</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="/operate/">Testnet</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav></footer>
   </body>
 </html>

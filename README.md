@@ -6,7 +6,7 @@ OpenBell turns a payer-signed invoice into exact USDG funding. A genuine AI unde
 less or refuse, but it never holds funds and cannot exceed the signed request or immutable contract
 limit. X Layer enforces the final terms and preserves the funding and settlement trail.
 
-[Live app](https://openbell.dolepee.com/) · [Deal studio](https://openbell.dolepee.com/studio/) ·
+[Live app](https://openbell.dolepee.com/) · [Try OpenBell](https://openbell.dolepee.com/studio/#try) ·
 [Live desk](https://openbell.dolepee.com/mainnet/) · [Proof room](https://openbell.dolepee.com/proof/)
 
 ![OpenBell product overview](web/public/openbell-og.png)
@@ -98,9 +98,16 @@ Remove X Layer and OpenBell loses both its receipt-derived risk history and its 
 
 ## Try OpenBell
 
+The shortest product path requires no wallet. Open the
+[one-click trial](https://openbell.dolepee.com/studio/#try) and select **Build no-value sample**.
+OpenBell runs the real browser-side preparation engine, calculates the immutable contract limit,
+creates the invoice ID and document commitment, and renders an inspectable unsigned package and credit
+memo. The sample is explicitly testnet/no-value and makes no model, signature, financing, or transaction
+claim.
+
 | Surface | Purpose | Wallet required |
 | --- | --- | --- |
-| [`/studio/`](https://openbell.dolepee.com/studio/) | Prepare invoice terms, hash a document locally, and export an unsigned package | No |
+| [`/studio/`](https://openbell.dolepee.com/studio/#try) | Run the one-click sample or prepare invoice terms, hash a document locally, and export an unsigned package | No |
 | [`/mainnet/`](https://openbell.dolepee.com/mainnet/) | Continue the supplier, payer, underwriter, funder, or settlement workflow | Only for the relevant role |
 | [`/fund/`](https://openbell.dolepee.com/fund/) | Complete one exact invited funding action when a verified candidate is available | Funder only |
 | [`/proof/`](https://openbell.dolepee.com/proof/) | Inspect deployment, model, lifecycle, and evidence boundaries | No |

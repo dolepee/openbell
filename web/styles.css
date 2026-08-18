@@ -217,6 +217,17 @@ code { font-family: var(--mono); }
 .studio-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .55fr); gap: 70px; align-items: end; padding: 25px 0 70px; }
 .studio-hero h1 { max-width: 920px; margin: 18px 0 0; font-size: clamp(58px, 6.4vw, 94px); letter-spacing: -.075em; line-height: .9; }
 .studio-hero > p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.7; }
+.studio-trial { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: center; margin-bottom: 24px; padding: 28px 32px; color: white; background: var(--ink); }
+.studio-trial h2 { max-width: 780px; margin: 10px 0 0; font-size: clamp(28px, 3vw, 44px); letter-spacing: 0; line-height: 1; }
+.studio-trial p { max-width: 760px; margin: 14px 0 0; color: #b6c4ba; line-height: 1.55; }
+.studio-trial .overline { margin: 0; color: var(--acid); }
+.studio-trial > div:last-child { min-width: 250px; }
+.studio-trial .button { width: 100%; color: var(--ink); background: var(--acid); }
+.studio-trial .button:hover { color: var(--ink); background: white; }
+.studio-trial .button:disabled { opacity: .7; }
+.studio-trial #sample-status { max-width: 290px; font: 650 10px var(--mono); }
+.studio-trial .sample-document-label { color: white; font: 650 10px/1.6 var(--mono); }
+.studio-trial .sample-document-label code { color: var(--acid); overflow-wrap: anywhere; }
 .studio-grid { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(360px, 1.05fr) minmax(280px, .68fr); min-height: 780px; border: 1px solid var(--ink); background: var(--paper-2); box-shadow: var(--shadow); }
 .deal-form, .deal-boundary, .package-panel { min-width: 0; }
 .deal-form, .package-panel { padding: 0 24px 28px; }
@@ -1333,6 +1344,8 @@ code { font-family: var(--mono); }
   .studio-shell { width: min(100% - 32px, 680px); padding-top: 45px; }
   .studio-hero, .studio-grid, .studio-next { grid-template-columns: 1fr; }
   .studio-hero { gap: 28px; }
+  .studio-trial { grid-template-columns: 1fr; gap: 22px; padding: 24px; }
+  .studio-trial > div:last-child { min-width: 0; }
   .studio-grid { min-height: 0; }
   .deal-boundary, .package-panel { border-top: 1px solid var(--line-dark); }
   .readiness-list { grid-template-columns: 1fr; }
