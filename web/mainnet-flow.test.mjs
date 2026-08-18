@@ -167,6 +167,28 @@ test("receipt-bound mainnet decisions validate against the exact server evidence
   const assessment = { ...core, artifactHash: artifactHashOf(core) };
   assert.equal(validateConnectedAssessment(assessment, authorized), assessment);
   assert.throws(() => validateConnectedAssessment(assessment, { ...authorized, receiptBoundHistory: { ...receiptBoundHistory, throughBlock: "68230451" } }), /request hash|nonce/);
+  const receiptBoundEscalation = await buildHumanEscalation({
+    assessment,
+    session,
+    assessedRequestedAdvance: authorized.requestedAdvance,
+    assessedSchemaVersion: "openbell-mainnet-receipt-bound-underwriting-v1",
+    funder: funder.address,
+    advanceAmount: "1",
+    riskTimestamp: String(riskTimestamp + 1)
+  });
+  assert.equal(receiptBoundEscalation.rejectedArtifactHash, assessment.artifactHash);
+  await assert.rejects(
+    buildHumanEscalation({
+      assessment,
+      session,
+      assessedRequestedAdvance: authorized.requestedAdvance,
+      assessedSchemaVersion: "openbell-mainnet-underwriting-v1",
+      funder: funder.address,
+      advanceAmount: "1",
+      riskTimestamp: String(riskTimestamp + 1)
+    }),
+    /model decision is invalid/
+  );
 
   const unsupportedDefaultDecision = { ...modelDecision, reasons: ["DUAL_SIGNATURES_VERIFIED", "PRIOR_DEFAULT"] };
   const unsupportedDefaultRawResponse = JSON.stringify({
@@ -383,6 +405,7 @@ test("human escalation preserves a genuine rejection and enforces the tighter ec
     assessment,
     session,
     assessedRequestedAdvance: "85000000",
+    assessedSchemaVersion: "openbell-mainnet-underwriting-v1",
     funder: funder.address,
     advanceAmount: "25000000",
     riskTimestamp: "1786900000"
@@ -408,6 +431,7 @@ test("one-wallet funding candidate preserves the rejected artifact and exact two
     assessment,
     session,
     assessedRequestedAdvance: "85000000",
+    assessedSchemaVersion: "openbell-mainnet-underwriting-v1",
     funder: funder.address,
     advanceAmount: "25000000",
     riskTimestamp: "1786900000"
@@ -468,7 +492,7 @@ test("one-wallet funding candidate preserves the rejected artifact and exact two
 
 test("human escalation rejects over-cap, altered economics, party collapse and invalid signatures", async () => {
   const { assessment, session } = await rejectedMainnetFixture();
-  const escalationInput = { assessment, session, assessedRequestedAdvance: "85000000", funder: funder.address, advanceAmount: "25000000", riskTimestamp: "1786900000" };
+  const escalationInput = { assessment, session, assessedRequestedAdvance: "85000000", assessedSchemaVersion: "openbell-mainnet-underwriting-v1", funder: funder.address, advanceAmount: "25000000", riskTimestamp: "1786900000" };
   await assert.rejects(buildHumanEscalation({ ...escalationInput, advanceAmount: "25000001" }), /stricter human-review cap/);
   await assert.rejects(buildHumanEscalation({ ...escalationInput, funder: payer.address, advanceAmount: "1" }), /distinct/);
   const tamperedSession = structuredClone(session);

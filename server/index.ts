@@ -243,7 +243,11 @@ const artifactStatusResponse = async (request: Request, config: Environment): Pr
   if (parsed.data.invoiceId !== candidate.invoiceId || connectedRequestHashOf(parsed.data) !== candidate.requestHash) {
     return json({ error: "CORRUPT_ARTIFACT_REQUEST" }, 500);
   }
-  return json({ verified: true, requestedAdvance: parsed.data.requestedAdvance });
+  return json({
+    verified: true,
+    requestedAdvance: parsed.data.requestedAdvance,
+    requestSchemaVersion: parsed.data.schemaVersion
+  });
 };
 
 const fundingCandidateResponse = async (request: Request, config: Environment): Promise<Response> => {

@@ -642,13 +642,17 @@ export function validateConnectedAssessment(assessment, expectedRequest) {
   return assessment;
 }
 
-export async function buildHumanEscalation({ assessment, session: sessionCandidate, assessedRequestedAdvance, funder, advanceAmount, riskTimestamp }) {
+export async function buildHumanEscalation({ assessment, session: sessionCandidate, assessedRequestedAdvance, assessedSchemaVersion, funder, advanceAmount, riskTimestamp }) {
   allowedKeys(assessment, ["decision", "modelEvidence", "observation", "signingRequest", "artifactHash"], "Connected assessment");
   const { artifactHash, ...assessmentCore } = assessment;
   if (asHash(artifactHash, "Connected assessment artifact hash") !== connectedBrowserArtifactHashOf(assessmentCore)) throw new Error("Connected assessment artifact commitment does not match its evidence.");
   const deployment = validateConnectedObservation(assessmentCore.observation);
   if (deployment !== OPENBELL_MAINNET_CONNECTED) throw new Error("Human escalation is available only for registered mainnet evidence.");
-  const evidence = validateConnectedModelEvidence(assessmentCore.modelEvidence, "registered-mainnet");
+  const boundary = assessedSchemaVersion === RECEIPT_BOUND_MAINNET_SCHEMA
+    ? "receipt-bound-mainnet"
+    : assessedSchemaVersion === "openbell-mainnet-underwriting-v1" ? "registered-mainnet" : null;
+  if (boundary === null) throw new Error("Human escalation requires the committed mainnet assessment schema.");
+  const evidence = validateConnectedModelEvidence(assessmentCore.modelEvidence, boundary);
   if (evidence.decision.verdict !== "REJECT" || assessmentCore.decision.verdict !== "REJECT") throw new Error("Human escalation requires an authoritative model rejection.");
   const { modelId, modelHash, riskReasonsHash } = connectedEvidenceCommitments(evidence);
   if (assessmentCore.decision.modelId !== modelId || assessmentCore.decision.modelHash !== modelHash || assessmentCore.decision.riskReasonsHash !== riskReasonsHash) {
