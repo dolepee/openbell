@@ -160,8 +160,7 @@ if (dealForm) {
   };
   dueInput.value = futureDueDate();
 
-  const invalidatePreparedPackage = () => {
-    studioOperationGuard.invalidate();
+  const clearPreparedPackageState = () => {
     dealForm.setAttribute("aria-busy", "false");
     reviewForm?.setAttribute("aria-busy", "false");
     preparedPackage = null;
@@ -172,6 +171,11 @@ if (dealForm) {
     delete document.querySelector('[data-readiness="terms"]').dataset.complete;
     delete document.querySelector('[data-readiness="document"]').dataset.complete;
     clearCreditMemo();
+  };
+
+  const invalidatePreparedPackage = () => {
+    studioOperationGuard.invalidate();
+    clearPreparedPackageState();
     if (samplePreparation) resetSampleControl();
     else sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
   };
@@ -213,6 +217,7 @@ if (dealForm) {
     let submitted = false;
     samplePreparation = true;
     activeSampleRevision = sampleRevision;
+    clearPreparedPackageState();
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
     sampleButton.querySelector("span").textContent = "Building sample…";

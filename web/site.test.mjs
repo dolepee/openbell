@@ -230,6 +230,7 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /sampleStatus\.textContent = "No wallet, signature, model request, or transaction\."/);
   assert.match(script, /const sampleRevision = studioOperationGuard\.begin\(\)/);
   assert.match(script, /activeSampleRevision = sampleRevision/);
+  assert.match(script, /activeSampleRevision = sampleRevision;\s+clearPreparedPackageState\(\)/);
   assert.match(script, /if \(!studioOperationGuard\.isCurrent\(sampleRevision\)\) return/);
   assert.match(script, /const sampleDocumentHash = await sha256/);
   assert.match(script, /documentHashInput\.value = sampleDocumentHash/);
