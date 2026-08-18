@@ -103,6 +103,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(studio, /No wallet, signature, model request, or transaction/);
   assert.match(studio, /id="sample-document">OpenBell no-value sample invoice/);
   assert.match(css, /inter-latin-variable\.woff2/);
+  assert.match(css, /\.result-visual \{ grid-row: 2; grid-column: 1;/);
+  assert.match(css, /\.judge-hero-copy \{ grid-row: 2; grid-column: 2;/);
   assert.match(mainnet, /data-network="mainnet"/);
   assert.match(mainnet, /<title>Live USDG desk — OpenBell<\/title>/);
   assert.match(mainnet, /canonical USDG on X Layer mainnet/);

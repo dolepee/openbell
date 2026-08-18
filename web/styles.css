@@ -748,7 +748,7 @@ code { font-family: var(--mono); }
 
 .judge-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr);
+  grid-template-columns: minmax(420px, .95fr) minmax(0, 1.05fr);
   gap: 42px clamp(54px, 7vw, 108px);
   align-items: center;
   width: min(1320px, calc(100% - 64px));
@@ -774,7 +774,7 @@ code { font-family: var(--mono); }
 .product-status span { display: inline-flex; align-items: center; gap: 9px; color: var(--judge-green); }
 .product-status i, .result-console header i, .history-console header i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgb(13 107 79 / 10%); }
 .judge-kicker { margin: 0; color: var(--judge-green); font: 750 10px/1.4 var(--mono); }
-.judge-hero-copy { grid-row: 2; grid-column: 1; }
+.judge-hero-copy { grid-row: 2; grid-column: 2; }
 
 .judge-hero h1 {
   max-width: 720px;
@@ -805,7 +805,7 @@ code { font-family: var(--mono); }
 .hero-assurances li { position: relative; padding-left: 15px; font: 700 10px/1.4 var(--mono); }
 .hero-assurances li::before { position: absolute; top: 5px; left: 0; width: 6px; height: 6px; background: var(--judge-green); content: ""; }
 
-.result-visual { grid-row: 2; grid-column: 2; align-self: center; }
+.result-visual { grid-row: 2; grid-column: 1; align-self: center; }
 .result-console { position: relative; border: 1px solid var(--judge-dark); background: var(--judge-panel); box-shadow: 10px 10px 0 #dfe3dc; }
 .result-console::before { position: absolute; top: -1px; right: -1px; left: -1px; height: 6px; background: var(--acid); content: ""; }
 .result-console header { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 18px; border-bottom: 1px solid var(--line); font: 750 9px/1.4 var(--mono); }
@@ -956,7 +956,8 @@ code { font-family: var(--mono); }
   .judge-hero, .product-section, .authority-section { width: calc(100% - 24px); }
   .judge-hero { gap: 28px; padding-block: 24px 42px; }
   .product-status { align-items: flex-start; overflow: hidden; }
-  .product-status b { max-width: 45%; text-align: right; }
+  .product-status span, .product-status b { min-width: 0; font-size: 8px; }
+  .product-status b { max-width: 50%; overflow-wrap: anywhere; text-align: right; }
   .result-visual { width: 100%; }
   .judge-hero h1 { max-width: 100%; font-size: 43px; overflow-wrap: normal; }
   .judge-intro { font-size: 16px; }
@@ -965,8 +966,11 @@ code { font-family: var(--mono); }
   .hero-assurances { margin-top: 26px; }
   .result-console { width: 100%; max-width: 100%; overflow: hidden; box-shadow: 7px 7px 0 #dfe3dc; }
   .result-console header { min-height: 44px; align-items: flex-start; padding: 12px; font-size: 8px; }
-  .console-row { grid-template-columns: 1fr auto; min-height: 62px; gap: 6px 10px; padding: 12px; }
-  .console-row strong { font-size: 25px; }
+  .result-console header span { min-width: 0; overflow-wrap: anywhere; }
+  .result-console header b { flex: 0 0 auto; }
+  .console-row { grid-template-columns: minmax(0, 1fr) auto; min-height: 62px; gap: 6px 10px; padding: 12px; }
+  .console-row span { min-width: 0; font-size: 11px; overflow-wrap: anywhere; }
+  .console-row strong { min-width: 0; font-size: 22px; }
   .console-row small { grid-column: 1 / -1; text-align: right; }
   .result-console footer { grid-template-columns: 1fr; padding: 16px 12px; }
   .result-console footer strong { font-size: 24px; }
