@@ -123,7 +123,7 @@ const approval: ModelDecision = {
   explanation: BANKR_APPROVAL_EXPLANATION
 };
 
-function harness(decision: ModelDecision | Error, observed = observation(), postObserved = observed, deployment: ConnectedDeployment = CONNECTED_TESTNET, historyVerifier?: { verify(request: ConnectedUnderwritingRequest): Promise<void> }) {
+function harness(decision: ModelDecision | Error, observed: RegisteredInvoiceObservation | Error = observation(), postObserved: RegisteredInvoiceObservation | Error = observed, deployment: ConnectedDeployment = CONNECTED_TESTNET, historyVerifier?: { verify(request: ConnectedUnderwritingRequest): Promise<void> }) {
   const store = new MemoryStore();
   let observerCalls = 0;
   let modelCalls = 0;
@@ -158,7 +158,12 @@ function harness(decision: ModelDecision | Error, observed = observation(), post
   };
   const service = new ConnectedUnderwritingService({
     store,
-    observer: { async inspect() { observerCalls += 1; return observerCalls === 1 ? observed : postObserved; } },
+    observer: { async inspect() {
+      observerCalls += 1;
+      const result = observerCalls === 1 ? observed : postObserved;
+      if (result instanceof Error) throw result;
+      return result;
+    } },
     modelFactory: () => model,
     deployment,
     ...(historyVerifier ? { historyVerifier } : {})
@@ -408,6 +413,20 @@ test("changed retry conflicts before a second observer, model, or signature call
   expect(h.calls()).toEqual({ observerCalls: 2, modelCalls: 1 });
 });
 
+test("an unrelated registration transaction cannot consume the one-shot invoice claim", async () => {
+  const h = harness(approval, new Error("CONNECTED_RPC_WRONG_REGISTRATION_CALL"), observation());
+  const wrongTransaction = await authorizedRequest({ registrationTransactionHash: `0x${"ef".repeat(32)}` });
+
+  await expect(h.service.authorize(wrongTransaction)).rejects.toThrow("CONNECTED_RPC_WRONG_REGISTRATION_CALL");
+  expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 0 });
+  expect(h.store.rows.size).toBe(0);
+
+  const result = await h.service.authorize(request);
+  expect(result.decision.verdict).toBe("APPROVE");
+  expect(h.calls()).toEqual({ observerCalls: 3, modelCalls: 1 });
+  expect(h.store.rows.get(request.invoiceId)?.status).toBe("COMPLETE");
+});
+
 test("durable replay rejects a coherently edited decision row without external calls", async () => {
   const h = harness(approval);
   await h.service.authorize(request);
@@ -471,11 +490,11 @@ test("first model failure is durable and never retried", async () => {
   expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 1 });
 });
 
-test("wrong deployment or invoice state fails before reservation, model, or signature", async () => {
+test("wrong deployment or invoice state fails before claiming, reservation, model, or signature", async () => {
   const h = harness(approval, observation({ status: "REGISTERED", paused: true as false }));
   await expect(h.service.authorize(request)).rejects.toThrow("CONNECTED_OBSERVATION_NOT_AUTHORIZABLE");
   expect(h.calls()).toEqual({ observerCalls: 1, modelCalls: 0 });
-  expect(h.store.rows.get(request.invoiceId)?.status).toBe("FAILED");
+  expect(h.store.rows.size).toBe(0);
 });
 
 test("the unsigned signing request binds the current onchain underwriter without server-side signing", async () => {

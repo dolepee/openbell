@@ -20,6 +20,7 @@ import {
   finalizeHumanEscalation,
   buildHumanEscalation,
   humanEscalationTypedData,
+  normalizeRegistrationTransactionHash,
   walletInvoiceTypedData,
   walletConnectedAssessmentTypedData,
   registrationActionFromSession,
@@ -102,6 +103,7 @@ const downloadRegistrationButton = document.querySelector("#download-registratio
 const assessmentWorkspace = document.querySelector("#assessment-workspace");
 const assessmentForm = document.querySelector("#assessment-form");
 const assessmentError = document.querySelector("#assessment-error");
+const assessmentRegistrationTx = document.querySelector("#assessment-registration-tx");
 const assessmentResult = document.querySelector("#assessment-result");
 const signDecisionButton = document.querySelector("#sign-decision");
 const downloadAssessmentButton = document.querySelector("#download-assessment");
@@ -301,7 +303,8 @@ sessionForm?.addEventListener("submit", async (event) => {
     pendingPolicyRefusal = undefined;
     pendingPolicyRefusalRequest = undefined;
     pendingPolicyRefusalArtifactHash = undefined;
-    assessmentWorkspace.hidden = true;
+    if (assessmentRegistrationTx) assessmentRegistrationTx.value = "";
+    assessmentWorkspace.hidden = !(isMainnet && invoiceSession.supplierSignature && invoiceSession.payerSignature);
     assessmentResult.hidden = true;
     sessionFile.setAttribute("aria-invalid", "false");
     renderSession();
@@ -402,6 +405,7 @@ executeButton?.addEventListener("click", async () => {
     receiptPanel.focus();
     if (executingAction.kind === "REGISTER_INVOICE" && invoiceSession) {
       registrationTransactionHash = transactionHash;
+      if (assessmentRegistrationTx) assessmentRegistrationTx.value = transactionHash;
       assessmentWorkspace.hidden = false;
     }
     action = undefined;
@@ -428,7 +432,15 @@ assessmentForm?.addEventListener("submit", async (event) => {
   refreshDecisionState();
   const button = document.querySelector("#request-assessment");
   try {
-    if (!invoiceSession || !registrationTransactionHash) throw new Error("Confirm the registration transaction first.");
+    if (!invoiceSession) throw new Error("Load the fully signed invoice session first.");
+    const resumedRegistrationHash = assessmentRegistrationTx?.value
+      ? normalizeRegistrationTransactionHash(assessmentRegistrationTx.value)
+      : undefined;
+    if (registrationTransactionHash && resumedRegistrationHash && registrationTransactionHash !== resumedRegistrationHash) {
+      throw new Error("The registration transaction changed after confirmation.");
+    }
+    registrationTransactionHash = registrationTransactionHash ?? resumedRegistrationHash;
+    if (!registrationTransactionHash) throw new Error("Provide the confirmed registration transaction first.");
     if (!account || account.toLowerCase() !== invoiceSession.dealPackage.invoiceTerms.supplier.toLowerCase()) throw new Error("Connect the registered supplier wallet.");
     if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
     if (!document.querySelector("#assessment-consent").checked) throw new Error("Confirm the single-attempt model boundary.");

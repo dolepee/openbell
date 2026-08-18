@@ -16,6 +16,7 @@ import {
   finalizeHumanEscalation,
   humanEscalationTypedData,
   invoiceTypedData,
+  normalizeRegistrationTransactionHash,
   rejectionTypedData,
   registrationActionFromSession,
   validateBrowserAction,
@@ -26,6 +27,15 @@ const supplier = privateKeyToAccount(`0x${"51".repeat(32)}`);
 const payer = privateKeyToAccount(`0x${"52".repeat(32)}`);
 const funder = privateKeyToAccount(`0x${"53".repeat(32)}`);
 const underwriter = privateKeyToAccount(`0x${"54".repeat(32)}`);
+
+test("registration recovery accepts only one canonical transaction hash", () => {
+  assert.equal(
+    normalizeRegistrationTransactionHash(`  0x${"AB".repeat(32)}  `),
+    `0x${"ab".repeat(32)}`
+  );
+  assert.throws(() => normalizeRegistrationTransactionHash(""), /must be bytes32/);
+  assert.throws(() => normalizeRegistrationTransactionHash(`0x${"12".repeat(31)}`), /must be bytes32/);
+});
 
 const preparedMainnetDeal = (requestedAdvance = "85") => buildUnsignedDealPackage({
   supplier: supplier.address,

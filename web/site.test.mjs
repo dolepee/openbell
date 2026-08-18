@@ -97,6 +97,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(mainnet, /REAL USDG/);
   assert.match(mainnet, /CHAIN 196/);
   assert.match(mainnet, /AI proposes\.<br \/>X Layer limits\./);
+  assert.match(mainnet, /id="assessment-registration-tx"/);
+  assert.match(mainnet, /resume safely after a browser reload/);
   assert.doesNotMatch(mainnet, /TESTNET FIXTURE|NO REAL VALUE|CHAIN 1952|fixture tUSDG|synthetic X Layer testnet/i);
   assert.match(fund, /<title>Fund one receivable — OpenBell<\/title>/);
   assert.match(fund, /No files\. No CLI\. No model prompt\. Two simulated wallet actions\./);

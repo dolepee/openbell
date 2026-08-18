@@ -238,6 +238,10 @@ const asHash = (value, label) => {
   if (!hex32.test(value)) throw new Error(`${label} must be bytes32.`);
   return value.toLowerCase();
 };
+export const normalizeRegistrationTransactionHash = (value) => asHash(
+  String(value ?? "").trim(),
+  "Registration transaction hash"
+);
 const asUint = (value, label) => {
   if (!uint.test(String(value))) throw new Error(`${label} must be an unsigned decimal string.`);
   return BigInt(value);
