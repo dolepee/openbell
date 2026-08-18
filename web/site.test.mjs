@@ -61,42 +61,50 @@ test("public proof has exact semantic parity with only accepted local block-hash
 });
 
 test("multi-page launch surface separates product, deal preparation, funding, verified cases, proof, and architecture", async () => {
-  const [overview, studio, mainnet, fund, workspace, proof, architecture] = await Promise.all([
+  const [overview, studio, mainnet, fund, workspace, proof, architecture, css] = await Promise.all([
     read("./index.html"),
     read("./studio/index.html"),
     read("./mainnet/index.html"),
     read("./fund/index.html"),
     read("./workspace/index.html"),
     read("./proof/index.html"),
-    read("./architecture/index.html")
+    read("./architecture/index.html"),
+    read("./styles.css")
   ]);
   const pages = [overview, studio, mainnet, fund, workspace, proof, architecture];
   for (const page of pages) {
     assert.match(page, /<div class="nav-right">/);
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
   }
-  assert.match(overview, /<title>OpenBell — Bounded invoice funding on X Layer<\/title>/);
-  assert.match(overview, /<h1 id="hero-title">Bounded invoice funding on X Layer\.<\/h1>/);
-  assert.match(overview, /OpenBell turns a payer-signed invoice into exact USDG funding/);
-  assert.match(overview, /Genuine AI decision<\/span><strong>REJECT<\/strong>/);
-  assert.match(overview, /Human exception ceiling<\/span><strong>0\.02500<\/strong>/);
-  assert.match(overview, /Repaid to funder<\/span><strong>0\.02525 USDG<\/strong>/);
+  assert.match(overview, /<title>OpenBell — Turn signed invoices into exact USDG funding<\/title>/);
+  assert.match(overview, /<h1 id="hero-title">Turn a signed invoice into exact USDG funding\.<\/h1>/);
+  assert.match(overview, /Prepare the receivable, bind the payer's authority/);
+  assert.match(overview, /AI first response<\/span><strong>REFUSED<\/strong>/);
+  assert.match(overview, /Human accepted accountability<\/span><strong>0\.025<\/strong>/);
+  assert.match(overview, /Funder received<\/span><strong>0\.02525 USDG<\/strong>/);
   assert.match(overview, /AI reads confirmed X Layer history, not a supplier's story/);
-  assert.match(overview, /Try OpenBell without a wallet/);
+  assert.match(overview, /Prepare an invoice/);
   assert.match(overview, /href="\/studio\/#try"/);
+  assert.ok(overview.indexOf('class="result-visual"') < overview.indexOf('class="judge-hero-copy"'), "mobile visual and focus order must agree");
   assert.doesNotMatch(overview.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "", /Testnet desk|Proof room|Architecture/);
-  assert.match(overview, /href="\/operate\/">Testnet/);
+  assert.match(overview, /href="\/proof\/#mainnet">Evidence/);
   assert.match(overview, /Five successful receipts/);
   assert.match(overview, /Settle 0\.02525 USDG/);
   assert.match(overview, /REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY/);
   assert.match(studio, /BROWSER-ONLY PREPARATION/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
-  assert.match(studio, /AI assessment and both-party signatures happen after this boundary/);
+  assert.match(studio, /Connect a wallet only when you are ready to continue a genuine invoice/);
   assert.match(studio, /ONE-CLICK PRODUCT TRIAL/);
   assert.match(studio, /id="load-sample"/);
+  assert.match(studio, /Prepare sample invoice/);
+  assert.match(studio, /YOUR CREDIT MEMO APPEARS HERE/);
+  assert.match(studio, /<details class="studio-advanced">/);
   assert.match(studio, /No wallet, signature, model request, or transaction/);
   assert.match(studio, /id="sample-document">OpenBell no-value sample invoice/);
+  assert.match(css, /inter-latin-variable\.woff2/);
+  assert.match(css, /\.result-visual \{ grid-row: 2; grid-column: 1;/);
+  assert.match(css, /\.judge-hero-copy \{ grid-row: 2; grid-column: 2;/);
   assert.match(mainnet, /data-network="mainnet"/);
   assert.match(mainnet, /<title>Live USDG desk — OpenBell<\/title>/);
   assert.match(mainnet, /canonical USDG on X Layer mainnet/);

@@ -27,23 +27,48 @@
     <header class="topbar">
       <a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a>
       <div class="nav-right">
-        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/">Overview</a><a href="/studio/" aria-current="page">Try OpenBell</a><a href="/mainnet/">Live desk</a></nav>
-        <a class="header-cta" href="/proof/#mainnet">Inspect settled result <span aria-hidden="true">↗</span></a>
+        <nav class="desktop-nav" aria-label="Primary navigation"><a href="/studio/" aria-current="page">Get funded</a><a href="/fund/">Fund</a><a href="/proof/#mainnet">Evidence</a></nav>
+        <a class="header-cta" href="/mainnet/">Live desk <span aria-hidden="true">↗</span></a>
       </div>
     </header>
 
     <main id="main" class="studio-shell">
       <header class="studio-hero">
-        <div><p class="overline">OPENBELL · DEAL PREPARATION</p><h1>Prepare the invoice. See the limit first.</h1></div>
-        <p>Prepare a deterministic, unsigned receivables package without connecting a wallet or uploading the underlying document. AI assessment and both-party signatures happen after this boundary.</p>
+        <div><p class="overline">OPENBELL · GET FUNDED</p><h1>Start with the invoice. See the funding limit immediately.</h1></div>
+        <p>Run the real preparation engine with a no-value sample, then inspect the credit memo it produces. Connect a wallet only when you are ready to continue a genuine invoice.</p>
       </header>
 
       <section class="studio-trial" id="try" aria-labelledby="trial-title">
-        <div><p class="overline">ONE-CLICK PRODUCT TRIAL</p><h2 id="trial-title">Build a real OpenBell package before connecting anything.</h2><p>Use a clearly labelled no-value sample to run the actual preparation engine, calculate the immutable limit, and produce an inspectable invoice package and credit memo.</p><p class="sample-document-label">Committed sample bytes: <code id="sample-document">OpenBell no-value sample invoice</code></p></div>
-        <div><button class="button button-primary" id="load-sample" type="button" aria-describedby="sample-status"><span>Build no-value sample</span><span aria-hidden="true">→</span></button><p id="sample-status" role="status" aria-live="polite">No wallet, signature, model request, or transaction.</p></div>
+        <div><p class="overline">ONE-CLICK PRODUCT TRIAL</p><h2 id="trial-title">Prepare a sample invoice and receive its credit memo.</h2><p>The sample runs the actual preparation engine, calculates the immutable limit, and produces the same inspectable package a supplier would hand to counterparties.</p><p class="sample-document-label">Committed sample bytes: <code id="sample-document">OpenBell no-value sample invoice</code></p></div>
+        <div><button class="button button-primary" id="load-sample" type="button" aria-describedby="sample-status"><span>Prepare sample invoice</span><span aria-hidden="true">→</span></button><p id="sample-status" role="status" aria-live="polite">No wallet, signature, model request, or transaction.</p></div>
       </section>
 
-      <div class="studio-grid">
+      <section class="package-review studio-outcome" aria-labelledby="package-review-title">
+        <div class="review-intro"><p class="overline">YOUR PREPARED RESULT</p><h2 id="package-review-title">An invoice package counterparties can inspect.</h2><p>One click produces the deterministic credit memo below. It shows the maximum funding boundary now, and separates what is prepared from what still requires signatures and underwriting.</p></div>
+        <div class="review-workbench">
+          <form id="review-form" class="review-import" novalidate>
+            <label for="review-file">Already have an OpenBell package?</label>
+            <input id="review-file" name="reviewFile" type="file" accept="application/json,.json" required aria-describedby="review-help review-error" />
+            <p id="review-help">Import it locally for an independent review. Nothing is uploaded, stored, signed, or submitted.</p>
+            <button class="button button-primary" type="submit"><span>Review package</span><span aria-hidden="true">→</span></button>
+            <p id="review-error" class="form-error" role="alert" aria-live="polite"></p>
+          </form>
+
+          <article class="credit-memo" id="credit-memo" hidden aria-live="polite" tabindex="-1">
+            <header><div><span>PRE-UNDERWRITING CREDIT MEMO</span><b id="memo-state">PREPARED · UNSIGNED</b></div><code id="memo-id"></code></header>
+            <div class="memo-economics"><div><span>FACE VALUE</span><strong id="memo-face">—</strong></div><div><span>REQUESTED</span><strong id="memo-request">—</strong></div><div><span>CODE MAX</span><strong id="memo-max">—</strong></div><div><span>PRE-AI UPPER BOUND</span><strong id="memo-bound">—</strong></div></div>
+            <dl class="memo-terms"><div><dt>Supplier</dt><dd><code id="memo-supplier"></code></dd></div><div><dt>Payer</dt><dd><code id="memo-payer"></code></dd></div><div><dt>Due date</dt><dd id="memo-due"></dd></div><div><dt>Document commitment</dt><dd><code id="memo-document"></code></dd></div></dl>
+            <div class="authority-matrix"><div><span>SUPPLIER</span><b>Signature missing</b></div><div><span>PAYER</span><b>Signature missing</b></div><div><span>AI</span><b>Assessment missing</b></div><div class="authority-known"><span>CONTRACT</span><b>80% ceiling known</b></div><div><span>FUNDER</span><b>Not selected</b></div></div>
+            <footer><div><strong>PREPARED FOR THE NEXT AUTHORITIES</strong><p>This memo fixes the invoice terms and funding ceiling. Signatures, underwriting and a funder's choice remain separate.</p></div><a href="/#result">See a completed mainnet invoice <span aria-hidden="true">↗</span></a></footer>
+          </article>
+
+          <div class="review-empty" id="review-empty"><span>YOUR CREDIT MEMO APPEARS HERE</span><p>Select <strong>Prepare sample invoice</strong> above to produce a real package and inspect the result without connecting a wallet.</p></div>
+        </div>
+      </section>
+
+      <details class="studio-advanced">
+        <summary><span><b>Prepare your own invoice</b><small>Counterparties, economics, commitment and technical preflight</small></span><strong>Advanced</strong></summary>
+        <div class="studio-grid">
         <form class="deal-form" id="deal-form" novalidate>
           <header><span>01 / INVOICE INPUT</span><b>LOCAL ONLY</b></header>
 
@@ -111,30 +136,8 @@
           <button class="button button-secondary" id="download-package" type="button" disabled><span>Download JSON package</span><span aria-hidden="true">↓</span></button>
           <p><strong>UNSIGNED PREPARATION ONLY.</strong> This export contains no document bytes, private keys, signatures, model result, calldata, or transaction authorization.</p>
         </aside>
-      </div>
-
-      <section class="package-review" aria-labelledby="package-review-title">
-        <div class="review-intro"><p class="overline">PAYER / FUNDER REVIEW</p><h2 id="package-review-title">Inspect the package.<br />Not a pitch.</h2><p>A counterparty can import an OpenBell preparation, independently reconstruct every field, and see exactly what exists—and what is still missing—before any signature or risk decision.</p></div>
-        <div class="review-workbench">
-          <form id="review-form" class="review-import" novalidate>
-            <label for="review-file">Select an unsigned OpenBell JSON package</label>
-            <input id="review-file" name="reviewFile" type="file" accept="application/json,.json" required aria-describedby="review-help review-error" />
-            <p id="review-help">Parsed locally. The selected file is never uploaded, stored, signed, or submitted.</p>
-            <button class="button button-primary" type="submit"><span>Review package</span><span aria-hidden="true">→</span></button>
-            <p id="review-error" class="form-error" role="alert" aria-live="polite"></p>
-          </form>
-
-          <article class="credit-memo" id="credit-memo" hidden aria-live="polite" tabindex="-1">
-            <header><div><span>PRE-UNDERWRITING CREDIT MEMO</span><b id="memo-state">PREPARED · UNSIGNED</b></div><code id="memo-id"></code></header>
-            <div class="memo-economics"><div><span>FACE VALUE</span><strong id="memo-face">—</strong></div><div><span>REQUESTED</span><strong id="memo-request">—</strong></div><div><span>CODE MAX</span><strong id="memo-max">—</strong></div><div><span>PRE-AI UPPER BOUND</span><strong id="memo-bound">—</strong></div></div>
-            <dl class="memo-terms"><div><dt>Supplier</dt><dd><code id="memo-supplier"></code></dd></div><div><dt>Payer</dt><dd><code id="memo-payer"></code></dd></div><div><dt>Due date</dt><dd id="memo-due"></dd></div><div><dt>Document commitment</dt><dd><code id="memo-document"></code></dd></div></dl>
-            <div class="authority-matrix"><div><span>SUPPLIER</span><b>Signature missing</b></div><div><span>PAYER</span><b>Signature missing</b></div><div><span>AI</span><b>Assessment missing</b></div><div class="authority-known"><span>CONTRACT</span><b>80% ceiling known</b></div><div><span>FUNDER</span><b>Not selected</b></div></div>
-            <footer><strong>NOT UNDERWRITTEN · NOT SIGNED · NOT EXECUTABLE</strong><p>The package proves deterministic preparation only. It does not prove the invoice, payer, document, liquidity, approval, or financing availability.</p></footer>
-          </article>
-
-          <div class="review-empty" id="review-empty"><span>NO PACKAGE LOADED</span><p>Prepare a deal above or import a package from another party to produce the local credit memo.</p></div>
         </div>
-      </section>
+      </details>
 
       <section class="studio-next" aria-labelledby="studio-next-title">
         <div><p class="overline">WHAT HAPPENS NEXT</p><h2 id="studio-next-title">Preparation is not underwriting.</h2></div>
@@ -142,6 +145,6 @@
       </section>
     </main>
 
-    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Bounded invoice funding on X Layer.</p><nav aria-label="Footer navigation"><a href="/studio/#try">Try OpenBell</a><a href="/mainnet/">Live desk</a><a href="/fund/">Fund</a><a href="/proof/">Proof room</a><a href="/architecture/">Architecture</a><a href="/operate/">Testnet</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav></footer>
+    <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Signed invoices. Exact USDG funding.</p><nav aria-label="Footer navigation"><a href="/studio/#try">Get funded</a><a href="/fund/">Fund</a><a href="/proof/#mainnet">Evidence</a><a href="/mainnet/">Live desk</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav></footer>
   </body>
 </html>

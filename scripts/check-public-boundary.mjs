@@ -31,6 +31,9 @@ const binaryAllowlist = new Map([
     "bea86ed3da6b467606096130ab8e1af63f58dc1e53e0af17aa49fb40ee99ee4f",
     "dfee211f4ef2992ce1b2d7c33ed338bfdca596efdd3747c4aea1701b1bea61a4",
     "42c80e17fc32f4d91b416db48ac47c9ae4a7f91dd5d2952b30df6ea84425eb42"
+  ])],
+  ["web/public/fonts/inter-latin-variable.woff2", new Set([
+    "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
   ])]
 ]);
 
