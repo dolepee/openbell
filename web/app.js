@@ -308,7 +308,7 @@ if (dealForm) {
       }
     } finally {
       if (studioOperationGuard.isCurrent(preparationRevision)) dealForm.setAttribute("aria-busy", "false");
-      if (sampleOwnerRevision !== null) {
+      if (sampleOwnerRevision !== null && studioOperationGuard.isCurrent(preparationRevision)) {
         resetSampleControl({
           label: "Build another sample",
           status: sampleStatus.textContent,

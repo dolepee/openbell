@@ -237,6 +237,7 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /documentHashInput\.value = sampleDocumentHash/);
   assert.match(script, /if \(samplePreparation\) resetSampleControl\(\)/);
   assert.match(script, /if \(revision !== null && activeSampleRevision !== revision\) return false/);
+  assert.match(script, /sampleOwnerRevision !== null && studioOperationGuard\.isCurrent\(preparationRevision\)/);
   assert.doesNotMatch(script, /0x42d15e2836358219098540ec6352c3f8d61be7b675616fd6d45ab2551107bc9f/);
   assert.match(operate, /XLAYER TESTNET FIXTURE/);
   assert.match(operate, /Three accounts\. One guided testnet journey\./);
