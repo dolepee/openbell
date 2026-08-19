@@ -103,18 +103,32 @@ invoiceButtons.forEach((button) => button.addEventListener("click", () => render
 const creditMemo = document.querySelector("#credit-memo");
 const reviewEmpty = document.querySelector("#review-empty");
 const reviewForm = document.querySelector("#review-form");
+const downloadPackage = document.querySelector("#download-package");
+let displayedDealPackage = null;
+const studioJourneySteps = [...document.querySelectorAll("#studio-journey li")];
+const setStudioJourneyPrepared = (prepared) => {
+  if (!studioJourneySteps.length) return;
+  studioJourneySteps.forEach((step, index) => {
+    if (index === 0) step.toggleAttribute("data-complete", prepared);
+    if (index === (prepared ? 1 : 0)) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
+};
 const studioOperationGuard = createPreparationGuard();
 const clearCreditMemo = () => {
+  displayedDealPackage = null;
+  if (downloadPackage) downloadPackage.disabled = true;
   if (creditMemo) creditMemo.hidden = true;
   if (reviewEmpty) reviewEmpty.hidden = false;
+  setStudioJourneyPrepared(false);
 };
 const sampleButton = document.querySelector("#load-sample");
 const sampleStatus = document.querySelector("#sample-status");
 let samplePreparation = false;
 let activeSampleRevision = null;
 const resetSampleControl = ({
-  label = "Prepare sample invoice",
-  status = "No wallet, signature, model request, or transaction.",
+  label = "Prepare the no-wallet credit memo",
+  status = "Ready. Nothing leaves this browser.",
   revision = null
 } = {}) => {
   if (revision !== null && activeSampleRevision !== revision) return false;
@@ -150,8 +164,6 @@ if (dealForm) {
   const packageState = document.querySelector("#package-state");
   const packageInvoiceId = document.querySelector("#package-invoice-id");
   const packageDocumentHash = document.querySelector("#package-document-hash");
-  const downloadPackage = document.querySelector("#download-package");
-  let preparedPackage = null;
 
   const futureDueDate = () => {
     const dueDate = new Date();
@@ -163,8 +175,6 @@ if (dealForm) {
   const clearPreparedPackageState = () => {
     dealForm.setAttribute("aria-busy", "false");
     reviewForm?.setAttribute("aria-busy", "false");
-    preparedPackage = null;
-    downloadPackage.disabled = true;
     packageState.textContent = "DRAFT";
     packageInvoiceId.textContent = "—";
     packageDocumentHash.textContent = "—";
@@ -177,7 +187,7 @@ if (dealForm) {
     studioOperationGuard.invalidate();
     clearPreparedPackageState();
     if (samplePreparation) resetSampleControl();
-    else sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
+    else sampleStatus.textContent = "Ready. Nothing leaves this browser.";
   };
 
   const renderTargetLabels = () => {
@@ -220,8 +230,8 @@ if (dealForm) {
     clearPreparedPackageState();
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
-    sampleButton.querySelector("span").textContent = "Building sample…";
-    sampleStatus.textContent = "Running the real no-value preparation path locally in this browser.";
+    sampleButton.querySelector("span").textContent = "Preparing your memo…";
+    sampleStatus.textContent = "Binding safe sample terms and calculating the pre-AI ceiling locally.";
     targetInput.value = "testnet";
     supplierInput.value = "0x1111111111111111111111111111111111111111";
     payerInput.value = "0x2222222222222222222222222222222222222222";
@@ -249,7 +259,7 @@ if (dealForm) {
       if (!submitted && samplePreparation) {
         const status = studioOperationGuard.isCurrent(sampleRevision)
           ? sampleStatus.textContent
-          : "No wallet, signature, model request, or transaction.";
+          : "Ready. Nothing leaves this browser.";
         resetSampleControl({ status, revision: sampleRevision });
       }
     }
@@ -263,8 +273,6 @@ if (dealForm) {
     reviewForm?.setAttribute("aria-busy", "false");
     errorOutput.textContent = "";
     clearCreditMemo();
-    preparedPackage = null;
-    downloadPackage.disabled = true;
 
     try {
       if (!consentInput.checked) throw new Error("Confirm that the invoice preparation is synthetic or authorized.");
@@ -287,17 +295,15 @@ if (dealForm) {
         target: targetInput.value === "testnet" ? OPENBELL_TESTNET_TARGET : OPENBELL_MAINNET
       });
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
-      preparedPackage = candidatePackage;
 
-      packageInvoiceId.textContent = preparedPackage.invoiceTerms.invoiceId;
+      packageInvoiceId.textContent = candidatePackage.invoiceTerms.invoiceId;
       packageDocumentHash.textContent = documentHash;
       packageState.textContent = "PREPARED";
-      downloadPackage.disabled = false;
       document.querySelector('[data-readiness="terms"]').dataset.complete = "true";
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
-      renderCreditMemo(preparedPackage);
+      renderCreditMemo(candidatePackage);
       if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
-        sampleStatus.textContent = "Sample package prepared. Inspect the credit memo or download the unsigned JSON.";
+        sampleStatus.textContent = "Credit memo ready. It is prepared and unsigned; no wallet, model, or transaction was used.";
       }
     } catch (error) {
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
@@ -318,13 +324,13 @@ if (dealForm) {
     }
   });
 
-  downloadPackage.addEventListener("click", () => {
-    if (!preparedPackage) return;
-    const blob = new Blob([`${JSON.stringify(preparedPackage, null, 2)}\n`], { type: "application/json" });
+  downloadPackage?.addEventListener("click", () => {
+    if (!displayedDealPackage) return;
+    const blob = new Blob([`${JSON.stringify(displayedDealPackage, null, 2)}\n`], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `openbell-deal-${preparedPackage.invoiceTerms.invoiceId.slice(2, 14)}.json`;
+    anchor.download = `openbell-deal-${displayedDealPackage.invoiceTerms.invoiceId.slice(2, 14)}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   });
@@ -335,6 +341,8 @@ if (dealForm) {
 
 const renderCreditMemo = (dealPackage) => {
   if (!creditMemo || !reviewEmpty) return;
+  displayedDealPackage = dealPackage;
+  if (downloadPackage) downloadPackage.disabled = false;
   const terms = dealPackage.invoiceTerms;
   const request = dealPackage.underwritingRequest;
   const symbol = dealPackage.target.settlementTokenSymbol;
@@ -349,7 +357,9 @@ const renderCreditMemo = (dealPackage) => {
   setText("#memo-document", terms.documentHash);
   reviewEmpty.hidden = true;
   creditMemo.hidden = false;
-  creditMemo.focus({ preventScroll: false });
+  setStudioJourneyPrepared(true);
+  creditMemo.focus({ preventScroll: true });
+  creditMemo.scrollIntoView({ block: "start" });
 };
 
 if (reviewForm) {
