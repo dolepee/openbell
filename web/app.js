@@ -103,6 +103,8 @@ invoiceButtons.forEach((button) => button.addEventListener("click", () => render
 const creditMemo = document.querySelector("#credit-memo");
 const reviewEmpty = document.querySelector("#review-empty");
 const reviewForm = document.querySelector("#review-form");
+const downloadPackage = document.querySelector("#download-package");
+let displayedDealPackage = null;
 const studioJourneySteps = [...document.querySelectorAll("#studio-journey li")];
 const setStudioJourneyPrepared = (prepared) => {
   if (!studioJourneySteps.length) return;
@@ -114,6 +116,8 @@ const setStudioJourneyPrepared = (prepared) => {
 };
 const studioOperationGuard = createPreparationGuard();
 const clearCreditMemo = () => {
+  displayedDealPackage = null;
+  if (downloadPackage) downloadPackage.disabled = true;
   if (creditMemo) creditMemo.hidden = true;
   if (reviewEmpty) reviewEmpty.hidden = false;
   setStudioJourneyPrepared(false);
@@ -160,8 +164,6 @@ if (dealForm) {
   const packageState = document.querySelector("#package-state");
   const packageInvoiceId = document.querySelector("#package-invoice-id");
   const packageDocumentHash = document.querySelector("#package-document-hash");
-  const downloadPackage = document.querySelector("#download-package");
-  let preparedPackage = null;
 
   const futureDueDate = () => {
     const dueDate = new Date();
@@ -173,8 +175,6 @@ if (dealForm) {
   const clearPreparedPackageState = () => {
     dealForm.setAttribute("aria-busy", "false");
     reviewForm?.setAttribute("aria-busy", "false");
-    preparedPackage = null;
-    downloadPackage.disabled = true;
     packageState.textContent = "DRAFT";
     packageInvoiceId.textContent = "—";
     packageDocumentHash.textContent = "—";
@@ -273,8 +273,6 @@ if (dealForm) {
     reviewForm?.setAttribute("aria-busy", "false");
     errorOutput.textContent = "";
     clearCreditMemo();
-    preparedPackage = null;
-    downloadPackage.disabled = true;
 
     try {
       if (!consentInput.checked) throw new Error("Confirm that the invoice preparation is synthetic or authorized.");
@@ -297,15 +295,13 @@ if (dealForm) {
         target: targetInput.value === "testnet" ? OPENBELL_TESTNET_TARGET : OPENBELL_MAINNET
       });
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
-      preparedPackage = candidatePackage;
 
-      packageInvoiceId.textContent = preparedPackage.invoiceTerms.invoiceId;
+      packageInvoiceId.textContent = candidatePackage.invoiceTerms.invoiceId;
       packageDocumentHash.textContent = documentHash;
       packageState.textContent = "PREPARED";
-      downloadPackage.disabled = false;
       document.querySelector('[data-readiness="terms"]').dataset.complete = "true";
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
-      renderCreditMemo(preparedPackage);
+      renderCreditMemo(candidatePackage);
       if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
         sampleStatus.textContent = "Credit memo ready. It is prepared and unsigned; no wallet, model, or transaction was used.";
       }
@@ -328,13 +324,13 @@ if (dealForm) {
     }
   });
 
-  downloadPackage.addEventListener("click", () => {
-    if (!preparedPackage) return;
-    const blob = new Blob([`${JSON.stringify(preparedPackage, null, 2)}\n`], { type: "application/json" });
+  downloadPackage?.addEventListener("click", () => {
+    if (!displayedDealPackage) return;
+    const blob = new Blob([`${JSON.stringify(displayedDealPackage, null, 2)}\n`], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `openbell-deal-${preparedPackage.invoiceTerms.invoiceId.slice(2, 14)}.json`;
+    anchor.download = `openbell-deal-${displayedDealPackage.invoiceTerms.invoiceId.slice(2, 14)}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   });
@@ -345,6 +341,8 @@ if (dealForm) {
 
 const renderCreditMemo = (dealPackage) => {
   if (!creditMemo || !reviewEmpty) return;
+  displayedDealPackage = dealPackage;
+  if (downloadPackage) downloadPackage.disabled = false;
   const terms = dealPackage.invoiceTerms;
   const request = dealPackage.underwritingRequest;
   const symbol = dealPackage.target.settlementTokenSymbol;

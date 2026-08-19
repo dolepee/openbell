@@ -92,7 +92,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /href="\/studio\/#try"/);
   assert.ok(overview.indexOf('class="onboarding-copy"') < overview.indexOf('class="first-run-card"'), "buyer, thesis, and action must precede the sample preview in mobile reading order");
   assert.doesNotMatch(overview.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "", /Testnet desk|Proof room|Architecture/);
-  assert.match(overview, /Source verified/);
+  assert.match(overview, /PUBLIC CONTRACT PAGE/);
+  assert.match(overview, /0xc4Ef…40dd/);
   assert.match(overview, /0xc4Ef249b80a6a034198C226278c51b0a903840dd\/contract/);
   assert.match(overview, /Three decisions\. One clear authority chain\./);
   assert.match(overview, /The configured underwriter may approve less or refuse\. It cannot transfer funds\./);
@@ -157,7 +158,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(proof, /0xdd8e…58e5/);
   assert.match(proof, /0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253/);
   assert.match(proof, /0x1ea5…0036/);
-  assert.match(proof, /Inspect verified source/);
+  assert.match(proof, /Inspect contract source/);
   assert.match(proof, /Independent smart-contract audit/);
   assert.match(proof, /RECEIPT-BOUND MAINNET INVOICE/);
   assert.match(proof, /Receipt-bound rejection evidence/);
@@ -279,6 +280,11 @@ test("interactive controls use native accessible elements", async () => {
   assert.match(script, /setStudioJourneyPrepared\(true\)/);
   assert.match(script, /creditMemo\.focus\(\{ preventScroll: true \}\)/);
   assert.match(script, /creditMemo\.scrollIntoView\(\{ block: "start" \}\)/);
+  assert.match(script, /let displayedDealPackage = null/);
+  assert.match(script, /displayedDealPackage = dealPackage/);
+  assert.match(script, /JSON\.stringify\(displayedDealPackage, null, 2\)/);
+  assert.match(script, /displayedDealPackage = null;\s+if \(downloadPackage\) downloadPackage\.disabled = true/);
+  assert.doesNotMatch(script, /preparedPackage/);
   assert.match(script, /const sampleRevision = studioOperationGuard\.begin\(\)/);
   assert.match(script, /activeSampleRevision = sampleRevision/);
   assert.match(script, /activeSampleRevision = sampleRevision;\s+clearPreparedPackageState\(\)/);
