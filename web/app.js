@@ -103,18 +103,28 @@ invoiceButtons.forEach((button) => button.addEventListener("click", () => render
 const creditMemo = document.querySelector("#credit-memo");
 const reviewEmpty = document.querySelector("#review-empty");
 const reviewForm = document.querySelector("#review-form");
+const studioJourneySteps = [...document.querySelectorAll("#studio-journey li")];
+const setStudioJourneyPrepared = (prepared) => {
+  if (!studioJourneySteps.length) return;
+  studioJourneySteps.forEach((step, index) => {
+    if (index === 0) step.toggleAttribute("data-complete", prepared);
+    if (index === (prepared ? 1 : 0)) step.setAttribute("aria-current", "step");
+    else step.removeAttribute("aria-current");
+  });
+};
 const studioOperationGuard = createPreparationGuard();
 const clearCreditMemo = () => {
   if (creditMemo) creditMemo.hidden = true;
   if (reviewEmpty) reviewEmpty.hidden = false;
+  setStudioJourneyPrepared(false);
 };
 const sampleButton = document.querySelector("#load-sample");
 const sampleStatus = document.querySelector("#sample-status");
 let samplePreparation = false;
 let activeSampleRevision = null;
 const resetSampleControl = ({
-  label = "Prepare sample invoice",
-  status = "No wallet, signature, model request, or transaction.",
+  label = "Prepare the no-wallet credit memo",
+  status = "Ready. Nothing leaves this browser.",
   revision = null
 } = {}) => {
   if (revision !== null && activeSampleRevision !== revision) return false;
@@ -177,7 +187,7 @@ if (dealForm) {
     studioOperationGuard.invalidate();
     clearPreparedPackageState();
     if (samplePreparation) resetSampleControl();
-    else sampleStatus.textContent = "No wallet, signature, model request, or transaction.";
+    else sampleStatus.textContent = "Ready. Nothing leaves this browser.";
   };
 
   const renderTargetLabels = () => {
@@ -220,8 +230,8 @@ if (dealForm) {
     clearPreparedPackageState();
     sampleButton.disabled = true;
     sampleButton.setAttribute("aria-busy", "true");
-    sampleButton.querySelector("span").textContent = "Building sample…";
-    sampleStatus.textContent = "Running the real no-value preparation path locally in this browser.";
+    sampleButton.querySelector("span").textContent = "Preparing your memo…";
+    sampleStatus.textContent = "Binding safe sample terms and calculating the pre-AI ceiling locally.";
     targetInput.value = "testnet";
     supplierInput.value = "0x1111111111111111111111111111111111111111";
     payerInput.value = "0x2222222222222222222222222222222222222222";
@@ -249,7 +259,7 @@ if (dealForm) {
       if (!submitted && samplePreparation) {
         const status = studioOperationGuard.isCurrent(sampleRevision)
           ? sampleStatus.textContent
-          : "No wallet, signature, model request, or transaction.";
+          : "Ready. Nothing leaves this browser.";
         resetSampleControl({ status, revision: sampleRevision });
       }
     }
@@ -297,7 +307,7 @@ if (dealForm) {
       document.querySelector('[data-readiness="document"]').dataset.complete = "true";
       renderCreditMemo(preparedPackage);
       if (sampleOwnerRevision !== null && activeSampleRevision === sampleOwnerRevision) {
-        sampleStatus.textContent = "Sample package prepared. Inspect the credit memo or download the unsigned JSON.";
+        sampleStatus.textContent = "Credit memo ready. It is prepared and unsigned; no wallet, model, or transaction was used.";
       }
     } catch (error) {
       if (!studioOperationGuard.isCurrent(preparationRevision)) return;
@@ -349,7 +359,9 @@ const renderCreditMemo = (dealPackage) => {
   setText("#memo-document", terms.documentHash);
   reviewEmpty.hidden = true;
   creditMemo.hidden = false;
-  creditMemo.focus({ preventScroll: false });
+  setStudioJourneyPrepared(true);
+  creditMemo.focus({ preventScroll: true });
+  creditMemo.scrollIntoView({ block: "start" });
 };
 
 if (reviewForm) {

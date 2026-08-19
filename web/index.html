@@ -3,26 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenBell — Turn signed invoices into exact USDG funding</title>
-    <meta name="description" content="Prepare a payer-signed invoice for exact USDG funding on X Layer. AI evaluates risk, signatures authorize, and code enforces the smallest permitted amount." />
+    <title>OpenBell — Bounded invoice funding on X Layer</title>
+    <meta name="description" content="Try a no-wallet invoice sample, see its funding boundary, and inspect verified USDG funding and settlement on X Layer mainnet." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://openbell.dolepee.com/" />
     <meta name="theme-color" content="#101712" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://openbell.dolepee.com/" />
-    <meta property="og:title" content="OpenBell — Turn signed invoices into exact USDG funding" />
-    <meta property="og:description" content="A genuine AI refusal, a disclosed human exception, and exact canonical USDG settlement on X Layer mainnet." />
+    <meta property="og:title" content="OpenBell — Bounded invoice funding on X Layer" />
+    <meta property="og:description" content="Try a no-wallet invoice sample, see its funding boundary, and inspect exact USDG funding and settlement on X Layer mainnet." />
     <meta property="og:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="675" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="OpenBell — Turn signed invoices into exact USDG funding" />
-    <meta name="twitter:description" content="AI can approve less or refuse. X Layer moves only the exact authorized USDG amount." />
+    <meta name="twitter:title" content="OpenBell — Bounded invoice funding on X Layer" />
+    <meta name="twitter:description" content="Try a no-wallet invoice sample, see its funding boundary, and inspect exact USDG funding and settlement on X Layer mainnet." />
     <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og.png" />
     <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body data-page="overview" class="judge-home">
+  <body data-page="overview" class="judge-home onboarding-home">
     <a class="skip-link" href="#main">Skip to the product</a>
     <header class="topbar judge-nav">
       <a class="brand" href="/" aria-label="OpenBell overview">
@@ -31,133 +31,96 @@
       </a>
       <div class="nav-right">
         <nav class="desktop-nav" aria-label="Primary navigation">
-          <a href="/studio/">Get funded</a>
-          <a href="/fund/">Fund</a>
-          <a href="/proof/#mainnet">Evidence</a>
+          <a href="/studio/#try">Try OpenBell</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#mainnet-proof">Mainnet proof</a>
         </nav>
-        <a class="header-cta judge-nav-cta" href="/mainnet/">Live desk <span aria-hidden="true">↗</span></a>
+        <a class="header-cta judge-nav-cta" href="/mainnet/">Open live desk <span aria-hidden="true">↗</span></a>
       </div>
     </header>
 
     <main id="main">
-      <section class="judge-hero" aria-labelledby="hero-title">
-        <div class="product-status"><span><i></i> X Layer mainnet</span><b>Canonical USDG · settled</b></div>
-        <div class="result-visual">
-          <article class="result-console" aria-label="Verified mainnet decision and settlement">
-            <header><span>SETTLED MAINNET PILOT · INVOICE 0x97b5…67d88</span><b><i></i> SETTLED</b></header>
-            <div class="console-row"><span>Supplier requested</span><strong>0.05</strong><small>USDG</small></div>
-            <div class="console-row console-reject"><span>AI first response</span><strong>REFUSED</strong><small>FINAL · NO RETRY</small></div>
-            <div class="console-row console-exception"><span>Human accepted accountability</span><strong>0.025</strong><small>USDG MAX</small></div>
-            <div class="console-row"><span>Contract moved exactly</span><strong>0.025</strong><small>USDG FUNDED</small></div>
-            <footer><span>Funder received</span><strong>0.02525 USDG</strong><a href="/proof/#mainnet">Verify five receipts ↗</a></footer>
-          </article>
-          <p class="result-caption"><strong>AI refused. A disclosed human accepted half. Code enforced exactly half. The funder was repaid.</strong><span>Deliberately small mainnet pilot; the same contract ceilings apply to every permitted invoice value.</span></p>
-          <a class="result-mobile-action" href="/studio/#try">Prepare an invoice <span aria-hidden="true">→</span></a>
-        </div>
-
-        <div class="judge-hero-copy">
-          <p class="judge-kicker">SIGNED-INVOICE FINANCING</p>
-          <h1 id="hero-title">Turn a signed invoice into exact USDG funding.</h1>
-          <p class="judge-intro">Prepare the receivable, bind the payer's authority, and let a funder advance only what every control permits. AI evaluates risk; signatures authorize; X Layer enforces the smallest amount.</p>
+      <section class="onboarding-hero" aria-labelledby="hero-title">
+        <div class="onboarding-status"><span><i></i> LIVE ON X LAYER MAINNET</span><b>VERIFIED CONTRACT SOURCE</b></div>
+        <div class="onboarding-copy">
+          <p class="judge-kicker">INVOICE FUNDING WITH HARD LIMITS</p>
+          <h1 id="hero-title">Know what an invoice can raise before anyone signs.</h1>
+          <p>Try a no-wallet sample. OpenBell prepares the invoice package, shows its pre-AI ceiling, and makes every missing approval obvious. AI may tighten or refuse; it never moves the money.</p>
           <div class="judge-actions">
-            <a class="judge-button judge-button-primary" href="/studio/#try">Prepare an invoice <span aria-hidden="true">→</span></a>
-            <a class="judge-button judge-button-secondary" href="#result">See how the limit held <span aria-hidden="true">↓</span></a>
+            <a class="judge-button judge-button-primary" href="/studio/#try">Try the 30-second sample <span aria-hidden="true">→</span></a>
+            <a class="judge-button judge-button-secondary" href="#mainnet-proof">See the real mainnet result <span aria-hidden="true">↓</span></a>
           </div>
-          <ul class="hero-assurances" aria-label="Product assurances">
-            <li>Dual-signed invoice</li>
-            <li>First model response is final</li>
-            <li>Exact USDG movement</li>
-          </ul>
+          <p class="onboarding-safety">No wallet · no document upload · no transaction</p>
         </div>
-      </section>
 
-      <section class="truth-rail" aria-label="Verified product facts">
-        <div><span>Network</span><strong>X Layer</strong><small>Chain 196</small></div>
-        <div><span>Settlement asset</span><strong>USDG</strong><small>Canonical mainnet token</small></div>
-        <div><span>Model outcome</span><strong>REFUSAL HELD</strong><small>Hash-bound · no retry</small></div>
-        <div><span>Terminal state</span><strong>SETTLED</strong><small>Five successful receipts</small></div>
-      </section>
-
-      <section class="product-section" id="how-it-works" aria-labelledby="workflow-title">
-        <header class="compact-section-heading">
-          <p class="judge-kicker">THE PRODUCT LOOP</p>
-          <h2 id="workflow-title">From signed invoice to exact settlement.</h2>
-          <p>OpenBell separates who supplies information, who evaluates risk, and who can move money. Each onchain action is bound to its recorded role address.</p>
-        </header>
-        <ol class="product-steps">
-          <li><span>01</span><div><h3>Sign the receivable</h3><p>Supplier and payer sign the same invoice terms and document hash through EIP-712.</p></div></li>
-          <li><span>02</span><div><h3>Assess confirmed history</h3><p>The model receives receipt-derived X Layer history, not supplier-declared performance.</p></div></li>
-          <li><span>03</span><div><h3>Fund exact terms</h3><p>A funder advances only the smallest amount authorized by the request, model, and contract.</p></div></li>
-          <li><span>04</span><div><h3>Settle directly</h3><p>The payer repays the fixed amount to the recorded funder and the invoice reaches SETTLED.</p></div></li>
-        </ol>
-      </section>
-
-      <section class="mainnet-result" id="result" aria-labelledby="result-title">
-        <header class="result-heading">
-          <div><p class="judge-kicker">ONE REAL MAINNET LIFECYCLE</p><h2 id="result-title">The refusal stayed visible. The smaller amount moved.</h2></div>
-          <p>The model emitted no executable approval. A disclosed human exception accepted accountability at a stricter ceiling, without replacing or relabelling the original refusal.</p>
-        </header>
-        <div class="authority-strip" aria-label="Decision authority">
-          <div><span>Requested</span><strong>0.05</strong><small>USDG</small></div>
-          <div class="authority-model"><span>AI authority</span><strong>NO</strong><small>AUTHORITATIVE REFUSAL</small></div>
-          <div class="authority-human"><span>Human accountability</span><strong>0.025</strong><small>MAXIMUM USDG</small></div>
-          <div class="authority-contract"><span>Executed by code</span><strong>0.025</strong><small>EXACT USDG</small></div>
-        </div>
-        <ol class="receipt-ledger" aria-label="X Layer mainnet receipt trail">
-          <li><span>01</span><div><b>Register dual-signed invoice</b><small>Supplier wallet submitted the payer-signed receivable package.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948">Receipt ↗</a></li>
-          <li><span>02</span><div><b>Authorize exact funding</b><small>Allowance limited to 0.025 USDG.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f">Receipt ↗</a></li>
-          <li><span>03</span><div><b>Advance 0.025 USDG</b><small>Supplier received the exact authorized amount.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a">Receipt ↗</a></li>
-          <li><span>04</span><div><b>Authorize exact repayment</b><small>Allowance limited to 0.02525 USDG.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb">Receipt ↗</a></li>
-          <li class="receipt-final"><span>05</span><div><b>Settle 0.02525 USDG</b><small>Funder repaid; invoice reached terminal state SETTLED.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5">Receipt ↗</a></li>
-        </ol>
-      </section>
-
-      <section class="intelligence-section" id="receipt-history" aria-labelledby="intelligence-title">
-        <div class="intelligence-copy">
-          <p class="judge-kicker">RECEIPT-BOUND UNDERWRITING</p>
-          <h2 id="intelligence-title">AI reads confirmed X Layer history, not a supplier's story.</h2>
-          <p>Two official X Layer RPC endpoints must agree on the pinned history before the supplier can authorize one model request. If they disagree, underwriting stops before model budget is consumed.</p>
-          <div class="inline-links"><a href="/data/openbell-receipt-bound-rejection.json">Inspect genuine decision ↗</a><a href="https://github.com/dolepee/openbell/tree/main/evidence">Recompute evidence ↗</a></div>
-        </div>
-        <div class="history-console" aria-label="Confirmed receipt history">
-          <header><span>CHAIN 196 · CONFIRMED CHECKPOINT</span><b><i></i> TWO RPCs AGREE</b></header>
-          <dl>
-            <div><dt>Settlements</dt><dd><strong>1</strong><small>1 on time · 0 late</small></dd></div>
-            <div><dt>Open funded</dt><dd><strong>0</strong><small>0 overdue · not defaults</small></dd></div>
-            <div><dt>Concentration</dt><dd><strong>71.42%</strong><small>Registered face value</small></dd></div>
-            <div><dt>Confirmed block</dt><dd><strong>68,230,450</strong><small>Committed pinned snapshot</small></dd></div>
+        <article class="first-run-card" aria-labelledby="first-run-title">
+          <header><span>YOUR FIRST 30 SECONDS</span><b>NO-VALUE SAMPLE</b></header>
+          <div class="first-run-intro"><span>01</span><div><h2 id="first-run-title">Start with simple terms.</h2><p>OpenBell supplies safe sample identities and a local document commitment.</p></div></div>
+          <dl class="first-run-numbers">
+            <div><dt>Invoice face value</dt><dd>100 <small>tUSDG</small></dd></div>
+            <div><dt>Advance requested</dt><dd>75 <small>tUSDG</small></dd></div>
+            <div><dt>Contract maximum</dt><dd>80 <small>tUSDG</small></dd></div>
           </dl>
-          <footer><span>GENUINE RESULT</span><code>REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY</code></footer>
-        </div>
+          <div class="first-run-result"><span>PRE-AI CEILING</span><strong>75 tUSDG</strong><small>Prepared, not approved or financed</small></div>
+          <ol class="first-run-steps" aria-label="What happens after preparation">
+            <li><b>Prepare</b><span>one click</span></li>
+            <li><b>Sign</b><span>supplier + payer</span></li>
+            <li><b>Assess</b><span>AI may refuse</span></li>
+            <li><b>Fund</b><span>funder chooses</span></li>
+          </ol>
+        </article>
       </section>
 
-      <section class="authority-section" aria-labelledby="authority-title">
-        <header class="compact-section-heading">
-          <p class="judge-kicker">BOUNDED AUTHORITY</p>
-          <h2 id="authority-title">Intelligence evaluates. Signatures authorize. Code enforces.</h2>
+      <section class="onboarding-trust" aria-label="Publicly verifiable product facts">
+        <div><span>Network</span><strong>X Layer</strong><small>Chain 196</small></div>
+        <div><span>Settlement</span><strong>Canonical USDG</strong><small>Exact token accounting</small></div>
+        <div><span>Contract</span><strong>Source verified</strong><a href="https://web3.okx.com/explorer/x-layer/evm/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd/contract">Open explorer ↗</a></div>
+      </section>
+
+      <section class="onboarding-how" id="how-it-works" aria-labelledby="workflow-title">
+        <header>
+          <p class="judge-kicker">THE WHOLE PRODUCT</p>
+          <h2 id="workflow-title">Three decisions. One clear authority chain.</h2>
+          <p>A supplier does not need to understand hashes, model plumbing, or contract calls to understand who controls the money.</p>
         </header>
-        <div class="authority-grid">
-          <article><span>Supplier + payer</span><h3>Bind the invoice.</h3><p>Both parties sign identical terms. The document stays offchain; its hash is bound to the deal.</p></article>
-          <article><span>AI underwriter</span><h3>Tighten or refuse.</h3><p>The model can lower an advance, increase the permitted fee, or reject. It cannot move funds.</p></article>
-          <article><span>Human exception</span><h3>Accept less, visibly.</h3><p>After refusal, a disclosed operator may sign stricter terms while preserving the rejected artifact.</p></article>
-          <article><span>X Layer contract</span><h3>Enforce the minimum.</h3><p>Execution resolves to the smallest signed and permitted amount, with exact token accounting.</p></article>
+        <ol>
+          <li><span>01</span><div><h3>Parties set the terms.</h3><p>Supplier and payer sign the same invoice package and document commitment.</p></div><b>REQUEST</b></li>
+          <li><span>02</span><div><h3>OpenBell narrows the request.</h3><p>The configured underwriter may approve less or refuse. It cannot transfer funds.</p></div><b>DECISION</b></li>
+          <li><span>03</span><div><h3>X Layer enforces the hard cap.</h3><p>A funder can execute only an underwriter-signed advance that stays within the contract's immutable 80% ceiling.</p></div><b>CAP</b></li>
+        </ol>
+      </section>
+
+      <section class="onboarding-proof" id="mainnet-proof" aria-labelledby="proof-title">
+        <div class="proof-copy">
+          <p class="judge-kicker">COMPLETED MAINNET PILOT</p>
+          <h2 id="proof-title">The AI said no. The refusal stayed visible.</h2>
+          <p>The first model response emitted no executable approval and was not retried. A disclosed human then signed narrower authority for 0.025 USDG while preserving that rejected artifact. X Layer receipts show the exact funding and repayment.</p>
+          <div class="proof-split"><p><b>0x97b5…67d88 · SETTLED PILOT</b><span>Refusal, disclosed human exception, 0.025 funded, 0.02525 settled.</span></p><p><b>0x6d17…4db66 · RECEIPT-BOUND AI</b><span>Two official RPC endpoints agreed on payer history before a separate genuine rejection. It was not escalated, funded, or settled.</span></p></div>
+          <div class="proof-actions"><a class="judge-button proof-primary" href="/proof/#mainnet">Inspect the five receipts <span aria-hidden="true">↗</span></a><a href="/data/openbell-receipt-bound-rejection.json">Open the separate receipt-bound refusal ↗</a></div>
+        </div>
+        <div class="proof-story" aria-label="Mainnet pilot outcome">
+          <div><span>REQUESTED</span><strong>0.05</strong><small>USDG</small></div>
+          <div class="proof-rejected"><span>AI RESPONSE</span><strong>REFUSED</strong><small>FINAL · NO RETRY</small></div>
+          <div class="proof-human"><span>HUMAN AUTHORITY</span><strong>0.025</strong><small>USDG MAX</small></div>
+          <div class="proof-funded"><span>FUNDED</span><strong>0.025</strong><small>USDG EXACT</small></div>
+          <div class="proof-settled"><span>REPAID</span><strong>0.02525</strong><small>USDG · SETTLED</small></div>
         </div>
       </section>
 
-      <section class="product-entry" aria-labelledby="entry-title">
-        <div><p class="judge-kicker">USE OPENBELL</p><h2 id="entry-title">Get funded, fund a deal, or inspect the evidence.</h2><p>Start with an invoice, review an available receivable as a funder, or inspect the completed mainnet result without connecting a wallet.</p></div>
+      <section class="onboarding-choice" aria-labelledby="entry-title">
+        <div><p class="judge-kicker">CHOOSE ONE CLEAR PATH</p><h2 id="entry-title">Start with the product. Inspect proof afterward.</h2></div>
         <div class="entry-actions">
-          <a href="/studio/#try"><span>Prepare an invoice</span><small>One-click sample · no wallet required</small><b>→</b></a>
-          <a href="/fund/"><span>Fund a receivable</span><small>One bounded action when a deal is available</small><b>→</b></a>
-          <a href="/proof/#mainnet"><span>Inspect the evidence</span><small>Receipts, balances, and boundaries</small><b>→</b></a>
+          <a href="/studio/#try"><span>Try a sample invoice</span><small>30 seconds · no wallet · immediate credit memo</small><b>→</b></a>
+          <a href="/fund/"><span>Open the funder view</span><small>Shows the exact action when a receivable is available</small><b>→</b></a>
+          <a href="/proof/#mainnet"><span>Verify the mainnet evidence</span><small>Receipts, balances, AI artifact, and boundaries</small><b>→</b></a>
         </div>
       </section>
     </main>
 
     <footer class="site-footer judge-footer">
       <div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div>
-      <p>Signed invoices. Exact USDG funding.</p>
-      <nav aria-label="Footer navigation"><a href="/studio/#try">Get funded</a><a href="/fund/">Fund</a><a href="/proof/#mainnet">Evidence</a><a href="/mainnet/">Live desk</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
+      <p>AI evaluates. People authorize. X Layer enforces.</p>
+      <nav aria-label="Footer navigation"><a href="/studio/#try">Try OpenBell</a><a href="/fund/">Fund</a><a href="/proof/#mainnet">Evidence</a><a href="/mainnet/">Live desk</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav>
     </footer>
   </body>
 </html>

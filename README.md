@@ -3,8 +3,9 @@
 **Bounded invoice funding on X Layer.**
 
 OpenBell turns a payer-signed invoice into exact USDG funding. A genuine AI underwriter may approve
-less or refuse, but it never holds funds and cannot exceed the signed request or immutable contract
-limit. X Layer enforces the final terms and preserves the funding and settlement trail.
+less or refuse, but it never holds funds. OpenBell binds the resulting decision to the invoice and
+funder; X Layer rejects any underwriter-signed advance above the immutable contract limit and preserves
+the funding and settlement trail.
 
 [Live app](https://openbell.dolepee.com/) · [Try OpenBell](https://openbell.dolepee.com/studio/#try) ·
 [Live desk](https://openbell.dolepee.com/mainnet/) · [Proof room](https://openbell.dolepee.com/proof/)
@@ -99,7 +100,7 @@ Remove X Layer and OpenBell loses both its receipt-derived risk history and its 
 ## Try OpenBell
 
 The shortest product path requires no wallet. Open the
-[one-click trial](https://openbell.dolepee.com/studio/#try) and select **Prepare sample invoice**.
+[one-click trial](https://openbell.dolepee.com/studio/#try) and select **Prepare the no-wallet credit memo**.
 OpenBell runs the real browser-side preparation engine, calculates the immutable contract limit,
 creates the invoice ID and document commitment, and renders an inspectable unsigned package and credit
 memo. The sample is explicitly testnet/no-value and makes no model, signature, financing, or transaction
