@@ -113,7 +113,7 @@ const sampleStatus = document.querySelector("#sample-status");
 let samplePreparation = false;
 let activeSampleRevision = null;
 const resetSampleControl = ({
-  label = "Build no-value sample",
+  label = "Prepare sample invoice",
   status = "No wallet, signature, model request, or transaction.",
   revision = null
 } = {}) => {

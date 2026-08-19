@@ -44,7 +44,7 @@
         <div class="product-status"><span><i></i> X Layer mainnet</span><b>Canonical USDG · settled</b></div>
         <div class="result-visual">
           <article class="result-console" aria-label="Verified mainnet decision and settlement">
-            <header><span>LIVE MAINNET PILOT · INVOICE 0x97b5…67d88</span><b><i></i> SETTLED</b></header>
+            <header><span>SETTLED MAINNET PILOT · INVOICE 0x97b5…67d88</span><b><i></i> SETTLED</b></header>
             <div class="console-row"><span>Supplier requested</span><strong>0.05</strong><small>USDG</small></div>
             <div class="console-row console-reject"><span>AI first response</span><strong>REFUSED</strong><small>FINAL · NO RETRY</small></div>
             <div class="console-row console-exception"><span>Human accepted accountability</span><strong>0.025</strong><small>USDG MAX</small></div>
@@ -82,7 +82,7 @@
         <header class="compact-section-heading">
           <p class="judge-kicker">THE PRODUCT LOOP</p>
           <h2 id="workflow-title">From signed invoice to exact settlement.</h2>
-          <p>OpenBell separates who supplies information, who evaluates risk, and who can move money. No participant can silently assume another role.</p>
+          <p>OpenBell separates who supplies information, who evaluates risk, and who can move money. Each onchain action is bound to its recorded role address.</p>
         </header>
         <ol class="product-steps">
           <li><span>01</span><div><h3>Sign the receivable</h3><p>Supplier and payer sign the same invoice terms and document hash through EIP-712.</p></div></li>
@@ -104,7 +104,7 @@
           <div class="authority-contract"><span>Executed by code</span><strong>0.025</strong><small>EXACT USDG</small></div>
         </div>
         <ol class="receipt-ledger" aria-label="X Layer mainnet receipt trail">
-          <li><span>01</span><div><b>Register dual-signed invoice</b><small>External supplier submitted the payer-signed receivable.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948">Receipt ↗</a></li>
+          <li><span>01</span><div><b>Register dual-signed invoice</b><small>Supplier wallet submitted the payer-signed receivable package.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948">Receipt ↗</a></li>
           <li><span>02</span><div><b>Authorize exact funding</b><small>Allowance limited to 0.025 USDG.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x822b0fa4ddf74c77e9b6beb31d3c0ebe5955568c1f33426a8558ef47e934412f">Receipt ↗</a></li>
           <li><span>03</span><div><b>Advance 0.025 USDG</b><small>Supplier received the exact authorized amount.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xf17ef4753d4e89f6b25e62978e3e46600850b7457a7af4383618c0dbc1eab35a">Receipt ↗</a></li>
           <li><span>04</span><div><b>Authorize exact repayment</b><small>Allowance limited to 0.02525 USDG.</small></div><a href="https://www.okx.com/web3/explorer/xlayer/tx/0x8fda8d63338694e5705ce537991d7be410f209b076300ae515006408d77de6fb">Receipt ↗</a></li>
@@ -116,7 +116,7 @@
         <div class="intelligence-copy">
           <p class="judge-kicker">RECEIPT-BOUND UNDERWRITING</p>
           <h2 id="intelligence-title">AI reads confirmed X Layer history, not a supplier's story.</h2>
-          <p>Two official X Layer RPCs independently confirm the pinned history before the supplier can authorize one model request. If they disagree, underwriting stops before model budget is consumed.</p>
+          <p>Two official X Layer RPC endpoints must agree on the pinned history before the supplier can authorize one model request. If they disagree, underwriting stops before model budget is consumed.</p>
           <div class="inline-links"><a href="/data/openbell-receipt-bound-rejection.json">Inspect genuine decision ↗</a><a href="https://github.com/dolepee/openbell/tree/main/evidence">Recompute evidence ↗</a></div>
         </div>
         <div class="history-console" aria-label="Confirmed receipt history">
@@ -125,7 +125,7 @@
             <div><dt>Settlements</dt><dd><strong>1</strong><small>1 on time · 0 late</small></dd></div>
             <div><dt>Open funded</dt><dd><strong>0</strong><small>0 overdue · not defaults</small></dd></div>
             <div><dt>Concentration</dt><dd><strong>71.42%</strong><small>Registered face value</small></dd></div>
-            <div><dt>Confirmed block</dt><dd><strong>68,230,450</strong><small>Permanent pinned snapshot</small></dd></div>
+            <div><dt>Confirmed block</dt><dd><strong>68,230,450</strong><small>Committed pinned snapshot</small></dd></div>
           </dl>
           <footer><span>GENUINE RESULT</span><code>REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY</code></footer>
         </div>

@@ -41,11 +41,11 @@
       <section class="operate-readiness" aria-labelledby="readiness-title">
         <div class="readiness-copy">
           <p class="overline">BEFORE REAL VALUE MOVES</p>
-          <h2 id="readiness-title">Three independent roles. One genuine receivable.</h2>
+          <h2 id="readiness-title">Three role-bound addresses. One pilot receivable.</h2>
           <p>The supplier, payer, and funder use distinct X Layer mainnet addresses. The payer acknowledges the invoice; the funder provides canonical USDG only after a bounded decision is signed.</p>
         </div>
         <ol>
-          <li><span>01</span><div><strong>Prepare the genuine invoice</strong><small>Commit the source document locally; OpenBell never uploads it.</small></div></li>
+          <li><span>01</span><div><strong>Prepare the pilot invoice</strong><small>Commit the source document locally; OpenBell never uploads it.</small></div></li>
           <li><span>02</span><div><strong>Supplier and payer sign</strong><small>Both wallets authorize the same numeric chain-196 EIP-712 terms.</small></div></li>
           <li><span>03</span><div><strong>Run bounded underwriting</strong><small>AI may tighten or refuse the request; it cannot exceed the contract ceiling.</small></div></li>
           <li><span>04</span><div><strong>Fund and settle in USDG</strong><small>Every transaction is simulated, role-bound, and confirmed on X Layer.</small></div></li>
@@ -119,7 +119,7 @@
         <form class="assessment-form" id="assessment-form" novalidate>
           <p class="overline">LIVE UNDERWRITING · ONE ATTEMPT</p>
           <h2 id="assessment-title">Ask only after registration.</h2>
-          <p>The supplier authorizes one paid assessment. Two official RPCs independently verify the registered, dual-signed invoice before GPT-5.6 Terra is called. The genuine first response is final.</p>
+          <p>The supplier authorizes one paid assessment. Two official RPC endpoints must agree on the registered, dual-signed invoice before GPT-5.6 Terra is called. The genuine first response is final.</p>
           <label>Registration transaction hash<input id="assessment-registration-tx" required pattern="0x[0-9a-fA-F]{64}" placeholder="0x…" autocomplete="off" /></label>
           <p class="field-help">Paste the confirmed registration transaction to resume safely after a browser reload. The server verifies it against both official RPCs before the model is called.</p>
           <label>Funder address<input id="assessment-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
@@ -132,7 +132,7 @@
         <article class="assessment-result" id="assessment-result" hidden tabindex="-1">
           <p class="overline">GENUINE FIRST RESPONSE</p><h2 id="assessment-verdict">Decision sealed</h2>
           <p id="assessment-economics"></p><p id="assessment-provider"></p>
-          <p>The supplier's assessment request creates no execution authority. The current onchain underwriter must separately review and sign the exact typed decision.</p>
+          <p>The supplier's assessment request creates no execution authority. The configured onchain underwriter must separately review and sign the exact typed decision.</p>
           <div class="assessment-actions"><button class="button button-secondary" id="download-assessment" type="button" disabled>Download unsigned assessment</button><button class="button button-primary" id="sign-decision" type="button" disabled>Approve decision as underwriter</button></div>
           <div id="assessment-actions" class="assessment-actions"></div>
         </article>
@@ -146,7 +146,7 @@
           <label>Rejected assessment JSON<input id="escalation-assessment-file" type="file" accept="application/json,.json" required aria-describedby="escalation-help escalation-error" /></label>
           <label>Funder address<input id="escalation-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
           <label>Human-reviewed advance<input id="escalation-advance" required inputmode="decimal" value="0.025" aria-describedby="escalation-help escalation-error" /></label>
-          <p id="escalation-help">The current underwriter signs one EIP-712 approval. This step creates no transaction or token allowance.</p>
+          <p id="escalation-help">The configured underwriter signs one EIP-712 approval. This step creates no transaction or token allowance.</p>
           <div class="form-consent"><input id="escalation-consent" type="checkbox" required /><label for="escalation-consent">I reviewed the source invoice, accept responsibility for this stricter exception, and will not retry or relabel the rejected model response.</label></div>
           <button class="button button-primary" id="sign-escalation" type="submit">Sign stricter human escalation</button>
           <p class="form-error" id="escalation-error" role="alert" aria-live="assertive"></p>

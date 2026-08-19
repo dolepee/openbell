@@ -52,7 +52,7 @@ const configureMainnetSurface = () => {
   const hero = document.querySelector(".operate-hero");
   if (hero) hero.innerHTML = '<div><p class="overline">OPENBELL · LIVE USDG EXECUTION</p><h1>Execute bounded USDG funding.</h1></div><p>Complete a signed receivable on X Layer. The model may tighten or refuse; every wallet action remains role-bound and the contract moves only the smallest authorized amount.</p>';
   const readiness = document.querySelector(".operate-readiness");
-  if (readiness) readiness.innerHTML = '<div class="readiness-copy"><p class="overline">BEFORE REAL VALUE MOVES</p><h2 id="readiness-title">Three independent roles. One genuine receivable.</h2><p>The supplier, payer, and funder must use distinct X Layer mainnet addresses. The payer acknowledges the underlying invoice; the funder provides canonical USDG only after the bounded decision is signed.</p></div><ol><li><span>01</span><div><strong>Prepare the genuine invoice</strong><small>Commit the source document locally; OpenBell never uploads it.</small></div></li><li><span>02</span><div><strong>Supplier and payer sign</strong><small>Both wallets authorize the same numeric chain-196 EIP-712 terms.</small></div></li><li><span>03</span><div><strong>Run bounded underwriting</strong><small>AI may tighten or refuse the request; it cannot exceed the contract ceiling.</small></div></li><li><span>04</span><div><strong>Fund and settle in USDG</strong><small>Every transaction is simulated, role-bound, and confirmed on X Layer.</small></div></li></ol><div class="readiness-actions"><a class="button button-primary" href="/studio/?target=mainnet">Prepare mainnet deal</a><a class="button button-secondary" href="/proof/" rel="noreferrer">Inspect deployment proof ↗</a></div>';
+  if (readiness) readiness.innerHTML = '<div class="readiness-copy"><p class="overline">BEFORE REAL VALUE MOVES</p><h2 id="readiness-title">Three role-bound addresses. One pilot receivable.</h2><p>The supplier, payer, and funder must use distinct X Layer mainnet addresses. The payer acknowledges the underlying invoice; the funder provides canonical USDG only after the bounded decision is signed.</p></div><ol><li><span>01</span><div><strong>Prepare the pilot invoice</strong><small>Commit the source document locally; OpenBell never uploads it.</small></div></li><li><span>02</span><div><strong>Supplier and payer sign</strong><small>Both wallets authorize the same numeric chain-196 EIP-712 terms.</small></div></li><li><span>03</span><div><strong>Run bounded underwriting</strong><small>AI may tighten or refuse the request; it cannot exceed the contract ceiling.</small></div></li><li><span>04</span><div><strong>Fund and settle in USDG</strong><small>Every transaction is simulated, role-bound, and confirmed on X Layer.</small></div></li></ol><div class="readiness-actions"><a class="button button-primary" href="/studio/?target=mainnet">Prepare mainnet deal</a><a class="button button-secondary" href="/proof/" rel="noreferrer">Inspect deployment proof ↗</a></div>';
   const fixtureControl = document.querySelector(".fixture-claim-control");
   if (fixtureControl) fixtureControl.hidden = true;
   const sessionCopy = document.querySelector(".session-load > p:not(.overline)");
@@ -558,7 +558,7 @@ signDecisionButton?.addEventListener("click", async () => {
     validateConnectedAssessment(pendingAssessment, pendingAssessmentRequest);
     if (invoiceSession?.dealPackage?.invoiceTerms?.invoiceId?.toLowerCase() !== pendingAssessmentRequest.invoiceId.toLowerCase()) throw new Error("The active invoice changed after underwriting.");
     if (chainId !== ACTIVE_DEPLOYMENT.chainId) await switchToActiveNetwork();
-    if (account?.toLowerCase() !== pendingAssessment.signingRequest.underwriter.toLowerCase()) throw new Error("Connect the current underwriter wallet.");
+    if (account?.toLowerCase() !== pendingAssessment.signingRequest.underwriter.toLowerCase()) throw new Error("Connect the configured underwriter wallet.");
     signDecisionButton.disabled = true;
     signDecisionButton.textContent = "Awaiting underwriter signature…";
     const typedData = connectedDecisionTypedData(pendingAssessment);
@@ -622,7 +622,7 @@ escalationForm?.addEventListener("submit", async (event) => {
       advanceAmount: decimalToBaseUnits(document.querySelector("#escalation-advance").value).toString(),
       riskTimestamp: BigInt(latestBlock.timestamp).toString()
     });
-    if (account?.toLowerCase() !== escalation.underwriter.toLowerCase()) throw new Error("Connect the current underwriter wallet.");
+    if (account?.toLowerCase() !== escalation.underwriter.toLowerCase()) throw new Error("Connect the configured underwriter wallet.");
     button.disabled = true;
     button.textContent = "Awaiting underwriter signature…";
     const typedData = humanEscalationTypedData(escalation);

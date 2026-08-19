@@ -113,7 +113,7 @@ const render = () => {
       : chainId !== OPENBELL_MAINNET_CONNECTED.chainId ? `Connected on chain ${chainId}. Switch to X Layer mainnet.`
         : account.toLowerCase() !== candidate?.invoice.funder.toLowerCase() ? "This is not the invited funder wallet."
           : invoiceRecord?.status === 2 ? "This invoice is already funded."
-            : "Wallet and X Layer state verified.");
+            : "Wallet matches the invited funder and the displayed X Layer state.");
 
   const correctWallet = connected && candidate && chainId === OPENBELL_MAINNET_CONNECTED.chainId
     && account.toLowerCase() === candidate.invoice.funder.toLowerCase();
