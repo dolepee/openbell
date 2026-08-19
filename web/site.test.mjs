@@ -61,17 +61,21 @@ test("public proof has exact semantic parity with only accepted local block-hash
 });
 
 test("multi-page launch surface separates product, deal preparation, funding, verified cases, proof, and architecture", async () => {
-  const [overview, studio, mainnet, fund, workspace, proof, architecture, css] = await Promise.all([
+  const [overview, studio, operate, mainnet, fund, workspace, proof, architecture, css, readme, operateBundle, fundBundle] = await Promise.all([
     read("./index.html"),
     read("./studio/index.html"),
+    read("./operate/index.html"),
     read("./mainnet/index.html"),
     read("./fund/index.html"),
     read("./workspace/index.html"),
     read("./proof/index.html"),
     read("./architecture/index.html"),
-    read("./styles.css")
+    read("./styles.css"),
+    read("../README.md"),
+    read("./operate/app.js"),
+    read("./fund/app.js")
   ]);
-  const pages = [overview, studio, mainnet, fund, workspace, proof, architecture];
+  const pages = [overview, studio, operate, mainnet, fund, workspace, proof, architecture];
   for (const page of pages) {
     assert.match(page, /<div class="nav-right">/);
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
@@ -91,10 +95,15 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /Five successful receipts/);
   assert.match(overview, /Settle 0\.02525 USDG/);
   assert.match(overview, /REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY/);
+  assert.match(overview, /SETTLED MAINNET PILOT/);
+  assert.match(overview, /Each onchain action is bound to its recorded role address/);
+  assert.match(overview, /Supplier wallet submitted the payer-signed receivable package/);
+  assert.match(overview, /Two official X Layer RPC endpoints must agree on the pinned history/);
+  assert.match(overview, /Committed pinned snapshot/);
   assert.match(studio, /BROWSER-ONLY PREPARATION/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
-  assert.match(studio, /Connect a wallet only when you are ready to continue a genuine invoice/);
+  assert.match(studio, /Connect a wallet only when you are ready to continue a prepared invoice/);
   assert.match(studio, /ONE-CLICK PRODUCT TRIAL/);
   assert.match(studio, /id="load-sample"/);
   assert.match(studio, /Prepare sample invoice/);
@@ -113,10 +122,17 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(mainnet, /REAL USDG/);
   assert.match(mainnet, /CHAIN 196/);
   assert.match(mainnet, /<h1>Execute bounded USDG funding\.<\/h1>/);
+  assert.match(mainnet, /Three role-bound addresses\. One pilot receivable\./);
+  assert.match(mainnet, /Prepare the pilot invoice/);
+  assert.match(mainnet, /Two official RPC endpoints must agree on the registered, dual-signed invoice/);
+  assert.match(mainnet, /configured onchain underwriter/);
   assert.match(mainnet, /id="assessment-registration-tx"/);
   assert.match(mainnet, /resume safely after a browser reload/);
   assert.doesNotMatch(mainnet, /TESTNET FIXTURE|NO REAL VALUE|CHAIN 1952|fixture tUSDG|synthetic X Layer testnet/i);
+  assert.match(operate, /Two official RPC endpoints must agree on the registered, dual-signed invoice/);
+  assert.match(operate, /OpenBell can derive them from confirmed receipts/);
   assert.match(fund, /<title>Fund one receivable — OpenBell<\/title>/);
+  assert.match(fund, /matches the invited funder and displayed terms to a registered, dual-signed invoice/);
   assert.match(fund, /No files\. No CLI\. No model prompt\. Two simulated wallet actions\./);
   assert.match(fund, /id="approve-funding"[^>]+disabled/);
   assert.match(fund, /id="fund-invoice"[^>]+disabled/);
@@ -125,7 +141,9 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(workspace, /data-invoice="approved"/);
   assert.match(workspace, /data-invoice="rejected"/);
   assert.match(proof, /0xc4Ef249b80a6a034198C226278c51b0a903840dd/);
-  assert.match(proof, /0x8cb7cf3aac3ea78675fe696263c57619506e1dcf53e637a71951ca92816ea6bd/);
+  assert.match(proof, /0x2f8d95f0ee211a720577ce57afef04f7d7a8af63e017c11cf25eec3981468489/);
+  assert.match(proof, /supplier wallet · block 68,207,307/);
+  assert.match(proof, /Pre-lifecycle deployment snapshot/);
   assert.match(proof, /0x4d33…7948/);
   assert.match(proof, /0xdd8e…58e5/);
   assert.match(proof, /0x4b971ce6d7c6ae044abf7f7623c066227af145dc2e8bd8062a60aa2237bd5253/);
@@ -137,6 +155,14 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(proof, /NO LIVE MODEL/);
   assert.match(architecture, /AI proposes.<br \/>The contract disposes/);
   assert.match(architecture, /MIN\(REQUEST, AI, CODE\)/);
+  assert.match(readme, /select \*\*Prepare sample invoice\*\*/);
+  assert.match(operateBundle, /Three role-bound addresses\. One pilot receivable\./);
+  assert.match(operateBundle, /Connect the configured underwriter wallet\./);
+  assert.match(fundBundle, /Wallet matches the invited funder and the displayed X Layer state\./);
+  const publicCopy = `${pages.join("\n")}\n${readme}\n${operateBundle}\n${fundBundle}`;
+  assert.doesNotMatch(publicCopy, /Three independent roles|One genuine receivable|Prepare the genuine invoice|External supplier|official(?: X Layer)? RPCs independently (?:verify|confirm)|verified the signed invoice|continue a genuine invoice|Wallet and X Layer state verified|No participant can silently assume another role|Permanent pinned snapshot|current (?:onchain )?underwriter/i);
+  assert.match(mainnet, /does not verify legal invoice validity/);
+  assert.match(proof, /Legal validity of the offchain invoice/);
   for (const page of pages) {
     assert.match(page, /name="description"/);
     assert.match(page, /name="robots" content="index, follow"/);

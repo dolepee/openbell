@@ -99,7 +99,7 @@ Remove X Layer and OpenBell loses both its receipt-derived risk history and its 
 ## Try OpenBell
 
 The shortest product path requires no wallet. Open the
-[one-click trial](https://openbell.dolepee.com/studio/#try) and select **Build no-value sample**.
+[one-click trial](https://openbell.dolepee.com/studio/#try) and select **Prepare sample invoice**.
 OpenBell runs the real browser-side preparation engine, calculates the immutable contract limit,
 creates the invoice ID and document commitment, and renders an inspectable unsigned package and credit
 memo. The sample is explicitly testnet/no-value and makes no model, signature, financing, or transaction
@@ -169,7 +169,7 @@ Open `http://127.0.0.1:4187`.
 
 ## Evidence
 
-- [Mainnet deployment record](evidence/openbell-xlayer-mainnet-deployment.json)
+- [Pre-lifecycle mainnet deployment snapshot](evidence/openbell-xlayer-mainnet-deployment.json)
 - [Reproducible deployment verification](evidence/openbell-xlayer-mainnet-verification-record.json)
 - [Mainnet lifecycle observations](evidence/openbell-xlayer-mainnet-lifecycle-observations.json)
 - [Deterministic lifecycle verification](evidence/openbell-xlayer-mainnet-lifecycle-verification.json)

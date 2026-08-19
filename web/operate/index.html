@@ -42,7 +42,7 @@
         <div class="readiness-copy">
           <p class="overline">BEFORE YOU START</p>
           <h2 id="readiness-title">Three accounts. One guided testnet journey.</h2>
-          <p>One person may control all three accounts, but the supplier, payer, and funder addresses must be distinct. OpenBell's configured underwriter remains separate and signs only after the genuine assessment.</p>
+          <p>One person may control all three accounts, but the supplier, payer, and funder addresses must be distinct. OpenBell uses a separate configured underwriter address that signs only after the genuine assessment.</p>
         </div>
         <ol>
           <li><span>01</span><div><strong>Create three wallet accounts</strong><small>Supplier, payer, and funder must use different addresses.</small></div></li>
@@ -125,9 +125,9 @@
         <form class="assessment-form" id="assessment-form" novalidate>
           <p class="overline">LIVE UNDERWRITING · ONE ATTEMPT</p>
           <h2 id="assessment-title">Ask only after registration.</h2>
-          <p>The supplier authorizes one paid assessment. Two official RPCs independently verify the registered, dual-signed invoice before GPT-5.6 Terra is called. The genuine first response is final.</p>
+          <p>The supplier authorizes one paid assessment. Two official RPC endpoints must agree on the registered, dual-signed invoice before GPT-5.6 Terra is called. The genuine first response is final.</p>
           <label>Funder address<input id="assessment-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
-          <div class="assessment-history-note"><strong>Fresh payer · zero imported history</strong><p>The connected path does not accept supplier-declared performance. Historical claims remain zero until OpenBell can independently derive them from confirmed receipts.</p></div>
+          <div class="assessment-history-note"><strong>Fresh payer · zero imported history</strong><p>The connected path does not accept supplier-declared performance. Historical claims remain zero until OpenBell can derive them from confirmed receipts.</p></div>
           <label>Redacted assessment context<textarea id="assessment-context" maxlength="2000" required>Authorized synthetic X Layer testnet fixture evidence. No real value.</textarea></label>
           <div class="form-consent"><input id="assessment-consent" type="checkbox" required /><label for="assessment-consent">I understand this makes exactly one genuine model request; failures and results are not retried or substituted.</label></div>
           <button class="button button-primary" id="request-assessment" type="submit">Authorize one assessment</button>
@@ -136,7 +136,7 @@
         <article class="assessment-result" id="assessment-result" hidden tabindex="-1">
           <p class="overline">GENUINE FIRST RESPONSE</p><h2 id="assessment-verdict">Decision sealed</h2>
           <p id="assessment-economics"></p><p id="assessment-provider"></p>
-          <p>The supplier's assessment request creates no execution authority. The current onchain underwriter must separately review and sign the exact typed decision.</p>
+          <p>The supplier's assessment request creates no execution authority. The configured onchain underwriter must separately review and sign the exact typed decision.</p>
           <div class="assessment-actions"><button class="button button-secondary" id="download-assessment" type="button" disabled>Download unsigned assessment</button><button class="button button-primary" id="sign-decision" type="button" disabled>Approve decision as underwriter</button></div>
           <div id="assessment-actions" class="assessment-actions"></div>
         </article>
@@ -150,7 +150,7 @@
           <label>Rejected assessment JSON<input id="escalation-assessment-file" type="file" accept="application/json,.json" required aria-describedby="escalation-help escalation-error" /></label>
           <label>Funder address<input id="escalation-funder" required pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" autocomplete="off" /></label>
           <label>Human-reviewed advance<input id="escalation-advance" required inputmode="decimal" value="0.025" aria-describedby="escalation-help escalation-error" /></label>
-          <p id="escalation-help">The current underwriter signs one EIP-712 approval. This step creates no transaction or token allowance.</p>
+          <p id="escalation-help">The configured underwriter signs one EIP-712 approval. This step creates no transaction or token allowance.</p>
           <div class="form-consent"><input id="escalation-consent" type="checkbox" required /><label for="escalation-consent">I reviewed the source invoice, accept responsibility for this stricter exception, and will not retry or relabel the rejected model response.</label></div>
           <button class="button button-primary" id="sign-escalation" type="submit">Sign stricter human escalation</button>
           <p class="form-error" id="escalation-error" role="alert" aria-live="assertive"></p>
