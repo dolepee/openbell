@@ -24,9 +24,10 @@ One complete canonical-USDG lifecycle reached `SETTLED` on X Layer mainnet:
 | Contract execution | Exactly `0.025 USDG` funded |
 | Final settlement | Exactly `0.02525 USDG` repaid |
 
-The human exception did not replace or relabel the model refusal. It committed to the original
-rejected artifact and could authorize only the stricter of 25% of face value or 50% of the original
-request.
+The human exception did not replace or relabel the model refusal. Its underwriter-signed approval
+carried the rejected artifact's hash as `modelHash`, and the published lifecycle verifier recomputes
+the exact decision digest recorded in the onchain invoice state. The exception could authorize only
+the stricter of 25% of face value or 50% of the original request.
 
 ### Five X Layer receipts
 
@@ -113,11 +114,13 @@ claim.
 | [`/fund/`](https://openbell.dolepee.com/fund/) | Complete one exact invited funding action when a verified candidate is available | Funder only |
 | [`/proof/`](https://openbell.dolepee.com/proof/) | Inspect deployment, model, lifecycle, and evidence boundaries | No |
 
-The dedicated one-wallet funding route has also been completed by an unrelated tester without a file,
-CLI, or founder transaction for that action. Wallet `0x2Ef353…05244` funded exactly `0.005 USDG` in
+The dedicated one-wallet funding route has also been completed from a separate wallet without a file
+or CLI. Wallet `0x2Ef353…05244` funded exactly `0.005 USDG` in
 [`0xa9068a…e030a`](https://www.okx.com/web3/explorer/xlayer/tx/0xa9068afbd10fec26550883b7d52018623d7b184ad8cbdb310099a547526e030a).
-Independence is an offchain attestation; the wallet, transfer, and `REGISTERED -> FUNDED` transition
-are onchain-verifiable. This does not claim independent completion of every role in the full lifecycle.
+The wallet, transfer, and `REGISTERED -> FUNDED` transition are onchain-verifiable. The same two public
+addresses appear with supplier and funder roles reversed between this route and the settled pilot, so
+this proves route completion—not independent wallet ownership, target-user demand, or independent
+completion of the full lifecycle.
 
 ## Deployment
 

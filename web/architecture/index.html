@@ -14,27 +14,28 @@
     <div class="status-bar" role="note"><span><i class="status-dot"></i> PURPOSEFULLY NARROW V1</span><span>NO POOL</span><span>NO PROTOCOL TOKEN</span></div>
     <header class="topbar"><a class="brand" href="/" aria-label="OpenBell overview"><img src="/public/openbell-mark.svg" width="34" height="34" alt="" /><span>OpenBell</span></a><div class="nav-right"><nav class="desktop-nav" aria-label="Primary navigation"><a href="/studio/#try">Get funded</a><a href="/fund/">Fund</a><a href="/proof/#mainnet">Evidence</a></nav><a class="header-cta" href="/mainnet/">Live desk <span aria-hidden="true">↗</span></a></div></header>
     <main id="main" class="architecture-page">
-      <header class="page-hero architecture-hero"><p class="overline">TRUST MODEL</p><h1>AI proposes.<br />The contract disposes.</h1><p>OpenBell keeps intelligence and authority separate: the model evaluates risk, signatures authorize exact terms, and immutable contract limits determine what can execute.</p></header>
+      <header class="page-hero architecture-hero"><p class="overline">TRUST MODEL</p><h1>AI evaluates.<br />People authorize.<br />X Layer enforces.</h1><p>OpenBell keeps intelligence and authority separate: the first model response remains visible, only an authorized signer can create executable terms, and the contract enforces the signed amount and immutable limits.</p></header>
 
       <section class="system-map" aria-labelledby="system-title">
         <header><p class="overline">END-TO-END CONTROL FLOW</p><h2 id="system-title">One receivable, five enforceable boundaries.</h2></header>
         <ol>
           <li><span>01</span><div><h3>Invoice authority</h3><p>Supplier and payer sign the same EIP-712 invoice hash. The document remains offchain while its identity and terms become tamper-evident.</p></div><b>2 SIGNERS</b></li>
-          <li><span>02</span><div><h3>Risk authority</h3><p>A strictly parsed model response returns REJECT or bounded advance and fee terms. The first genuine response is authoritative.</p></div><b>AI DECISION</b></li>
-          <li id="limits"><span>03</span><div><h3>Contract authority</h3><p>The effective advance is the minimum of the supplier request, model ceiling, and immutable contract ceiling.</p></div><b>MIN(REQUEST, AI, CODE)</b></li>
-          <li><span>04</span><div><h3>Funding authority</h3><p>A funder chooses one approved invoice and transfers the exact advance. There is no pooled liquidity or automatic custody.</p></div><b>DIRECT FUNDER</b></li>
+          <li><span>02</span><div><h3>Model evidence</h3><p>A strictly parsed model response returns REJECT or bounded advance and fee terms. The first genuine response is authoritative and cannot move funds.</p></div><b>VISIBLE RESULT</b></li>
+          <li id="limits"><span>03</span><div><h3>Underwriter authority</h3><p>Executable terms require the configured signer. A disclosed human exception remains bound to the model refusal and may only narrow the original request under OpenBell's exception policy.</p></div><b>SIGNED TERMS</b></li>
+          <li><span>04</span><div><h3>Contract and funder authority</h3><p>A funder chooses whether to transfer the exact signed advance. X Layer rejects excess, stale, duplicate, or wrong-party execution. There is no pooled liquidity or automatic custody.</p></div><b>EXACT + CAPPED</b></li>
           <li><span>05</span><div><h3>Settlement authority</h3><p>The payer settles the exact amount due directly to the funder. Terminal state prevents duplicate execution.</p></div><b>FINAL STATE</b></li>
         </ol>
       </section>
 
       <section class="limit-lab" aria-labelledby="limit-title">
-        <div class="section-lead"><p class="overline">THE LIMIT STACK</p><h2 id="limit-title">A better model cannot loosen the contract.</h2><p>Models can change. The immutable maximum remains legible, deterministic, and enforceable at execution time.</p></div>
+        <div class="section-lead"><p class="overline">SETTLED MAINNET PILOT</p><h2 id="limit-title">A refusal cannot be silently relabelled.</h2><p>The genuine model rejected a request for 50% of face value. A disclosed human accepted responsibility for narrower 25% authority, and X Layer executed exactly that amount under the immutable 80% cap.</p></div>
         <div class="limit-demo">
           <div class="limit-scale"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
-          <div class="limit-line request"><span>SUPPLIER REQUEST</span><i style="--limit:75%"></i><b>75%</b></div>
-          <div class="limit-line ai"><span>GENUINE AI CEILING</span><i style="--limit:85%"></i><b>85%</b></div>
+          <div class="limit-line request"><span>SUPPLIER REQUEST</span><i style="--limit:50%"></i><b>50%</b></div>
+          <div class="limit-line ai"><span>GENUINE AI RESULT</span><i style="--limit:0%"></i><b>REJECT</b></div>
+          <div class="limit-line request"><span>DISCLOSED HUMAN LIMIT</span><i style="--limit:25%"></i><b>25%</b></div>
           <div class="limit-line contract"><span>IMMUTABLE CONTRACT MAX</span><i style="--limit:80%"></i><b>80%</b></div>
-          <output><span>EXECUTABLE ADVANCE</span><strong>75%</strong><small>The request binds in this journey.</small></output>
+          <output><span>EXECUTED ADVANCE</span><strong>25%</strong><small>0.025 USDG funded; 0.02525 USDG settled.</small></output>
         </div>
       </section>
 
