@@ -1,0 +1,75 @@
+{
+  "decision": {
+    "verdict": "REJECT",
+    "invoiceId": "0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88",
+    "invoiceDigest": "0x8e9b5664af51c14523594a47326899f8efc2da711741ee6455d69cc62672d2ce",
+    "riskTimestamp": 1786976630,
+    "expiresAt": 1786978430,
+    "riskReasonsHash": "0x797d9a520b45742f9fd08cbe4b50f86e486d62f0743f97adbd36ac16556a362b",
+    "modelHash": "0x433c1a44afa0ac19bbde48f0fde309780ff2bf09de1701007f435a3ef2222b4f",
+    "reasons": [
+      "DUAL_SIGNATURES_VERIFIED",
+      "DOCUMENT_HASH_VERIFIED",
+      "CLEAN_DUPLICATE_CHECK",
+      "LIMITED_PAYER_HISTORY",
+      "MODEL_UNCERTAINTY"
+    ],
+    "explanation": "The supplied registered mainnet evidence does not support approval.",
+    "modelId": "bankr:gpt-5.6-terra:receipt:0x4196fc0498e551e757c11f3eba721e6d2cb409b009c5f1b8497dc7eee6a8cdbc"
+  },
+  "modelEvidence": {
+    "provider": "bankr-chat-completions",
+    "providerResponseId": "chatcmpl-JScX_MI8YES_Bycq9Nuz8",
+    "requestedModel": "gpt-5.6-terra",
+    "returnedModel": "gpt-5.6-terra",
+    "requestHash": "0xa9be2a4425b55b7aaef7441e999285b960ead9019c2c36e09bbf97c4f0560d98",
+    "responseHash": "0xbc66940b09c8c46f91afa05fe14e0dc81f72d435c1deb34a2fd89ecc870be5cf",
+    "rawResponse": "{\"id\":\"chatcmpl-JScX_MI8YES_Bycq9Nuz8\",\"object\":\"chat.completion\",\"created\":1786976626,\"model\":\"gpt-5.6-terra\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"confidenceBps\\\":6500,\\\"explanation\\\":\\\"The supplied registered mainnet evidence does not support approval.\\\",\\\"feeBps\\\":0,\\\"maximumAdvanceBps\\\":0,\\\"reasons\\\":[\\\"DUAL_SIGNATURES_VERIFIED\\\",\\\"DOCUMENT_HASH_VERIFIED\\\",\\\"CLEAN_DUPLICATE_CHECK\\\",\\\"LIMITED_PAYER_HISTORY\\\",\\\"MODEL_UNCERTAINTY\\\"],\\\"verdict\\\":\\\"REJECT\\\"}\",\"refusal\":null,\"annotations\":[]},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":571,\"completion_tokens\":478,\"total_tokens\":1049,\"prompt_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":384,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}},\"service_tier\":\"priority\",\"system_fingerprint\":null}",
+    "decision": {
+      "verdict": "REJECT",
+      "maximumAdvanceBps": 0,
+      "feeBps": 0,
+      "confidenceBps": 6500,
+      "reasons": [
+        "DUAL_SIGNATURES_VERIFIED",
+        "DOCUMENT_HASH_VERIFIED",
+        "CLEAN_DUPLICATE_CHECK",
+        "LIMITED_PAYER_HISTORY",
+        "MODEL_UNCERTAINTY"
+      ],
+      "explanation": "The supplied registered mainnet evidence does not support approval."
+    }
+  },
+  "observation": {
+    "chainId": 196,
+    "receivables": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+    "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+    "blockNumber": "68207594",
+    "blockHash": "0xa9ec3d06650ca964e01334403fcdb3a70fa2db4cb120837eb9113e0c99dc25e6",
+    "blockTimestamp": 1786976630,
+    "registrationTransactionHash": "0x4d33630813698f2bbdee3e6adf386128efa6c7aee9d775edc83c22c0b7667948",
+    "status": "REGISTERED",
+    "invoiceId": "0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88",
+    "invoiceDigest": "0x8e9b5664af51c14523594a47326899f8efc2da711741ee6455d69cc62672d2ce",
+    "documentHash": "0xbfb3f804e936bb5411e35fa65d0a143225d3dfdcfaf817d8f8307fb3970d5960",
+    "supplier": "0x2Ef3530496b22B2E87F1E5702e4D1FD6b3D05244",
+    "payer": "0xbad35FA6e368e90fC4faf63507F2D0A2Fdf94BAF",
+    "faceValue": "100000",
+    "issuedAt": 1786974661,
+    "dueDate": 1787270399,
+    "underwriter": "0x0eeC6255E87c3a8A1E251D94Ae3394FdD118cEE5",
+    "paused": false,
+    "decisionNonceUnused": true,
+    "documentHashRegistered": true,
+    "invoiceDigestRegistered": true
+  },
+  "signingRequest": {
+    "schemaVersion": "openbell-connected-decision-signing-v1",
+    "label": "XLAYER MAINNET — REAL USDG",
+    "chainId": "196",
+    "underwriter": "0x0eeC6255E87c3a8A1E251D94Ae3394FdD118cEE5",
+    "authorizedDigest": "0x419fd2e0e96f36a99057f52bcec6e3892b857d54c8359c2370d28d4ac73d5658",
+    "nonce": "14900032505591478409447196749926148130212309116679588654444865210811416866266"
+  },
+  "artifactHash": "0x5d437f0fb6ee5e611c63eedc12b82e5b28c0cde498f41529416762ff2c868277"
+}
