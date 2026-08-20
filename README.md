@@ -1,11 +1,11 @@
 # OpenBell
 
-**Bounded invoice funding on X Layer.**
+**AI-RWA receivables for small suppliers, with bounded invoice funding on X Layer.**
 
-OpenBell turns a payer-signed invoice into exact USDG funding. A genuine AI underwriter may approve
-less or refuse, but it never holds funds. OpenBell binds the resulting decision to the invoice and
-funder; X Layer rejects any underwriter-signed advance above the immutable contract limit and preserves
-the funding and settlement trail.
+OpenBell helps small suppliers turn payer-signed invoices into bounded working capital before buyers
+pay. A genuine AI underwriter may approve less or refuse, but it never holds funds. OpenBell binds the
+resulting decision to the invoice and funder; X Layer rejects any underwriter-signed advance above the
+immutable contract limit and preserves the funding and settlement trail.
 
 [Live app](https://openbell.dolepee.com/) · [Try OpenBell](https://openbell.dolepee.com/studio/#try) ·
 [Live desk](https://openbell.dolepee.com/mainnet/) · [Proof room](https://openbell.dolepee.com/proof/)
@@ -60,6 +60,11 @@ signed invoice
 4. **Settle directly.** The payer repays the fixed amount to the recorded funder and the invoice
    reaches terminal state `SETTLED`.
 
+The receipt-bound pilot demonstrates how a completed invoice can supply confirmed payer history for a
+later assessment. Production currently uses one pinned public checkpoint; incorporating new receipts
+requires regenerating, verifying, and publishing that baseline. The same contract can support repeated
+receivables and future funders without requiring a pooled-liquidity contract.
+
 ## Why the AI is load-bearing
 
 The model produces one structured, invoice-bound decision. It may:
@@ -100,6 +105,23 @@ enforces the economic boundary afterward:
 - public receipts prove the advance, repayment, and terminal state.
 
 Remove X Layer and OpenBell loses both its receipt-derived risk history and its settlement authority.
+
+## Growth path
+
+OpenBell starts with small suppliers that wait for buyer payment after an invoice is signed. A settled
+invoice can enter a later assessment only through a regenerated, verified, and published payer-history
+checkpoint; this is not automatic today. The same verified contract can already process repeated
+invoice IDs and direct funder-to-supplier advances. The immediate next step is repeated supplier and
+funder pilots, followed by validation of acquisition, legal assignment, KYC/AML, pricing, collections,
+and default performance.
+
+The adjacent receivables-finance category is established: [FCI reported EUR 4.039 trillion of global
+factoring turnover in 2025](https://fci.nl/en/news/fci-releases-2025-world-industry-statistics-global-factoring-market-surpasses-eu4-trillion),
+and [IFC identifies multi-trillion-dollar MSME financing gaps](https://www.ifc.org/en/what-we-do/sector-expertise/financial-institutions/msme-finance)
+while using [supply-chain finance to turn supplier receivables into working
+capital](https://www.ifc.org/en/what-we-do/sector-expertise/trade-and-supply-chain-finance/global-supply-chain-finance).
+Those sources establish the neighboring need and financing pattern—not OpenBell's addressable market,
+traction, or underwriting performance.
 
 ## Try OpenBell
 
