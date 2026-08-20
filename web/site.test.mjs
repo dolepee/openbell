@@ -151,7 +151,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(operate, /OpenBell can derive them from confirmed receipts/);
   assert.match(fund, /<title>Fund one receivable — OpenBell<\/title>/);
   assert.match(fund, /matches the invited funder and displayed terms to a registered, dual-signed invoice/);
-  assert.match(fund, /No files\. No CLI\. No model prompt\. Two simulated wallet actions\./);
+  assert.match(fund, /No files\. No CLI\. No model prompt\. Two onchain wallet actions, each simulated before execution\./);
   assert.match(fund, /id="approve-funding"[^>]+disabled/);
   assert.match(fund, /id="fund-invoice"[^>]+disabled/);
   assert.match(fund, /repayment depends on the named payer settling the invoice/);
