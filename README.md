@@ -8,7 +8,8 @@ resulting decision to the invoice and funder; X Layer rejects any underwriter-si
 immutable contract limit and preserves the funding and settlement trail.
 
 [Live app](https://openbell.dolepee.com/) · [Try OpenBell](https://openbell.dolepee.com/studio/#try) ·
-[Live desk](https://openbell.dolepee.com/mainnet/) · [Proof room](https://openbell.dolepee.com/proof/)
+[Live desk](https://openbell.dolepee.com/mainnet/) · [Proof room](https://openbell.dolepee.com/proof/) ·
+[Machine-readable project evidence](evidence/openbell-project-manifest.json)
 
 ![OpenBell product overview](web/public/openbell-og.png)
 
@@ -23,6 +24,10 @@ One complete canonical-USDG lifecycle reached `SETTLED` on X Layer mainnet:
 | Disclosed human exception | Maximum `0.025 USDG` |
 | Contract execution | Exactly `0.025 USDG` funded |
 | Final settlement | Exactly `0.02525 USDG` repaid |
+
+The settled invoice produced a `0.00025 USDG` gross premium for the funder: `1%` of the `0.025 USDG`
+advance. That is the realized return for this single invoice, not an annualized rate. The deployed
+contract sent the complete repayment directly to the funder and charged no OpenBell protocol fee.
 
 The human exception did not replace or relabel the model refusal. Its underwriter-signed approval
 carried the rejected artifact's hash as `modelHash`, and the published lifecycle verifier recomputes
@@ -76,6 +81,11 @@ The model produces one structured, invoice-bound decision. It may:
 The first valid response is authoritative and is not retried or substituted. The model cannot change
 the signed invoice, custody funds, bypass party signatures, exceed contract ceilings, or execute a
 transaction.
+
+The trust boundary is explicit. The connected application obtains and seals one Bankr-mediated
+GPT-5.6 Terra response. A configured underwriter signature creates execution authority. The contract
+verifies that signer, the invoice-bound decision and evidence hashes, economic terms, freshness,
+expiry, and immutable ceilings; it does not independently attest that a remote model executed.
 
 The mainnet assessment used a receipt-derived checkpoint through X Layer block `68,230,450`:
 
@@ -177,6 +187,23 @@ hash is placed onchain.
 OpenBell proves signed terms, bounded decisions, exact token movement, and contract state. It does not
 prove legal validity of an offchain invoice, guarantee repayment, establish broad market demand, or
 claim that every lifecycle role was independently operated.
+
+## For X Layer builders
+
+OpenBell is MIT-licensed and publishes reusable, fail-closed patterns rather than only screenshots:
+
+- [`OpenBellReceivables.sol`](contracts/src/OpenBellReceivables.sol) combines EIP-712 invoice and
+  decision binding, ERC-1271 support, replay protection, immutable ceilings, and exact USDG deltas;
+- [`derive-mainnet-receipt-history.ts`](agent/scripts/derive-mainnet-receipt-history.ts) derives
+  payer history from confirmed contract events across two official X Layer RPC providers;
+- [`testnet-flow.mjs`](web/testnet-flow.mjs) validates role-bound browser action packages before a
+  wallet can submit them; and
+- [`verify-mainnet-lifecycle.mjs`](scripts/verify-mainnet-lifecycle.mjs) independently recomputes the
+  published lifecycle, authority digest, token movements, terminal state, and residual allowances.
+
+The canonical [project evidence manifest](evidence/openbell-project-manifest.json) gives judges and
+other builders one machine-readable index of the live deployment, economics, AI trust boundary,
+reusable components, evidence URLs, and claims not proven.
 
 ## Run locally
 

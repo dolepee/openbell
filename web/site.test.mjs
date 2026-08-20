@@ -97,8 +97,10 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /PUBLIC CONTRACT PAGE/);
   assert.match(overview, /0xc4Ef…40dd/);
   assert.match(overview, /0xc4Ef249b80a6a034198C226278c51b0a903840dd\/contract/);
-  assert.match(overview, /Three decisions\. One clear authority chain\./);
-  assert.match(overview, /The configured underwriter may approve less or refuse\. It cannot transfer funds\./);
+  assert.match(overview, /AI assesses\. The underwriter authorizes\. X Layer enforces\./);
+  assert.match(overview, /The connected service seals one Bankr-mediated GPT-5\.6 Terra response\./);
+  assert.match(overview, /the contract verifies the authorized signer, invoice-bound hashes, terms, freshness, expiry, and immutable ceilings/);
+  assert.match(overview, /It does not independently attest remote model execution\./);
   assert.match(overview, /underwriter-signed advance that stays within the contract's immutable 80% ceiling/);
   assert.doesNotMatch(overview, /smallest amount permitted by the signed request|One enforceable minimum/);
   assert.match(overview, /0x97b5…67d88 · SETTLED PILOT/);
@@ -107,6 +109,9 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(overview, /AI RESPONSE<\/span><strong>REFUSED<\/strong>/);
   assert.match(overview, /HUMAN AUTHORITY<\/span><strong>0\.025<\/strong>/);
   assert.match(overview, /REPAID<\/span><strong>0\.02525<\/strong>/);
+  assert.match(overview, /0\.00025 USDG gross premium: 1% of the advance for this invoice, not APR/);
+  assert.match(overview, /OpenBell protocol fee: 0/);
+  assert.match(overview, /href="\/data\/openbell-project-manifest\.json"/);
   assert.match(studio, /30-SECOND GUIDED SAMPLE/);
   assert.match(studio, /UNSIGNED PREPARATION ONLY/);
   assert.match(studio, /No transaction is constructed/);
@@ -171,6 +176,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(proof, /NO LIVE MODEL/);
   assert.match(overview, /rejection's hash inside its signed authority/);
   assert.match(proof, /REJECTION HASH IN SIGNED AUTHORITY/);
+  assert.match(proof, /0\.00025 USDG GROSS PREMIUM · 1% OF ADVANCE · NOT APR/);
+  assert.match(proof, /OPENBELL PROTOCOL FEE<\/span><code>0 USDG/);
   assert.match(proof, /Published verifier recomputes the onchain decision digest from authority carrying the rejection artifact hash/);
   assert.match(proof, /OpenBell's offchain exception policy capped the authorization at half the request/);
   assert.match(proof, /contract separately enforced the signed amount and immutable 80% ceiling/);
@@ -179,12 +186,17 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(architecture, /GENUINE AI RESULT[\s\S]*REJECT/);
   assert.match(architecture, /DISCLOSED HUMAN LIMIT[\s\S]*25%/);
   assert.match(architecture, /0\.025 USDG funded; 0\.02525 USDG settled/);
+  assert.match(architecture, /does not attest remote model execution/);
+  assert.match(architecture, /1% gross funder premium in the settled pilot/);
   assert.match(architecture, /href="\/data\/openbell-settled-pilot-rejection\.json"/);
   assert.doesNotMatch(architecture, /GENUINE AI CEILING|--limit:85%/);
   assert.match(readme, /select \*\*Prepare the no-wallet credit memo\*\*/);
   assert.match(readme, /carried the rejected artifact's hash as `modelHash`[\s\S]*published lifecycle verifier recomputes/);
   assert.match(readme, /completed from a separate wallet/);
   assert.match(readme, /same two public[\s\S]*supplier and funder roles reversed/);
+  assert.match(readme, /`0\.00025 USDG` gross premium[\s\S]*not an annualized rate/);
+  assert.match(readme, /configured underwriter signature creates execution authority[\s\S]*does not independently attest that a remote model executed/);
+  assert.match(readme, /## For X Layer builders/);
   assert.doesNotMatch(readme, /unrelated tester|offchain-attested tester/);
   assert.match(operateBundle, /Three role-bound addresses\. One pilot receivable\./);
   assert.match(operateBundle, /Connect the configured underwriter wallet\./);
@@ -209,6 +221,46 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
     assert.doesNotMatch(page, /Prior default detected/i);
     assert.doesNotMatch(page, /AI ceiling (?:caused|determined|set) the approved amount/i);
   }
+});
+
+test("machine-readable judge manifest stays bound to public lifecycle evidence", async () => {
+  const [source, exported, deploymentSource, lifecycleSource, overview] = await Promise.all([
+    read("../evidence/openbell-project-manifest.json"),
+    read("./data/openbell-project-manifest.json"),
+    read("../evidence/openbell-xlayer-mainnet-deployment.json"),
+    read("../evidence/openbell-xlayer-mainnet-lifecycle-verification.json"),
+    read("./index.html")
+  ]);
+  assert.equal(exported, source);
+  const manifest = JSON.parse(exported);
+  const deployment = JSON.parse(deploymentSource);
+  const lifecycle = JSON.parse(lifecycleSource);
+  assert.equal(manifest.schemaVersion, "openbell-project-manifest-v1");
+  assert.equal(manifest.project.category, "AI-RWA receivables");
+  assert.equal(manifest.project.license, "MIT");
+  assert.equal(manifest.network.chainId, Number(deployment.chainId));
+  assert.equal(manifest.network.receivables, deployment.contract.address);
+  assert.equal(manifest.network.settlementToken, deployment.configuration.settlementToken);
+  assert.equal(manifest.verifiedMainnetResult.invoiceId, lifecycle.invoiceId);
+  assert.equal(manifest.verifiedMainnetResult.advanceBaseUnits, lifecycle.advanceAmount);
+  assert.equal(manifest.verifiedMainnetResult.repaymentBaseUnits, lifecycle.repaymentAmount);
+  assert.equal(manifest.verifiedMainnetResult.finalStatus, lifecycle.finalStatus);
+  assert.equal(manifest.verifiedMainnetResult.transactionCount, lifecycle.transactionHashes.length);
+  const premium = BigInt(lifecycle.repaymentAmount) - BigInt(lifecycle.advanceAmount);
+  assert.equal(manifest.verifiedMainnetResult.funderGrossPremiumBaseUnits, premium.toString());
+  assert.equal(manifest.verifiedMainnetResult.funderGrossPremiumBps, Number(premium * 10_000n / BigInt(lifecycle.advanceAmount)));
+  assert.equal(manifest.verifiedMainnetResult.protocolFeeBaseUnits, "0");
+  assert.equal(manifest.aiTrustBoundary.contractAttestsRemoteModelExecution, false);
+  assert.ok(manifest.reusableXLayerComponents.length >= 4);
+  assert.ok(manifest.claimsNotProven.includes("market demand, traction, or protocol revenue"));
+  assert.match(overview, /rel="alternate" type="application\/json" href="https:\/\/openbell\.dolepee\.com\/data\/openbell-project-manifest\.json"/);
+  const jsonLdText = overview.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(jsonLdText);
+  const jsonLd = JSON.parse(jsonLdText);
+  assert.equal(jsonLd["@type"], "WebApplication");
+  assert.equal(jsonLd.url, "https://openbell.dolepee.com/");
+  assert.equal(jsonLd.sameAs, manifest.project.repositoryUrl);
+  assert.doesNotMatch(source, /\/Users\/|"privateKey"\s*:|"signature"\s*:|"credential"\s*:/i);
 });
 
 test("public mainnet deployment evidence is exact, minimal, and private-material free", async () => {

@@ -34,6 +34,8 @@
             <div><span>INVOICE</span><code>0x97b5a942…67d88</code></div>
             <div><span>MODEL RESULT</span><code>REJECT · NO RETRY</code></div>
             <div><span>HUMAN ESCALATION</span><code>0.025 USDG · REJECTION HASH IN SIGNED AUTHORITY</code></div>
+            <div><span>FUNDER ECONOMICS</span><code>0.00025 USDG GROSS PREMIUM · 1% OF ADVANCE · NOT APR</code></div>
+            <div><span>OPENBELL PROTOCOL FEE</span><code>0 USDG</code></div>
             <div><span>OBSERVATIONS SHA-256</span><code>0x2f8d95f0ee211a720577ce57afef04f7d7a8af63e017c11cf25eec3981468489</code></div>
           </div>
         </div>
@@ -45,7 +47,7 @@
           <li><span>05</span><b>Settle exact repayment</b><small>funder +0.02525 USDG · block 68,212,422</small><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xdd8e682a7cc7342f11e355567ccb8c99e32b926287f85ed111cbfa8d273658e5">0xdd8e…58e5 ↗</a></li>
         </ol>
         <div class="boundary-grid"><strong>WHAT THIS PROVES</strong><span>Five canonical mainnet receipts</span><span>Published verifier recomputes the onchain decision digest from authority carrying the rejection artifact hash</span><span>Exact funding and repayment deltas; final SETTLED state; zero residual allowances</span><strong>WHAT IT DOES NOT</strong><span>Legal validity of the offchain invoice</span><span>Independent cold completion of every role</span><span>Independent smart-contract audit</span></div>
-        <div class="download-row"><a href="/data/openbell-xlayer-mainnet-lifecycle-observations.json" download>Lifecycle observations ↓</a><a href="/data/openbell-xlayer-mainnet-lifecycle-verification.json" download>Lifecycle verification ↓</a><a href="/data/openbell-xlayer-mainnet-deployment.json" download>Pre-lifecycle deployment snapshot ↓</a><a href="/data/openbell-xlayer-mainnet-observation-verification.json" download>Deployment verification ↓</a></div>
+        <div class="download-row"><a href="/data/openbell-project-manifest.json" download>Project evidence manifest ↓</a><a href="/data/openbell-xlayer-mainnet-lifecycle-observations.json" download>Lifecycle observations ↓</a><a href="/data/openbell-xlayer-mainnet-lifecycle-verification.json" download>Lifecycle verification ↓</a><a href="/data/openbell-xlayer-mainnet-deployment.json" download>Pre-lifecycle deployment snapshot ↓</a><a href="/data/openbell-xlayer-mainnet-observation-verification.json" download>Deployment verification ↓</a></div>
       </section>
 
       <section class="evidence-section" id="testnet" aria-labelledby="testnet-title">
@@ -67,7 +69,7 @@
         <header class="evidence-heading"><div><p class="overline">FIRST RESPONSE · NO RETRY</p><h2 id="model-title">Genuine model provenance</h2></div><span class="evidence-state">SEALED</span></header>
         <div class="model-evidence-grid"><article class="model-reject"><span>RECEIPT-BOUND MAINNET INVOICE</span><strong>REJECT · NO RETRY</strong><p>One on-time settlement was not enough. The genuine model cited limited payer history, 71.42% counterparty concentration, and uncertainty. No approval, escalation, funding, or settlement followed.</p></article><article class="model-reject"><span>EARLIER MAINNET PILOT</span><strong>REJECT · HUMAN TOOK LESS</strong><p>A separate first response refused. The disclosed human exception preserved that artifact. OpenBell's offchain exception policy capped the authorization at half the request; the contract separately enforced the signed amount and immutable 80% ceiling.</p></article></div>
         <div class="download-row"><a href="/data/openbell-settled-pilot-rejection.json" download>Settled-pilot rejection preimage ↓</a><a href="/data/openbell-receipt-bound-rejection.json" download>Receipt-bound rejection evidence ↓</a><a href="https://www.okx.com/web3/explorer/xlayer/tx/0xbe0d089756385f2d81beedd1bcc9b344b3a1ac38e59e3c91af239c272d7a4466">Registered invoice receipt ↗</a></div>
-        <p class="evidence-disclosure">Actual provider: Bankr-mediated GPT-5.6 Terra. First responses are authoritative. The settled pilot publishes its sanitized raw provider-response envelope and full commitment preimage. The separate receipt-bound refusal publishes hashes and its structured decision only. Wallet signatures are not published, and provider provenance is not independently authenticated.</p>
+        <p class="evidence-disclosure">Actual provider path: Bankr-mediated GPT-5.6 Terra. The connected application seals the first response. Execution authority comes from the configured underwriter's EIP-712 signature; the contract verifies that signer, invoice-bound hashes, terms, freshness, expiry, and immutable ceilings, but does not independently attest remote model execution. The settled pilot publishes its sanitized raw provider-response envelope and full commitment preimage. The separate receipt-bound refusal publishes hashes and its structured decision only. Wallet signatures are not published, and provider provenance is not independently authenticated.</p>
       </section>
 
       <section class="evidence-section archive-section" id="archive" aria-labelledby="archive-title">
