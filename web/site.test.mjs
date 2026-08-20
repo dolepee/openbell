@@ -196,8 +196,8 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
     assert.match(page, /name="robots" content="index, follow"/);
     assert.match(page, /rel="canonical" href="https:\/\/openbell\.dolepee\.com\//);
     assert.match(page, /property="og:url" content="https:\/\/openbell\.dolepee\.com\//);
-    assert.match(page, /property="og:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
-    assert.match(page, /name="twitter:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og\.png"/);
+    assert.match(page, /property="og:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og-mainnet-reject-v1\.png"/);
+    assert.match(page, /name="twitter:image" content="https:\/\/openbell\.dolepee\.com\/public\/openbell-og-mainnet-reject-v1\.png"/);
     assert.match(page, /href="\/studio\/(?:#try)?"/);
     assert.match(page, /href="\/mainnet\/"/);
     const primaryNavigation = page.match(/<nav class="desktop-nav"[\s\S]*?<\/nav>/)?.[0] ?? "";
