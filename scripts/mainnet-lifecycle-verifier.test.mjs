@@ -21,6 +21,10 @@ test("verifies the complete canonical-USDG mainnet lifecycle across two provider
   assert.equal(verification.finalStatus, "SETTLED");
   assert.equal(verification.advanceAmount, "25000");
   assert.equal(verification.repaymentAmount, "25250");
+  assert.equal(verification.funderGrossPremiumBaseUnits, "250");
+  assert.equal(verification.funderGrossPremiumBps, "100");
+  assert.equal(verification.observedProtocolFeeBaseUnits, "0");
+  assert.equal(verification.settlementTransferCount, "1");
   assert.equal(verification.transactionHashes.length, 5);
   assert.equal(verification.escalationCommitmentVerified, true);
 });
@@ -38,6 +42,9 @@ test("rejects transaction, state, balance and provider drift", () => {
   const changedBalance = structuredClone(observations);
   changedBalance.providers[0].calls.supplierAfterFunding.result = `0x${"00".repeat(32)}`;
   assert.throws(() => verifyMainnetLifecycleObservations(changedBalance), /SUPPLIER_DELTA/);
+  const changedSettlementTransfer = structuredClone(observations);
+  changedSettlementTransfer.providers[0].transactions[4].receipt.logs[0].topics[2] = `0x${"00".repeat(32)}`;
+  assert.throws(() => verifyMainnetLifecycleObservations(changedSettlementTransfer), /SETTLEMENT_TRANSFER_PARTIES/);
   const duplicatedProvider = structuredClone(observations);
   duplicatedProvider.providers[1].provider = duplicatedProvider.providers[0].provider;
   assert.throws(() => verifyMainnetLifecycleObservations(duplicatedProvider), /PROVIDERS_NOT_DISTINCT/);

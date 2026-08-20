@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { approvalTypes } from "../scripts/lib/mainnet-lifecycle-verifier.mjs";
 import { expectedMainnetEvidence, validateMainnetPublicEvidence } from "../scripts/lib/mainnet-public-evidence.mjs";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
@@ -224,35 +225,104 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
 });
 
 test("machine-readable judge manifest stays bound to public lifecycle evidence", async () => {
-  const [source, exported, deploymentSource, lifecycleSource, overview] = await Promise.all([
+  const [source, exported, deploymentSource, lifecycleSource, rejectionSource, applicationPolicySource, receiptBoundSource, licenseSource, overview] = await Promise.all([
     read("../evidence/openbell-project-manifest.json"),
     read("./data/openbell-project-manifest.json"),
     read("../evidence/openbell-xlayer-mainnet-deployment.json"),
     read("../evidence/openbell-xlayer-mainnet-lifecycle-verification.json"),
+    read("../evidence/openbell-settled-pilot-rejection.json"),
+    read("../evidence/openbell-bankr-model-evidence.json"),
+    read("../evidence/openbell-receipt-bound-rejection.json"),
+    read("../LICENSE"),
     read("./index.html")
   ]);
   assert.equal(exported, source);
   const manifest = JSON.parse(exported);
   const deployment = JSON.parse(deploymentSource);
   const lifecycle = JSON.parse(lifecycleSource);
-  assert.equal(manifest.schemaVersion, "openbell-project-manifest-v1");
-  assert.equal(manifest.project.category, "AI-RWA receivables");
-  assert.equal(manifest.project.license, "MIT");
-  assert.equal(manifest.network.chainId, Number(deployment.chainId));
-  assert.equal(manifest.network.receivables, deployment.contract.address);
-  assert.equal(manifest.network.settlementToken, deployment.configuration.settlementToken);
-  assert.equal(manifest.verifiedMainnetResult.invoiceId, lifecycle.invoiceId);
-  assert.equal(manifest.verifiedMainnetResult.advanceBaseUnits, lifecycle.advanceAmount);
-  assert.equal(manifest.verifiedMainnetResult.repaymentBaseUnits, lifecycle.repaymentAmount);
-  assert.equal(manifest.verifiedMainnetResult.finalStatus, lifecycle.finalStatus);
-  assert.equal(manifest.verifiedMainnetResult.transactionCount, lifecycle.transactionHashes.length);
-  const premium = BigInt(lifecycle.repaymentAmount) - BigInt(lifecycle.advanceAmount);
-  assert.equal(manifest.verifiedMainnetResult.funderGrossPremiumBaseUnits, premium.toString());
-  assert.equal(manifest.verifiedMainnetResult.funderGrossPremiumBps, Number(premium * 10_000n / BigInt(lifecycle.advanceAmount)));
-  assert.equal(manifest.verifiedMainnetResult.protocolFeeBaseUnits, "0");
-  assert.equal(manifest.aiTrustBoundary.contractAttestsRemoteModelExecution, false);
-  assert.ok(manifest.reusableXLayerComponents.length >= 4);
-  assert.ok(manifest.claimsNotProven.includes("market demand, traction, or protocol revenue"));
+  const rejection = JSON.parse(rejectionSource);
+  const applicationPolicy = JSON.parse(applicationPolicySource);
+  const receiptBound = JSON.parse(receiptBoundSource);
+  const riskApprovalFields = approvalTypes.RiskApproval.map(({ name }) => name);
+  const remoteAttestationFields = new Set(["provider", "providerResponseId", "providerSignature", "modelExecutionProof", "remoteModelExecutionAttestation"]);
+  const expected = {
+    schemaVersion: "openbell-project-manifest-v1",
+    project: {
+      name: "OpenBell",
+      category: "AI-RWA receivables",
+      targetUser: "Small suppliers waiting for buyers to pay signed invoices",
+      outcome: "Bounded working capital before buyer payment",
+      liveUrl: "https://openbell.dolepee.com/",
+      repositoryUrl: "https://github.com/dolepee/openbell",
+      license: licenseSource.startsWith("MIT License\n") ? "MIT" : null
+    },
+    network: {
+      name: "X Layer mainnet",
+      chainId: Number(deployment.chainId),
+      receivables: deployment.contract.address,
+      settlementAsset: "canonical USDG",
+      settlementToken: deployment.configuration.settlementToken,
+      sourceCodeUrl: `https://web3.okx.com/explorer/x-layer/evm/address/${deployment.contract.address}/contract`
+    },
+    verifiedMainnetResult: {
+      invoiceId: lifecycle.invoiceId,
+      modelVerdict: rejection.decision.verdict,
+      publishedProviderResponseId: rejection.modelEvidence.providerResponseId,
+      publishedResponseHash: rejection.modelEvidence.responseHash,
+      humanExceptionDisclosed: lifecycle.escalationPolicy === "HUMAN_REVIEW_AFTER_MODEL_REJECTION_V1",
+      rejectionArtifactPreserved: lifecycle.escalationCommitmentVerified === true && lifecycle.rejectedArtifactHash === rejection.artifactHash,
+      advanceBaseUnits: lifecycle.advanceAmount,
+      repaymentBaseUnits: lifecycle.repaymentAmount,
+      funderGrossPremiumBaseUnits: lifecycle.funderGrossPremiumBaseUnits,
+      funderGrossPremiumBps: Number(lifecycle.funderGrossPremiumBps),
+      observedProtocolFeeBaseUnits: lifecycle.observedProtocolFeeBaseUnits,
+      settlementTransferCount: Number(lifecycle.settlementTransferCount),
+      finalStatus: lifecycle.finalStatus,
+      transactionCount: lifecycle.transactionHashes.length
+    },
+    aiTrustBoundary: {
+      provider: rejection.modelEvidence.provider,
+      requestedModel: rejection.modelEvidence.requestedModel,
+      returnedModel: rejection.modelEvidence.returnedModel,
+      firstResponsePolicy: {
+        firstResponseAuthoritative: applicationPolicy.attemptPolicy.firstResponseAuthoritative,
+        recordedRetries: applicationPolicy.attemptPolicy.retries,
+        additionalModelCallsPermitted: applicationPolicy.attemptPolicy.additionalModelCallsPermitted,
+        separateReceiptBoundRunFirstResponseFinal: receiptBound.assertions.firstResponseFinal,
+        separateReceiptBoundRunRetried: receiptBound.assertions.retried
+      },
+      executionAuthority: {
+        kind: "configured-underwriter-eip712-signature",
+        underwriter: rejection.observation.underwriter
+      },
+      riskApprovalFields,
+      remoteModelExecutionAttestationFieldPresent: riskApprovalFields.some((name) => remoteAttestationFields.has(name))
+    },
+    reusableXLayerComponents: [
+      { name: "EIP-712 and ERC-1271 receivables contract", url: "https://github.com/dolepee/openbell/blob/main/contracts/src/OpenBellReceivables.sol" },
+      { name: "Two-provider receipt-history derivation", url: "https://github.com/dolepee/openbell/blob/main/agent/scripts/derive-mainnet-receipt-history.ts" },
+      { name: "Role-bound browser action validation", url: "https://github.com/dolepee/openbell/blob/main/web/testnet-flow.mjs" },
+      { name: "Deterministic mainnet lifecycle verifier", url: "https://github.com/dolepee/openbell/blob/main/scripts/verify-mainnet-lifecycle.mjs" }
+    ],
+    evidenceUrls: {
+      proofRoom: "https://openbell.dolepee.com/proof/#mainnet",
+      lifecycleObservations: "https://openbell.dolepee.com/data/openbell-xlayer-mainnet-lifecycle-observations.json",
+      lifecycleVerification: "https://openbell.dolepee.com/data/openbell-xlayer-mainnet-lifecycle-verification.json",
+      settledPilotRejection: "https://openbell.dolepee.com/data/openbell-settled-pilot-rejection.json",
+      receiptBoundRejection: "https://openbell.dolepee.com/data/openbell-receipt-bound-rejection.json",
+      applicationAttemptPolicy: "https://github.com/dolepee/openbell/blob/main/evidence/openbell-bankr-model-evidence.json"
+    },
+    claimsNotProven: [
+      "legal validity or assignment of the offchain invoice",
+      "delivery of underlying goods or services",
+      "repayment certainty, default recovery, or collections",
+      "cryptographic attestation of remote model execution",
+      "independent authentication of provider provenance or no-retry absence",
+      "independent ownership of every role wallet",
+      "market demand, traction, or protocol revenue"
+    ]
+  };
+  assert.deepEqual(manifest, expected);
   assert.match(overview, /rel="alternate" type="application\/json" href="https:\/\/openbell\.dolepee\.com\/data\/openbell-project-manifest\.json"/);
   const jsonLdText = overview.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(jsonLdText);
