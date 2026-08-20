@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { keccak256, stringToHex } from "viem";
+import { scanPublicText } from "./check-public-boundary.mjs";
 import { verifyMainnetLifecycleObservations } from "./lib/mainnet-lifecycle-verifier.mjs";
 
 const observations = JSON.parse(await readFile(new URL("../evidence/openbell-xlayer-mainnet-lifecycle-observations.json", import.meta.url), "utf8"));
@@ -78,5 +79,11 @@ test("publishes the settled pilot's complete rejection commitment preimage", asy
     }
   };
   walk(artifact);
+  walk(envelope);
+  assert.deepEqual(scanPublicText({
+    path: "evidence/openbell-settled-pilot-rejection.json#decoded-provider-response",
+    text: JSON.stringify(envelope)
+  }), []);
+  assert.throws(() => walk({ signature: `0x${"ab".repeat(65)}` }), /forbidden public key: signature/);
   assert.doesNotMatch(source, /BEGIN (?:EC |RSA |OPENSSH )?PRIVATE KEY|https?:\/\/[^\s"']+:[^\s"']+@/i);
 });
