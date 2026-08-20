@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "openbell-xlayer-mainnet-lifecycle-verification-v1",
+  "schemaVersion": "openbell-xlayer-mainnet-lifecycle-verification-v2",
   "observationsSha256": "0x2f8d95f0ee211a720577ce57afef04f7d7a8af63e017c11cf25eec3981468489",
   "chainId": "196",
   "contract": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
@@ -11,6 +11,10 @@
   "faceValue": "100000",
   "advanceAmount": "25000",
   "repaymentAmount": "25250",
+  "funderGrossPremiumBaseUnits": "250",
+  "funderGrossPremiumBps": "100",
+  "observedProtocolFeeBaseUnits": "0",
+  "settlementTransferCount": "1",
   "finalStatus": "SETTLED",
   "providerResults": [
     {

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "openbell-project-manifest-v1",
+  "project": {
+    "name": "OpenBell",
+    "category": "AI-RWA receivables",
+    "targetUser": "Small suppliers waiting for buyers to pay signed invoices",
+    "outcome": "Bounded working capital before buyer payment",
+    "liveUrl": "https://openbell.dolepee.com/",
+    "repositoryUrl": "https://github.com/dolepee/openbell",
+    "license": "MIT"
+  },
+  "network": {
+    "name": "X Layer mainnet",
+    "chainId": 196,
+    "receivables": "0xc4Ef249b80a6a034198C226278c51b0a903840dd",
+    "settlementAsset": "canonical USDG",
+    "settlementToken": "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8",
+    "sourceCodeUrl": "https://web3.okx.com/explorer/x-layer/evm/address/0xc4Ef249b80a6a034198C226278c51b0a903840dd/contract"
+  },
+  "verifiedMainnetResult": {
+    "invoiceId": "0x97b5a9424799a02e456e73bad442e65545334cad44ee6b24f73c437d35767d88",
+    "modelVerdict": "REJECT",
+    "publishedProviderResponseId": "chatcmpl-JScX_MI8YES_Bycq9Nuz8",
+    "publishedResponseHash": "0xbc66940b09c8c46f91afa05fe14e0dc81f72d435c1deb34a2fd89ecc870be5cf",
+    "humanExceptionDisclosed": true,
+    "rejectionArtifactPreserved": true,
+    "advanceBaseUnits": "25000",
+    "repaymentBaseUnits": "25250",
+    "funderGrossPremiumBaseUnits": "250",
+    "funderGrossPremiumBps": 100,
+    "observedProtocolFeeBaseUnits": "0",
+    "settlementTransferCount": 1,
+    "finalStatus": "SETTLED",
+    "transactionCount": 5
+  },
+  "aiTrustBoundary": {
+    "provider": "bankr-chat-completions",
+    "requestedModel": "gpt-5.6-terra",
+    "returnedModel": "gpt-5.6-terra",
+    "firstResponsePolicy": {
+      "firstResponseAuthoritative": true,
+      "recordedRetries": "0",
+      "additionalModelCallsPermitted": false,
+      "separateReceiptBoundRunFirstResponseFinal": true,
+      "separateReceiptBoundRunRetried": false
+    },
+    "executionAuthority": {
+      "kind": "configured-underwriter-eip712-signature",
+      "underwriter": "0x0eeC6255E87c3a8A1E251D94Ae3394FdD118cEE5"
+    },
+    "riskApprovalFields": [
+      "invoiceId",
+      "invoiceDigest",
+      "funder",
+      "advanceAmount",
+      "repaymentAmount",
+      "riskTimestamp",
+      "expiresAt",
+      "riskReasonsHash",
+      "modelHash",
+      "nonce"
+    ],
+    "remoteModelExecutionAttestationFieldPresent": false
+  },
+  "reusableXLayerComponents": [
+    {
+      "name": "EIP-712 and ERC-1271 receivables contract",
+      "url": "https://github.com/dolepee/openbell/blob/main/contracts/src/OpenBellReceivables.sol"
+    },
+    {
+      "name": "Two-provider receipt-history derivation",
+      "url": "https://github.com/dolepee/openbell/blob/main/agent/scripts/derive-mainnet-receipt-history.ts"
+    },
+    {
+      "name": "Role-bound browser action validation",
+      "url": "https://github.com/dolepee/openbell/blob/main/web/testnet-flow.mjs"
+    },
+    {
+      "name": "Deterministic mainnet lifecycle verifier",
+      "url": "https://github.com/dolepee/openbell/blob/main/scripts/verify-mainnet-lifecycle.mjs"
+    }
+  ],
+  "evidenceUrls": {
+    "proofRoom": "https://openbell.dolepee.com/proof/#mainnet",
+    "lifecycleObservations": "https://openbell.dolepee.com/data/openbell-xlayer-mainnet-lifecycle-observations.json",
+    "lifecycleVerification": "https://openbell.dolepee.com/data/openbell-xlayer-mainnet-lifecycle-verification.json",
+    "settledPilotRejection": "https://openbell.dolepee.com/data/openbell-settled-pilot-rejection.json",
+    "receiptBoundRejection": "https://openbell.dolepee.com/data/openbell-receipt-bound-rejection.json",
+    "applicationAttemptPolicy": "https://github.com/dolepee/openbell/blob/main/evidence/openbell-bankr-model-evidence.json"
+  },
+  "claimsNotProven": [
+    "legal validity or assignment of the offchain invoice",
+    "delivery of underlying goods or services",
+    "repayment certainty, default recovery, or collections",
+    "cryptographic attestation of remote model execution",
+    "independent authentication of provider provenance or no-retry absence",
+    "independent ownership of every role wallet",
+    "market demand, traction, or protocol revenue"
+  ]
+}

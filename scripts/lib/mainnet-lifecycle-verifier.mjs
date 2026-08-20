@@ -23,6 +23,7 @@ export const ESCALATION_MAX_FACE_BPS = 2_500n;
 export const ESCALATION_MAX_REQUEST_BPS = 5_000n;
 export const ESCALATION_FEE_BPS = 100n;
 export const MINIMUM_CONFIRMATIONS = 12n;
+export const TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 export const OFFICIAL_ENDPOINT_COMMITMENTS = Object.freeze({
   "official-xlayer": "0x6dc6837936cfafdb8db23141dc98177dbd4f1c79c1557d49210b9323920fb950",
@@ -121,6 +122,8 @@ export const verifyMainnetLifecycleObservations = (observations) => {
   requireTrue(ADVANCE_AMOUNT <= REQUESTED_ADVANCE * ESCALATION_MAX_REQUEST_BPS / 10_000n && ADVANCE_AMOUNT <= FACE_VALUE * ESCALATION_MAX_FACE_BPS / 10_000n, "ESCALATION_CAP_EXCEEDED");
   requireTrue(REPAYMENT_AMOUNT === ADVANCE_AMOUNT + ADVANCE_AMOUNT * ESCALATION_FEE_BPS / 10_000n, "ESCALATION_FEE_MISMATCH");
   const providerResults = [];
+  const observedProtocolFees = [];
+  const settlementTransferCounts = [];
   for (const observation of observations.providers) {
     requireTrue(OFFICIAL_ENDPOINT_COMMITMENTS[observation.provider] === observation.endpointCommitment, `${observation.provider}:ENDPOINT_COMMITMENT`);
     requireTrue(!JSON.stringify(observation).includes("rpc.xlayer") && !JSON.stringify(observation).includes("xlayerrpc"), `${observation.provider}:ENDPOINT_LEAK`);
@@ -151,20 +154,34 @@ export const verifyMainnetLifecycleObservations = (observations) => {
     const balances = Object.fromEntries(Object.entries(observation.calls).filter(([name]) => name !== "invoice").map(([name, call]) => [name, decodeUint(call.result, name.includes("Allowance") ? "allowance" : "balanceOf")]));
     requireTrue(balances.supplierAfterFunding - balances.supplierBeforeFunding === ADVANCE_AMOUNT, `${observation.provider}:SUPPLIER_DELTA`);
     requireTrue(balances.funderBeforeFunding - balances.funderAfterFunding === ADVANCE_AMOUNT, `${observation.provider}:FUNDER_ADVANCE_DELTA`);
-    requireTrue(balances.payerBeforeSettlement - balances.payerAfterSettlement === REPAYMENT_AMOUNT, `${observation.provider}:PAYER_REPAYMENT_DELTA`);
-    requireTrue(balances.funderAfterSettlement - balances.funderBeforeSettlement === REPAYMENT_AMOUNT, `${observation.provider}:FUNDER_REPAYMENT_DELTA`);
+    const payerSettlementDebit = balances.payerBeforeSettlement - balances.payerAfterSettlement;
+    const funderSettlementCredit = balances.funderAfterSettlement - balances.funderBeforeSettlement;
+    requireTrue(payerSettlementDebit === REPAYMENT_AMOUNT, `${observation.provider}:PAYER_REPAYMENT_DELTA`);
+    requireTrue(funderSettlementCredit === REPAYMENT_AMOUNT, `${observation.provider}:FUNDER_REPAYMENT_DELTA`);
+    const observedProtocolFee = payerSettlementDebit - funderSettlementCredit;
+    requireTrue(observedProtocolFee === 0n, `${observation.provider}:PROTOCOL_FEE_DELTA`);
+    const settlementTransferLogs = observation.transactions[4].receipt.logs.filter((log) => lower(log.address) === lower(USDG) && lower(log.topics[0]) === TRANSFER_EVENT_TOPIC);
+    requireTrue(settlementTransferLogs.length === 1, `${observation.provider}:SETTLEMENT_TRANSFER_COUNT`);
+    const settlementTransfer = settlementTransferLogs[0];
+    requireTrue(getAddress(`0x${settlementTransfer.topics[1].slice(-40)}`) === PAYER && getAddress(`0x${settlementTransfer.topics[2].slice(-40)}`) === FUNDER, `${observation.provider}:SETTLEMENT_TRANSFER_PARTIES`);
+    requireTrue(quantity(settlementTransfer.data) === REPAYMENT_AMOUNT, `${observation.provider}:SETTLEMENT_TRANSFER_AMOUNT`);
     requireTrue(balances.funderAllowanceAfter === 0n && balances.payerAllowanceAfter === 0n, `${observation.provider}:RESIDUAL_ALLOWANCE`);
+    observedProtocolFees.push(observedProtocolFee);
+    settlementTransferCounts.push(BigInt(settlementTransferLogs.length));
     providerResults.push({ provider: observation.provider, head: quantity(observation.head.number).toString(), headHash: observation.head.hash, confirmations: (quantity(observation.head.number) - TRANSACTIONS.at(-1).block + 1n).toString() });
   }
   const comparable = observations.providers.map(({ provider: _provider, endpointCommitment: _endpoint, head: _head, ...rest }) => rest);
   requireTrue(JSON.stringify(comparable[0]) === JSON.stringify(comparable[1]), "PROVIDER_LIFECYCLE_DISAGREEMENT");
   return {
-    schemaVersion: "openbell-xlayer-mainnet-lifecycle-verification-v1",
+    schemaVersion: "openbell-xlayer-mainnet-lifecycle-verification-v2",
     observationsSha256: sha256(`${JSON.stringify(observations, null, 2)}\n`),
     chainId: CHAIN_ID.toString(), contract: CONTRACT, settlementToken: USDG,
     invoiceId: INVOICE_ID, invoiceDigest: INVOICE_DIGEST, decisionDigest: DECISION_DIGEST,
     rejectedArtifactHash: REJECTED_ARTIFACT_HASH,
     faceValue: FACE_VALUE.toString(), advanceAmount: ADVANCE_AMOUNT.toString(), repaymentAmount: REPAYMENT_AMOUNT.toString(),
+    funderGrossPremiumBaseUnits: (REPAYMENT_AMOUNT - ADVANCE_AMOUNT).toString(),
+    funderGrossPremiumBps: ((REPAYMENT_AMOUNT - ADVANCE_AMOUNT) * 10_000n / ADVANCE_AMOUNT).toString(),
+    observedProtocolFeeBaseUnits: observedProtocolFees[0].toString(), settlementTransferCount: settlementTransferCounts[0].toString(),
     finalStatus: "SETTLED", providerResults,
     minimumObservedConfirmations: providerResults.reduce((minimum, item) => BigInt(item.confirmations) < minimum ? BigInt(item.confirmations) : minimum, BigInt(providerResults[0].confirmations)).toString(),
     transactionHashes: TRANSACTIONS.map(({ action, hash }) => ({ action, hash })),

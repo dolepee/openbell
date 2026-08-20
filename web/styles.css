@@ -1580,6 +1580,8 @@ code { font-family: var(--mono); }
 .onboarding-how h3 { margin: 0; font-size: 24px; letter-spacing: -.025em; }
 .onboarding-how li p { max-width: 720px; margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .onboarding-how li > b { color: var(--green); font: 750 10px var(--mono); letter-spacing: .08em; }
+.judge-trust-boundary { max-width: 900px; margin: 34px 0 0 78px; padding: 18px 20px; border: 1px solid var(--line-dark); color: var(--muted); font-size: 12px; line-height: 1.65; }
+.judge-trust-boundary strong { color: var(--ink); font: 750 10px var(--mono); letter-spacing: .04em; text-transform: uppercase; }
 
 .onboarding-proof { display: grid; grid-template-columns: minmax(0, .9fr) minmax(440px, 1.1fr); gap: 8vw; align-items: center; padding: 112px max(32px, calc((100vw - 1320px) / 2)); color: #f3f6f1; background: var(--ink); }
 .proof-copy .judge-kicker { color: var(--acid); }
@@ -1644,6 +1646,7 @@ code { font-family: var(--mono); }
   .onboarding-how > ol { margin-top: 44px; }
   .onboarding-how li { grid-template-columns: 42px minmax(0, 1fr); gap: 16px; }
   .onboarding-how li > b { grid-column: 2; }
+  .judge-trust-boundary { margin-left: 0; }
   .onboarding-proof, .onboarding-choice { padding: 82px 16px; }
   .onboarding-proof { gap: 48px; }
   .proof-story { box-shadow: 7px 7px 0 #080d09; }

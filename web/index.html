@@ -19,8 +19,29 @@
     <meta name="twitter:title" content="OpenBell — AI-RWA invoice funding on X Layer" />
     <meta name="twitter:description" content="AI-RWA receivables for small suppliers, with bounded AI decisions and exact USDG settlement on X Layer mainnet." />
     <meta name="twitter:image" content="https://openbell.dolepee.com/public/openbell-og-mainnet-reject-v1.png" />
+    <link rel="alternate" type="application/json" href="https://openbell.dolepee.com/data/openbell-project-manifest.json" title="OpenBell project evidence manifest" />
     <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "OpenBell",
+        "url": "https://openbell.dolepee.com/",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "description": "AI-RWA receivables for small suppliers, with receipt-bound AI assessment and exact canonical-USDG settlement on X Layer mainnet.",
+        "sameAs": "https://github.com/dolepee/openbell",
+        "softwareHelp": "https://openbell.dolepee.com/proof/#mainnet",
+        "featureList": [
+          "Payer and supplier EIP-712 invoice signatures",
+          "One sealed AI assessment with no retry",
+          "Bounded underwriter authority",
+          "Exact canonical-USDG funding and settlement",
+          "Public deterministic evidence verification"
+        ]
+      }
+    </script>
   </head>
   <body data-page="overview" class="judge-home onboarding-home">
     <a class="skip-link" href="#main">Skip to the product</a>
@@ -80,14 +101,15 @@
       <section class="onboarding-how" id="how-it-works" aria-labelledby="workflow-title">
         <header>
           <p class="judge-kicker">THE WHOLE PRODUCT</p>
-          <h2 id="workflow-title">Three decisions. One clear authority chain.</h2>
+          <h2 id="workflow-title">AI assesses. The underwriter authorizes. X Layer enforces.</h2>
           <p>A supplier does not need to understand hashes, model plumbing, or contract calls to understand who controls the money. The receipt-bound pilot shows how a settlement can inform a later assessment through a verified, published checkpoint.</p>
         </header>
         <ol>
           <li><span>01</span><div><h3>Parties set the terms.</h3><p>Supplier and payer sign the same invoice package and document commitment.</p></div><b>REQUEST</b></li>
-          <li><span>02</span><div><h3>OpenBell narrows the request.</h3><p>The configured underwriter may approve less or refuse. It cannot transfer funds.</p></div><b>DECISION</b></li>
+          <li><span>02</span><div><h3>AI assesses; the underwriter authorizes.</h3><p>The connected service seals one Bankr-mediated GPT-5.6 Terra response. The configured underwriter may sign bounded terms or preserve a refusal; neither can transfer funds.</p></div><b>DECISION</b></li>
           <li><span>03</span><div><h3>X Layer enforces the hard cap.</h3><p>A funder can execute only an underwriter-signed advance that stays within the contract's immutable 80% ceiling.</p></div><b>CAP</b></li>
         </ol>
+        <p class="judge-trust-boundary"><strong>Exact trust boundary:</strong> the contract verifies the authorized signer, invoice-bound hashes, terms, freshness, expiry, and immutable ceilings. It does not independently attest remote model execution.</p>
       </section>
 
       <section class="onboarding-proof" id="mainnet-proof" aria-labelledby="proof-title">
@@ -95,8 +117,8 @@
           <p class="judge-kicker">COMPLETED MAINNET PILOT</p>
           <h2 id="proof-title">The AI said no. The refusal stayed visible.</h2>
           <p>The first model response emitted no executable approval and was not retried. The disclosed human exception carried that rejection's hash inside its signed authority and could authorize only 0.025 USDG. The published lifecycle verifier recomputes the exact digest recorded onchain; five X Layer receipts show the funding and repayment.</p>
-          <div class="proof-split"><p><b>0x97b5…67d88 · SETTLED PILOT</b><span>Refusal, disclosed human exception, 0.025 funded, 0.02525 settled.</span></p><p><b>0x6d17…4db66 · RECEIPT-BOUND AI</b><span>Two official RPC endpoints agreed on payer history before a separate genuine rejection. It was not escalated, funded, or settled.</span></p></div>
-          <div class="proof-actions"><a class="judge-button proof-primary" href="/proof/#mainnet">Inspect the five receipts <span aria-hidden="true">↗</span></a><a href="/data/openbell-receipt-bound-rejection.json">Open the separate receipt-bound refusal ↗</a></div>
+          <div class="proof-split"><p><b>0x97b5…67d88 · SETTLED PILOT</b><span>Refusal, disclosed human exception, 0.025 funded, 0.02525 settled.</span></p><p><b>REALIZED FUNDER ECONOMICS</b><span>0.00025 USDG gross premium: 1% of the advance for this invoice, not APR. OpenBell protocol fee: 0.</span></p><p><b>0x6d17…4db66 · RECEIPT-BOUND AI</b><span>Two official RPC endpoints agreed on payer history before a separate genuine rejection. It was not escalated, funded, or settled.</span></p></div>
+          <div class="proof-actions"><a class="judge-button proof-primary" href="/proof/#mainnet">Inspect the five receipts <span aria-hidden="true">↗</span></a><a href="/data/openbell-project-manifest.json">Open the machine-readable evidence ↗</a><a href="/data/openbell-receipt-bound-rejection.json">Open the separate receipt-bound refusal ↗</a></div>
         </div>
         <div class="proof-story" aria-label="Mainnet pilot outcome">
           <div><span>REQUESTED</span><strong>0.05</strong><small>USDG</small></div>

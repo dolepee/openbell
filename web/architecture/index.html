@@ -20,8 +20,8 @@
         <header><p class="overline">END-TO-END CONTROL FLOW</p><h2 id="system-title">One receivable, five enforceable boundaries.</h2></header>
         <ol>
           <li><span>01</span><div><h3>Invoice authority</h3><p>Supplier and payer sign the same EIP-712 invoice hash. The document remains offchain while its identity and terms become tamper-evident.</p></div><b>2 SIGNERS</b></li>
-          <li><span>02</span><div><h3>Model evidence</h3><p>A strictly parsed model response returns REJECT or bounded advance and fee terms. The first genuine response is authoritative and cannot move funds.</p></div><b>VISIBLE RESULT</b></li>
-          <li id="limits"><span>03</span><div><h3>Underwriter authority</h3><p>Executable terms require the configured signer. A disclosed human exception remains bound to the model refusal and may only narrow the original request under OpenBell's exception policy.</p></div><b>SIGNED TERMS</b></li>
+          <li><span>02</span><div><h3>Model evidence</h3><p>The connected application obtains and seals one Bankr-mediated GPT-5.6 Terra response. It returns REJECT or bounded advance and fee terms; the response itself cannot move funds.</p></div><b>VISIBLE RESULT</b></li>
+          <li id="limits"><span>03</span><div><h3>Underwriter authority</h3><p>Executable terms require the configured signer's EIP-712 authority. The contract verifies the signer, hashes, terms, freshness, expiry, and ceilings; it does not attest remote model execution. A disclosed human exception remains bound to the model refusal and may only narrow the original request under OpenBell's exception policy.</p></div><b>SIGNED TERMS</b></li>
           <li><span>04</span><div><h3>Contract and funder authority</h3><p>A funder chooses whether to transfer the exact signed advance. X Layer rejects excess, stale, duplicate, or wrong-party execution. There is no pooled liquidity or automatic custody.</p></div><b>EXACT + CAPPED</b></li>
           <li><span>05</span><div><h3>Settlement authority</h3><p>The payer settles the exact amount due directly to the funder. Terminal state prevents duplicate execution.</p></div><b>FINAL STATE</b></li>
         </ol>
@@ -49,7 +49,7 @@
 
       <section class="boundary-table" aria-labelledby="boundary-title">
         <header><p class="overline">WHAT OPENBELL IS — AND ISN'T</p><h2 id="boundary-title">No invented complexity.</h2></header>
-        <div><span>Liquidity</span><b>Request-funded by one funder</b><del>No pool</del></div><div><span>Risk</span><b>Genuine AI + immutable caps</b><del>No autonomous custody</del></div><div><span>Settlement</span><b>Payer directly repays funder</b><del>No auction</del></div><div><span>Token</span><b>External settlement asset</b><del>No protocol token</del></div>
+        <div><span>Liquidity</span><b>Request-funded by one funder</b><del>No pool</del></div><div><span>Risk</span><b>One sealed AI response + signed authority</b><del>No onchain model attestation</del></div><div><span>Economics</span><b>1% gross funder premium in the settled pilot</b><del>No protocol fee</del></div><div><span>Settlement</span><b>Payer directly repays funder</b><del>No auction</del></div><div><span>Token</span><b>External settlement asset</b><del>No protocol token</del></div>
       </section>
     </main>
     <footer class="site-footer"><div class="footer-brand"><img src="/public/openbell-mark.svg" width="30" height="30" alt="" /><strong>OpenBell</strong></div><p>Signed invoices. Exact USDG funding.</p><nav aria-label="Footer navigation"><a href="/studio/#try">Get funded</a><a href="/fund/">Fund</a><a href="/proof/#mainnet">Evidence</a><a href="/mainnet/">Live desk</a><a href="https://github.com/dolepee/openbell">GitHub ↗</a></nav></footer>
