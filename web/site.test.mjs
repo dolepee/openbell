@@ -80,8 +80,10 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
     assert.match(page, /<div class="nav-right">/);
     assert.match(page, /<nav class="desktop-nav" aria-label="Primary navigation">/);
   }
-  assert.match(overview, /<title>OpenBell — Bounded invoice funding on X Layer<\/title>/);
-  assert.match(overview, /<h1 id="hero-title">Know what an invoice can raise before anyone signs\.<\/h1>/);
+  assert.match(overview, /<title>OpenBell — AI-RWA invoice funding on X Layer<\/title>/);
+  assert.match(overview, /AI-RWA RECEIVABLES FOR SMALL SUPPLIERS/);
+  assert.match(overview, /<h1 id="hero-title">Bounded working capital before buyers pay\.<\/h1>/);
+  assert.match(overview, /a settlement can inform a later assessment through a verified, published checkpoint\./);
   assert.match(overview, /Try the 30-second sample/);
   assert.match(overview, /No wallet · no document upload · no transaction/);
   assert.match(overview, /YOUR FIRST 30 SECONDS/);
