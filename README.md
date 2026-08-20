@@ -110,10 +110,10 @@ Remove X Layer and OpenBell loses both its receipt-derived risk history and its 
 
 OpenBell starts with small suppliers that wait for buyer payment after an invoice is signed. A settled
 invoice can enter a later assessment only through a regenerated, verified, and published payer-history
-checkpoint; this is not automatic today. The same verified contract can already process repeated
-invoice IDs and direct funder-to-supplier advances. The immediate next step is repeated supplier and
-funder pilots, followed by validation of acquisition, legal assignment, KYC/AML, pricing, collections,
-and default performance.
+checkpoint; this is not automatic today. The same verified contract can already process successive
+receivables under distinct invoice IDs and direct funder-to-supplier advances. The immediate next step
+is repeated supplier and funder pilots, followed by validation of acquisition, legal assignment,
+KYC/AML, pricing, collections, and default performance.
 
 The adjacent receivables-finance category is established: [FCI reported EUR 4.039 trillion of global
 factoring turnover in 2025](https://fci.nl/en/news/fci-releases-2025-world-industry-statistics-global-factoring-market-surpasses-eu4-trillion),
