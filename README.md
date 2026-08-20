@@ -29,6 +29,9 @@ carried the rejected artifact's hash as `modelHash`, and the published lifecycle
 the exact decision digest recorded in the onchain invoice state. The exception could authorize only
 the stricter of 25% of face value or 50% of the original request.
 
+[Inspect the settled-pilot rejection preimage](evidence/openbell-settled-pilot-rejection.json) ·
+[Verify the settled lifecycle](evidence/openbell-xlayer-mainnet-lifecycle-verification.json)
+
 ### Five X Layer receipts
 
 | # | Action | Mainnet transaction |
@@ -82,7 +85,7 @@ That limited, concentrated history produced the genuine result:
 REJECT · LIMITED HISTORY · HIGH CONCENTRATION · NO RETRY
 ```
 
-[Inspect the sanitized decision](evidence/openbell-receipt-bound-rejection.json) ·
+[Inspect the separate receipt-bound decision](evidence/openbell-receipt-bound-rejection.json) ·
 [Inspect the checkpoint](evidence/openbell-receipt-bound-history-baseline.json)
 
 ## Why X Layer is load-bearing
@@ -177,6 +180,7 @@ Open `http://127.0.0.1:4187`.
 - [Reproducible deployment verification](evidence/openbell-xlayer-mainnet-verification-record.json)
 - [Mainnet lifecycle observations](evidence/openbell-xlayer-mainnet-lifecycle-observations.json)
 - [Deterministic lifecycle verification](evidence/openbell-xlayer-mainnet-lifecycle-verification.json)
+- [Settled-pilot complete rejection preimage](evidence/openbell-settled-pilot-rejection.json)
 - [Receipt-bound history observations](evidence/openbell-receipt-bound-history-observations.json)
 - [Receipt-bound genuine rejection](evidence/openbell-receipt-bound-rejection.json)
 - [Independent one-wallet funder observations](evidence/openbell-independent-cold-funder-observations.json)

@@ -162,6 +162,9 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(proof, /Independent smart-contract audit/);
   assert.match(proof, /RECEIPT-BOUND MAINNET INVOICE/);
   assert.match(proof, /Receipt-bound rejection evidence/);
+  assert.match(proof, /Settled-pilot rejection preimage/);
+  assert.match(proof, /settled pilot publishes its sanitized raw provider-response envelope and full commitment preimage/);
+  assert.match(proof, /provider provenance is not independently authenticated/);
   assert.match(proof, /RECORDED AI/);
   assert.match(proof, /NO LIVE MODEL/);
   assert.match(overview, /rejection's hash inside its signed authority/);
@@ -174,6 +177,7 @@ test("multi-page launch surface separates product, deal preparation, funding, ve
   assert.match(architecture, /GENUINE AI RESULT[\s\S]*REJECT/);
   assert.match(architecture, /DISCLOSED HUMAN LIMIT[\s\S]*25%/);
   assert.match(architecture, /0\.025 USDG funded; 0\.02525 USDG settled/);
+  assert.match(architecture, /href="\/data\/openbell-settled-pilot-rejection\.json"/);
   assert.doesNotMatch(architecture, /GENUINE AI CEILING|--limit:85%/);
   assert.match(readme, /select \*\*Prepare the no-wallet credit memo\*\*/);
   assert.match(readme, /carried the rejected artifact's hash as `modelHash`[\s\S]*published lifecycle verifier recomputes/);
